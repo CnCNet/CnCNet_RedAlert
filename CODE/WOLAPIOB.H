@@ -52,7 +52,7 @@ class ToolTipClass;
 
 #define CHAT_USER_SQUELCHED		0x0004		//	Will theoretically be added to the api and implemented.
 
-#define LOBBYPASSWORD "not_a_valid_password" // Password removed per Security review - LFeenanEA, 26th February 2025
+#define LOBBYPASSWORD "zotclot9"
 
 #define USERCANCELLED	1
 #define PATCHDOWNLOADED	2
