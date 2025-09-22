@@ -19,23 +19,19 @@
 #ifdef WOLAPI_INTEGRATION
 
 /***************************************************************************
- * WOLEditClass -- Derived from EditClass, includes changes I wanted for
+ * PassEditClass -- Derived from WOLEditClass, includes changes I wanted for
  *                 wolapi integration stuff.
  *					Note: An editbox of this class cannot be made read-only. See comment below.
  * HISTORY:    07/17/1998 ajw : Created.
  *=========================================================================*/
 
-#include "WOLEdit.h"
-
-//#include "WolDebug.h"
-
-bool bTabKeyPressedHack = false;
+#include "PassEdit.h"
 
 //***********************************************************************************************
-void WOLEditClass::Draw_Text( char const * text )
+void PassEditClass::Draw_Text( char const * text )
 {
 	//	Only difference between this and EditClass: cursor shows up when
-	//	string is at MaxLength.
+	//	string is at MaxLength, and characters are replaced with '*'.
 
 	TextPrintType flags;
 
@@ -44,124 +40,131 @@ void WOLEditClass::Draw_Text( char const * text )
 	} else {
 		flags = (TextPrintType)0;
 	}
+    
+	int textlen = strlen(text);
+	char *passbuf = new char[textlen + 1];
+	memset(passbuf, '*', textlen);
+	passbuf[textlen] = '\0';
 
 	Conquer_Clip_Text_Print(text, X+1, Y+1, Color, TBLACK, TextFlags | flags, Width-2);
 
-	if (Has_Focus() &&		//	strlen(text) < MaxLength &&
-		(String_Pixel_Width(text) + String_Pixel_Width ("_") < Width-2) ) {
-		Conquer_Clip_Text_Print( "_", X+1+String_Pixel_Width(text), Y+1, Color, TBLACK, TextFlags | flags);
+	if (Has_Focus() &&		//	strlen(passbuf) < MaxLength &&
+		(String_Pixel_Width(passbuf) + String_Pixel_Width ("_") < Width-2) ) {
+		Conquer_Clip_Text_Print( "_", X+1+String_Pixel_Width(passbuf), Y+1, Color, TBLACK, TextFlags | flags);
 	}
+    
+	delete [] passbuf;
+}
+
+void PassEditClass::Set_Focus(void)
+{
+	if (bClearOnNextSetFocus) {
+		String[0] = '\0';
+		bClearOnNextSetFocus = false;
+	}
+
+	EditClass::Set_Focus();
 }
 
 //***********************************************************************************************
-//	Override of EditClass::Action, because the base class does not behave correctly in certain circumstances.
-//	(Escape key is being processed as enter key.)
+//	Override of EditClass::Handle_Key, to handle the masking of characters when the user types.
 //	Again, I'm not about to change the base class directly, as I'm trying to have as minimal an affect as possible on
 //	the current game code. -ajw
-int WOLEditClass::Action(unsigned flags, KeyNumType & key)
+bool PassEditClass::Handle_Key(KeyASCIIType ascii)
 {
-	//	(Mostly duplicated from base class ::Action)
-/*	For some painful reason, IsReadOnly is private in the base class, so I can't do the following.
-	For this reason, don't make a WOLEditClass edit box read-only.
+	int passlen;
+	char *passbuf;
 
-	//
-	// If this is a read-only edit box, it's a display-only device
-	//
-	if (IsReadOnly) {
-		return(false);
-	}
-*/
+	switch (ascii) {
+		/*
+		**	Handle the special case of a non-keyboard event. It is possible that this
+		**	key code might be passed to this routine if this routine has been overridden
+		**	and the key event was consumed.
+		*/
+		case 0:
+			break;
 
-	//debugprint( "WOLEditClass::Action this=%i, flags=0x%x, key=0x%x\n", this, flags, key );
-	//
-	//	If the left mouse button is pressed over this gadget, then set the focus to
-	//	this gadget. The event flag is cleared so that no button ID number is returned.
-	//
-	if ((flags & LEFTPRESS)) {
-		flags &= ~LEFTPRESS;
-		Set_Focus();
-		Flag_To_Redraw();		// force to draw cursor
-	}
-
-	//
-	//	Handle keyboard events here. Normally, the key is added to the string, but if the
-	//	RETURN key is pressed, then the button ID number is returned from the Input()
-	//	function.
-	//
-	if ((flags & KEYBOARD) && Has_Focus()) {
-
-		//
-		//	Process the keyboard character. If indicated, consume this keyboard event
-		//	so that the edit gadget ID number is not returned.
-		//
-		if (key == KN_ESC) {
-
+		/*
+		**	If the return key is pressed, then remove the focus from this edit
+		**	gadget but otherwise let the normal gadget processing proceed. This
+		**	causes the gadget ID number to be returned from the Input() function
+		**	so that the controlling program will know that the text can be
+		**	processed.
+		*/
+		case KA_RETURN:
 			Clear_Focus();
-			flags = 0;
+			return(false);
 
-		} else {
-#ifdef WIN32
-
-			KeyASCIIType ascii = (KeyASCIIType)(Keyboard->To_ASCII(key) & 0xff);
-
-			//
-			// Allow numeric keypad presses to map to ascii numbers
-			//
-			if ((key & WWKEY_VK_BIT) && ascii >='0' && ascii <= '9') {
-
-				key = (KeyNumType)(key & ~WWKEY_VK_BIT);
-				if ( (!(flags & LEFTRELEASE)) && (!(flags & RIGHTRELEASE))) {
-					if (Handle_Key (ascii) ) {
-						flags &= ~KEYBOARD;
-						key = KN_NONE;
-					}
-				}
-			} else {
-				//
-				// Filter out all special keys except return and backspace
-				//  	
-				if ((!(key & WWKEY_VK_BIT) && ascii >= ' ' && ascii <= 255)
-					|| key == KN_RETURN || key == KN_BACKSPACE) {
-
-
-
-					if ((!(flags & LEFTRELEASE)) && (!(flags & RIGHTRELEASE))) {
-						if (Handle_Key(Keyboard->To_ASCII(key))) {
-							flags &= ~KEYBOARD;
-							key = KN_NONE;
-						}
-					}
-				} else {
-					if( key == KN_TAB )
-					{
-						bTabKeyPressedHack = true;
-					}
-					flags &= ~KEYBOARD;
-					key = KN_NONE;
-				}
+		/*
+		**	When the BACKSPACE key is pressed, remove the last character in the edit string.
+		*/
+		case KA_BACKSPACE:
+			if (Length) {
+				Length--;
+				String[Length] = '\0';
+				Flag_To_Redraw();
 			}
-		}
+			break;
 
-#else	//WIN32
-			if (Handle_Key(Keyboard->To_ASCII(key))) {
-				flags &= ~KEYBOARD;
-				key = KN_NONE;
+		/*
+		**	If the keyboard event was not a recognized special key, then examine to see
+		**	if it can legally be added to the edit string and do so if possible.
+		*/
+		default:
+			passlen = strlen(String);
+			passbuf = new char[passlen + 1];
+			memset(passbuf, '*', passlen);
+			passbuf[passlen] = '\0';
+
+			/*
+			**	Don't add a character if the length is greater than edit width.
+			*/
+			if ((String_Pixel_Width(passbuf) + Char_Pixel_Width(ascii) ) >= (Width-2)) {
+				delete [] passbuf;
+				break;
 			}
-		}
-#endif	//WIN32
-	}
-	else
-	{
-		//	ajw added
-//		if( key == ( KN_ESC | WWKEY_RLS_BIT ) && ( key & WWKEY_ALT_BIT ) )
-//		{
-			//Clear_Focus();
-			flags = 0;
-			key = KN_NONE;
-//		}
-	}
 
-	return(ControlClass::Action(flags, key));
+			delete [] passbuf;
+
+			/*
+			**	Don't add a character if the length is already at maximum.
+			*/
+			if (Length >= MaxLength) break;
+
+			/*
+			**	Invisible characters are never added to the string. This is
+			**	especially true for spaces at the beginning of the string.
+			*/
+			if (!isgraph(ascii) && ascii != ' ') break;
+			if (ascii == ' ' && Length == 0) break;
+
+			/*
+			**	If this is an upper case only edit gadget, then force the alphabetic
+			**	character to upper case.
+			*/
+			if ((EditFlags & UPPERCASE) && isalpha(ascii)) {
+				ascii = (KeyASCIIType)toupper(ascii);
+			}
+
+			if ((!(EditFlags & NUMERIC) || !isdigit(ascii)) &&
+				(!(EditFlags & ALPHA) || !isalpha(ascii)) &&
+				(!(EditFlags & MISC) || isalnum(ascii)) &&
+				ascii != ' ') {
+					break;
+			}
+
+			/*
+			**	The character passed all legality checks, so add it to the edit string
+			**	and flag this gadget to be redrawn. The manual flag to redraw is needed
+			**	because the event flag has been cleared. This prevents the gadget's ID
+			**	number from being returned just because the gadget has been edited.
+			*/
+			String[Length++] = ascii;
+			String[Length] = '\0';
+			Flag_To_Redraw();
+			break;
+	}
+	return(true);
 }
 
 #endif

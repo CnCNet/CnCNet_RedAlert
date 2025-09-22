@@ -19,25 +19,29 @@
 #ifdef WOLAPI_INTEGRATION
 
 /***************************************************************************
- * WOLEditClass -- Derived from EditClass, includes changes I wanted for
+ * PassEditClass -- Derived from WOLEditClass, includes changes I wanted for
  *                 wolapi integration stuff.
  *
  * HISTORY:    07/17/1998 ajw : Created.
  *=========================================================================*/
 
-#include "Function.h"
+#include "WOLEdit.h"
 
-class WOLEditClass : public EditClass
+class PassEditClass : public WOLEditClass
 {
 public:
-	WOLEditClass(int id, char * text, int max_len, TextPrintType flags, int x, int y, int w, int h, EditStyle style) :
-		EditClass( id, text, max_len, flags, x, y, w, h, style )	{}
+	PassEditClass (int id, char * text, int max_len, TextPrintType flags, int x, int y, int w=-1, int h=-1, EditStyle style=ALPHANUMERIC) :
+		WOLEditClass(id, text, max_len, flags, x, y, w, h, style),
+		bClearOnNextSetFocus(false) {}
 		
-	virtual int Action (unsigned flags, KeyNumType &key);		//	Override of base
+	virtual void Set_Focus (void);								//	Override of base
 
 protected:
 	virtual void Draw_Text( char const * text );				//	Override of base
-
+	virtual bool Handle_Key (KeyASCIIType ascii);				//	Override of base
+	
+public:
+	bool bClearOnNextSetFocus;
 };
 
 #endif
