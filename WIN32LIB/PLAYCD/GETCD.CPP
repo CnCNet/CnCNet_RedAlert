@@ -78,22 +78,10 @@ GetCDClass::GetCDClass(VOID)
 	memset (CDDrives, NO_CD_DRIVE, MAX_CD_DRIVES);
 
 
-	for (char i='c' ; i<='z' ; i++){
+	for (char i='a' ; i<='z' ; i++){
 		path[0]=i;
 		if (GetDriveType (path) == DRIVE_CDROM){
 			CDDrives[CDCount++] = (int) (i-'a');
-		}
-	}
-
-	/*
-	**	Catch the case when there are NO CD-ROM drives available
-	*/
-	if (CDCount == 0) {
-		for (char i='a' ; i<='b' ; i++){
-			path[0]=i;
-			if (GetDriveType (path) == DRIVE_CDROM){
-				CDDrives[CDCount++] = (int) (i-'a');
-			}
 		}
 	}
 }
