@@ -44,6 +44,9 @@
 //#define GERMAN 1
 //#define SPAIN 1	(never used)
 //	- Language define is now passed in from the makefile. -
+#if !defined(ENGLISH) && !defined(FRENCH) && !defined(GERMAN) && !defined(SPAIN)
+#error "Language version not specified!"
+#endif
 
 /**********************************************************************
 **	Controls the nature of the game and its abilities. Only define
@@ -55,7 +58,11 @@
 */
 //#define	INTERNAL_VERSION
 //#define	PLAYTEST_VERSION
-#define	RELEASE_VERSION
+//#define	RELEASE_VERSION
+//	- Version define is now passed in from the makefile. -
+#if !defined(RELEASE_VERSION) && !defined(PLAYTEST_VERSION) && !defined(INTERNAL_VERSION)
+#error "Build version not specified!"
+#endif
 
 /**********************************************************************
 ** ColinM
