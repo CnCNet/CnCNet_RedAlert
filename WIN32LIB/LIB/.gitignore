@@ -1,0 +1,10 @@
+
+# Hide everything other what we explictly list below
+*
+
+# Dont hide ourselves!
+!.gitignore
+
+# The following files must exist here as they dont exist elsewhere
+!DSOUND.LIB
+!DDRAW.LIB
