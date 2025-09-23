@@ -1,0 +1,6 @@
+
+# Hide everything other what we explictly list below
+*
+
+# Dont hide ourselves!
+!.gitignore
