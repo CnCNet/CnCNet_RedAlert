@@ -1255,7 +1255,7 @@ long VQA_OpenAudio(VQAHandleP *vqap, HWND window)
 			/*
 			**	Give ourselves exclusive access to the sound card
 			*/
-			if ( config->SoundObject->SetCooperativeLevel( window, DSSCL_EXCLUSIVE ) != DS_OK){
+			if ( config->SoundObject->SetCooperativeLevel( window, DSSCL_PRIORITY ) != DS_OK){
 				config->SoundObject->Release();
 				return (-1);
 			}
@@ -1418,6 +1418,10 @@ long VQA_StartAudio(VQAHandleP *vqap)
 	VQAConfig *config;
 	VQAAudio  *audio;
 
+	short old_bits_per_sample;
+	short old_block_align;
+	long	old_bytes_per_sec;
+
 	/* Save buffers for the callback routine */
 	VQAP = vqap;
 
@@ -1468,7 +1472,24 @@ long VQA_StartAudio(VQAHandleP *vqap)
 	** Set the format of the primary buffer to the same as the secondary buffer
 	*/
 	config->PrimaryBufferPtr->Stop();
-	config->PrimaryBufferPtr->SetFormat (&audio->DsBuffFormat);
+
+	if (config->PrimaryBufferPtr->SetFormat (&audio->DsBuffFormat)) {
+		if (audio->BitsPerSample == 16) {
+			old_bits_per_sample	= audio->DsBuffFormat.wBitsPerSample;
+			old_block_align		= audio->DsBuffFormat.nBlockAlign;
+			old_bytes_per_sec	= audio->DsBuffFormat.nAvgBytesPerSec;	
+			
+			audio->DsBuffFormat.wBitsPerSample	= 8;
+			audio->DsBuffFormat.nBlockAlign		= (short) ((audio->DsBuffFormat.wBitsPerSample/8) * audio->DsBuffFormat.nChannels);
+			audio->DsBuffFormat.nAvgBytesPerSec	= audio->DsBuffFormat.nSamplesPerSec * audio->DsBuffFormat.nBlockAlign;
+			
+			config->PrimaryBufferPtr->SetFormat (&audio->DsBuffFormat);
+			
+			audio->DsBuffFormat.wBitsPerSample	= old_bits_per_sample;
+			audio->DsBuffFormat.nBlockAlign		= old_block_align;
+			audio->DsBuffFormat.nAvgBytesPerSec	= old_bytes_per_sec;
+		}
+	}
 
 	if (config->PrimaryBufferPtr->Play(0, 0, DSBPLAY_LOOPING) != DS_OK){
 		return (-1);
@@ -1491,6 +1512,7 @@ long VQA_StartAudio(VQAHandleP *vqap)
 	audio->SecondaryBufferPtr->SetVolume(- ( ( (32768 - volume)*1000) >>15 ) );
 
 	// Set orf 60hz timer
+	timeBeginPeriod(1000/60);
 	audio->TimerHandle = timeSetEvent ( 1000/60 , 1 , AudioCallback , 0 , TIME_PERIODIC);
 
 	audio->Flags |= VQAAUDF_ISPLAYING;
@@ -1542,6 +1564,7 @@ void VQA_StopAudio(VQAHandleP *vqap)
 		** Remove the windows timer event
 		*/
 		timeKillEvent(audio->TimerHandle);
+        timeEndPeriod(1000/60);
 		audio->TimerHandle = NULL;
 
 		/*
@@ -2102,6 +2125,19 @@ void VQA_SetTimer(VQAHandleP *vqap, long time, long method)
 unsigned long VQA_GetTime(VQAHandleP *vqap)
 {
 	#if(VQAAUDIO_ON)
+    static unsigned long last_chunksmovedtoaudiobuffer;
+    static unsigned long last_totalbytes;
+    static unsigned long last_ticks;
+    static unsigned long last_playcursor;
+    static unsigned long last_hmibufsize;
+    static unsigned long last_lastchunkposition;
+    static unsigned long this_chunksmovedtoaudiobuffer;
+    static unsigned long this_totalbytes;
+    static unsigned long this_ticks;
+    static unsigned long this_playcursor;
+    static unsigned long this_hmibufsize;
+    static unsigned long this_lastchunkposition;
+
 	VQAAudio      *audio;
 	VQAConfig     *config;
 	unsigned long fillcount;
@@ -2130,26 +2166,39 @@ unsigned long VQA_GetTime(VQAHandleP *vqap)
 			config = &vqap->Config;
 			//vqabuf = ((VQAHandleP *)vqa)->VQABuf;
 
+			this_chunksmovedtoaudiobuffer = audio->ChunksMovedToAudioBuffer;
+			this_hmibufsize = config->HMIBufSize;
+
 			#if (VQADIRECT_SOUND)
 
 				totalbytes = (audio->ChunksMovedToAudioBuffer) * config->HMIBufSize;
 
-			if (audio->SecondaryBufferPtr &&
-				audio->SecondaryBufferPtr->GetCurrentPosition (&play_cursor , &write_cursor) == DS_OK){
-				totalbytes = (audio->ChunksMovedToAudioBuffer) * config->HMIBufSize;
+			if (audio->SecondaryBufferPtr) {
+				if (audio->SecondaryBufferPtr->GetCurrentPosition (&play_cursor , &write_cursor) == DS_OK){
+					totalbytes = (audio->ChunksMovedToAudioBuffer) * config->HMIBufSize;
 
-				if (audio->LastChunkPosition){
-					totalbytes += play_cursor - audio->LastChunkPosition;
-				}else {
-					if (play_cursor > audio->SecondaryBufferSize*3/4){
-						totalbytes -= audio->SecondaryBufferSize - play_cursor;
-					} else {
+					this_playcursor = play_cursor;
+					this_lastchunkposition = audio->LastChunkPosition;
+
+					if (audio->LastChunkPosition){
 						totalbytes += play_cursor - audio->LastChunkPosition;
+					}else {
+						if (play_cursor > audio->SecondaryBufferSize*3/4){
+							totalbytes -= audio->SecondaryBufferSize - play_cursor;
+						} else {
+							totalbytes += play_cursor - audio->LastChunkPosition;
+						}
 					}
+				}else{
+					#if DEBUG
+					Debug_Printf("VQ95 - GetCurrentPosition failed\n");
+					#endif
+					totalbytes = (audio->ChunksMovedToAudioBuffer-1) * config->HMIBufSize;
 				}
-
-
 			}else{
+				#if DEBUG
+				Debug_Printf("VQ95 - VQA_GetTime failed - no secondary sound buffer\n");
+				#endif
 				totalbytes = (audio->ChunksMovedToAudioBuffer-1) * config->HMIBufSize;
 			}
 
@@ -2234,15 +2283,47 @@ unsigned long VQA_GetTime(VQAHandleP *vqap)
 
 #endif
 
-//	ticks = ((ticks * VQA_TIMETICKS) / 1000L);
+	ticks = ((ticks * VQA_TIMETICKS) / 1000L);
 
 	// MEG 09.25.95 - multiply by 3, divide by 50 instead of multiplying by
 	// 60 and dividing by 1000.  The reason for this is that multiplying by
 	// 60 causes an overflow pretty quickly if the value from Get_Game_Time
 	// is high.
-	ticks = ((ticks * 3L) / 50L);
+//	ticks = ((ticks * 3L) / 50L);
 
 	ticks += TickOffset;
+	}
+	#endif
+
+	#if(VQAAUDIO_ON)
+	this_ticks = ticks;
+	
+	if (ticks > 100 && (int)(ticks - last_ticks) > 20) {
+		#if DEBUG
+		Debug_Printf("\nVQ95 - ticks = %d\n", ticks);
+		Debug_Printf("VQ95 - chunks moved to audio buffer = %d\n", this_chunksmovedtoaudiobuffer);
+		Debug_Printf("VQ95 - total bytes = %d\n", this_totalbytes);
+		Debug_Printf("VQ95 - play cursor = %d\n", this_playcursor);
+		Debug_Printf("VQ95 - hmi buffer size = %d\n", this_hmibufsize);
+		Debug_Printf("VQ95 - last chunk position = %d\n", this_lastchunkposition);
+		Debug_Printf("VQ95 - last ticks = %d\n", last_ticks);
+		Debug_Printf("VQ95 - last chunks moved to audio buffer = %d\n", last_chunksmovedtoaudiobuffer);
+		Debug_Printf("VQ95 - last total bytes = %d\n", last_totalbytes);
+		Debug_Printf("VQ95 - last play cursor = %d\n", last_playcursor);
+		Debug_Printf("VQ95 - last hmi buffer size = %d\n", last_hmibufsize);
+		Debug_Printf("VQ95 - last last chunk position = %d\n\n", last_lastchunkposition);
+		#endif
+		if (TimerMethod == VQA_TMETHOD_AUDIO) {
+			last_ticks++;
+			ticks = last_ticks;
+		}
+	} else {
+		last_chunksmovedtoaudiobuffer = this_chunksmovedtoaudiobuffer;
+		last_totalbytes = this_totalbytes;
+		last_ticks = this_ticks;
+		last_playcursor = this_playcursor;
+		last_hmibufsize = this_hmibufsize;
+		last_lastchunkposition = this_lastchunkposition;
 	}
 	#endif
 

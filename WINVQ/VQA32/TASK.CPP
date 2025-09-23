@@ -335,12 +335,6 @@ long VQA_Play(VQAHandle *vqa, long mode)
 
 						/* Stop audio, if it's playing. */
 						VQA_StopAudio((VQAHandleP *)vqa);
-					#ifdef WIN32
-						/*
-						** Restore the process priority level
-						*/
-						SetPriorityClass (GetCurrentProcess() , process_priority);
-					#endif //WIN32
 						return (VQAERR_EOF);
 					}
 				}
@@ -464,7 +458,7 @@ long VQA_Play(VQAHandle *vqa, long mode)
 
 	/* Stop audio, if it's playing. */
 	#if(VQAAUDIO_ON)
-	if (vqabuf->Audio.Flags & VQAAUDF_ISPLAYING) {
+	if ((mode != VQAMODE_WALK) && vqabuf->Audio.Flags & VQAAUDF_ISPLAYING) {
 		VQA_StopAudio((VQAHandleP *)vqa);
 	}
 	#endif

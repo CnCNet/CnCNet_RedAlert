@@ -681,27 +681,8 @@ static long Select_Frame(VQAHandleP *vqap)
 		/* Skip the frame */
 		if (curframe->FrameNum < desiredframe) {
 
-			/* Handle a palette in a skipped frame:
-			 *
-			 * - Stash the palette in Drawer.Palette_24
-			 * - Set the Drawer.Flags VQADRWF_SETPAL bit, to tell the page-flip
-			 *   routines that this palette must be set
-			 */
 			if (curframe->Flags & VQAFRMF_PALETTE) {
-
-				/* Un-LCW if needed */
-				if (curframe->Flags & VQAFRMF_PALCOMP) {
-					curframe->PaletteSize = LCW_Uncompress((char *)curframe->Palette
-							+ curframe->PalOffset, (char *)curframe->Palette,
-							vqabuf->Max_Pal_Size);
-
-					curframe->Flags &= ~VQAFRMF_PALCOMP;
-				}
-
-				/* Stash the palette */
-				memcpy(drawer->Palette_24, curframe->Palette, curframe->PaletteSize);
-				drawer->CurPalSize = curframe->PaletteSize;
-				drawer->Flags |= VQADRWF_SETPAL;
+				break;
 			}
 
 			/* Invoke callback with NULL screen ptr */
@@ -710,6 +691,10 @@ static long Select_Frame(VQAHandleP *vqap)
 					return (VQAERR_EOF);
 				}
 			}
+
+			#if DEBUG
+			Debug_Printf("VQ95 - Skipping frame %d\n", curframe->FrameNum);
+			#endif
 
 			/* Skip the frame */
 			curframe->Flags = 0L;
