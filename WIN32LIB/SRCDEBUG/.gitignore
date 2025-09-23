@@ -1,0 +1,17 @@
+
+#
+# When the WIN32LIB library is built, this directory contains
+# a copy of the source files from each module contained within
+# it. It was used by the Watcom C++ IDE to aid in debugging
+# the library during development.
+#
+# To limit the number of required changes to the makefiles
+# when restoring this library to a buildable state we can just
+# go ahead and hide its complete contents from Git.
+#
+
+# Hide everything other what we explictly list below
+*
+
+# Dont hide ourselves!
+!.gitignore
