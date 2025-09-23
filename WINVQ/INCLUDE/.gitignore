@@ -1,0 +1,12 @@
+
+# Header files are copied from the main folder to here
+VQA32/
+VQM32/
+
+# The following files must exist here as they dont exist elsewhere
+!DSOUND.H
+!VOCFILE.H
+!VQ.H
+!VQFILE.H
+!WAVEFILE.H
+!WWTYPES.H

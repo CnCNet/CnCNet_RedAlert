@@ -1,0 +1,14 @@
+
+# Hide everything other what we explictly list below
+*
+
+# Dont hide ourselves!
+!.gitignore
+
+# The following files must exist here as they dont exist elsewhere
+!SOSDBLC.LIB
+!SOSDW1CR.LIB
+!SOSDW1CS.LIB
+!SOSDW1PR.LIB
+!SOSDW1PS.LIB
+!SOSMBLC.LIB
