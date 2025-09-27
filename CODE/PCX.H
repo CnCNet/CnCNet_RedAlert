@@ -39,7 +39,7 @@
 #include <gbuffer.h>
 #include <string.h>
 #include <buffer.h>
-#include	<file.h>
+#include <wwfile.h>
 
 #ifndef PCX_H
 #define PCX_H
@@ -72,6 +72,6 @@ typedef	struct	{
 
 GraphicBufferClass* Read_PCX_File (char* name, char* palette= NULL,void *buff=NULL, long size=0);
 GraphicBufferClass* Read_PCX_File (char* name, BufferClass& Buff,char* palette= NULL) ;
-int Write_PCX_File (char* name, GraphicViewPortClass& pic, unsigned char* palette );
+int Write_PCX_File (FileClass& file, GraphicBufferClass& pic, PaletteClass* palette );
 
 #endif
