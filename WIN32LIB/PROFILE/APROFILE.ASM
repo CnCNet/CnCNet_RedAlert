@@ -293,6 +293,6 @@ ProAddress		dd	Pro_Start	;jmp ptr for __PRO procedure
 EpiAddress		dd	Epi_Start	;jmp ptr for __EPI procedure
 
 label MyStack dword			;my stack table
-			dd	16*1024 dup (?)
+			dd	16*1024 dup (0)
 
 end

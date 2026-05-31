@@ -50,8 +50,8 @@ PseudoES	dw	0
 
 RegisterDump	db	32h dup (0)
 
-MyNetworkNumber	db	4 dup (?)
-MyNodeAddress	db	6 dup (?)
+MyNetworkNumber	db	4 dup (0)
+MyNodeAddress	db	6 dup (0)
 MySocket	dw	?
 
 ReceiveBufferSegment	dw	?

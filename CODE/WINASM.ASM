@@ -368,7 +368,7 @@ endp Set_Palette_Register_
 
 		dataseg
 
-LineBuffer		dd	640 dup (?)
+LineBuffer		dd	640 dup (0)
 		ends
 
 
@@ -599,8 +599,8 @@ endp		Asm_Interpolate_Line_Double
 
 		dataseg
 
-TopLine		dd	640 dup (?)
-BottomLine	dd	640 dup (?)
+TopLine		dd	640 dup (0)
+BottomLine	dd	640 dup (0)
 
 
 		segment mycode page public use32 'code'	; Need stricter segment alignment

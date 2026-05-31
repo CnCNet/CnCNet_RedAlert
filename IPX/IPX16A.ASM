@@ -178,8 +178,8 @@ ReceiveECBOffset	dw	?
 CurrentReceiveBuffer	dw	?
 LastPassedReceiveBuffer	dw	?
 
-ReceiveDescriptor	db	8 dup (?)
-OriginalReceiveDescriptor db	8 dup (?)
+ReceiveDescriptor	db	8 dup (0)
+OriginalReceiveDescriptor db	8 dup (0)
 
 Listening		db	?
 ListeningFailed		db	?
