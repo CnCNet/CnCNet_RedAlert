@@ -40,19 +40,19 @@ void PassEditClass::Draw_Text( char const * text )
 	} else {
 		flags = (TextPrintType)0;
 	}
-    
+
 	int textlen = strlen(text);
 	char *passbuf = new char[textlen + 1];
 	memset(passbuf, '*', textlen);
 	passbuf[textlen] = '\0';
 
-	Conquer_Clip_Text_Print(text, X+1, Y+1, Color, TBLACK, TextFlags | flags, Width-2);
+	Conquer_Clip_Text_Print(passbuf, X+1, Y+1, Color, TBLACK, TextFlags | flags, Width-2);
 
 	if (Has_Focus() &&		//	strlen(passbuf) < MaxLength &&
 		(String_Pixel_Width(passbuf) + String_Pixel_Width ("_") < Width-2) ) {
 		Conquer_Clip_Text_Print( "_", X+1+String_Pixel_Width(passbuf), Y+1, Color, TBLACK, TextFlags | flags);
 	}
-    
+
 	delete [] passbuf;
 }
 
