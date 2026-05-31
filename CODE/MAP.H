@@ -64,7 +64,7 @@ class MapClass: public GScreenClass
 		CELL Pick_Random_Location(void) const;
 		int Intact_Bridge_Count(void) const;
 		bool Base_Region(CELL cell, HousesType & house, ZoneType & zone) const;
-		CELL Nearby_Location(CELL cell, SpeedType speed, int zone=-1, MZoneType check=MZONE_NORMAL) const;
+		CELL Nearby_Location(CELL cell, SpeedType speed, int zone=-1, MZoneType check=MZONE_NORMAL, bool checkflagged=false, int locationmod=0) const;
 		ObjectClass * Close_Object(COORDINATE coord) const;
 		virtual void Detach(ObjectClass * ) {};
 		int Cell_Region(CELL cell);
@@ -72,7 +72,7 @@ class MapClass: public GScreenClass
 		bool In_Radar(CELL cell) const;
 		void Sight_From(CELL cell, int sightrange, HouseClass *house, bool incremental=false);
 		void Jam_From(CELL cell, int jamrange, HouseClass *house);
-		void Shroud_From(CELL cell, int sightrange);
+		void Shroud_From(CELL cell, int sightrange, HouseClass *house);
 		void UnJam_From(CELL cell, int jamrange, HouseClass *house);
 		void Place_Down(CELL cell, ObjectClass * object);
 		void Pick_Up(CELL cell, ObjectClass * object);
@@ -87,7 +87,7 @@ class MapClass: public GScreenClass
 		int Zone_Span(CELL cell, int zone, MZoneType check);
 		bool Destroy_Bridge_At(CELL cell);
 		void Detach(TARGET target, bool all=true);
-		void Shroud_The_Map(void);
+		void Shroud_The_Map(HouseClass *house);
 
 		long Overpass(void);
 
@@ -175,6 +175,12 @@ class MapClass: public GScreenClass
 		CELL TiberiumScan;
 
 		enum MapEnum {SCAN_AMOUNT=MAP_CELL_TOTAL};
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[1024];
+
 };
 
 #endif

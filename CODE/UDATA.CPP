@@ -531,7 +531,7 @@ static UnitTypeClass const UnitAnt1(
 	UNIT_ANT1,
 	TXT_NONE,				// NAME:			Text name of this unit type.
 	"ANT1",					// NAME:			Text name of this unit type.
-	ANIM_ANT_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
+	ANIM_ANT1_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
 	REMAP_NORMAL,			// Sidebar remap logic.
 	0x0000,					//	Vertical offset.
 	0x0000,					// Primary weapon offset along turret centerline.
@@ -560,7 +560,7 @@ static UnitTypeClass const UnitAnt2(
 	UNIT_ANT2,
 	TXT_NONE,				// NAME:			Text name of this unit type.
 	"ANT2",					// NAME:			Text name of this unit type.
-	ANIM_ANT_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
+	ANIM_ANT2_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
 	REMAP_NORMAL,			// Sidebar remap logic.
 	0x0000,					//	Vertical offset.
 	0x0000,					// Primary weapon offset along turret centerline.
@@ -589,7 +589,7 @@ static UnitTypeClass const UnitAnt3(
 	UNIT_ANT3,
 	TXT_NONE,				// NAME:			Text name of this unit type.
 	"ANT3",					// NAME:			Text name of this unit type.
-	ANIM_ANT_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
+	ANIM_ANT3_DEATH,		// EXPLOSION:	Type of explosion when destroyed.
 	REMAP_NORMAL,			// Sidebar remap logic.
 	0x0000,					//	Vertical offset.
 	0x0000,					// Primary weapon offset along turret centerline.

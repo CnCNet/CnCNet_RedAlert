@@ -38,21 +38,23 @@
 
 //#include	"function.h"
 
-#define		_WIN32
-#define		WIN32_LEAN_AND_MEAN
+//#define		_WIN32
+//#define		WIN32_LEAN_AND_MEAN
 
-#include	<dos.h>
+//#include	<dos.h>
 #include	<stdlib.h>
 #include	<stdio.h>
-#include	<mem.h>
+//#include	<mem.h>
 #include	<wwstd.h>
 #include	<file.h>
 #include	"tile.h"
 #include	<iff.h>
 
 
+// Misc? ST - 1/3/2019 10:40AM
+//extern int Misc;
+int Misc;
 
-extern int Misc;
 
 void *  Load_Icon_Set(char const *filename, void *iconsetptr, long buffsize);
 void  Free_Icon_Set(void const *iconset);
@@ -168,7 +170,7 @@ void *  Load_Icon_Set(char const *filename, void *iconsetptr, long buffsize)
 				allocated = (iconsetptr != NULL);
 			}
 
-			if (iconsetptr && (size+transsize+mapsize+sizeof(IControl_Type)) <= buffsize) {
+			if (iconsetptr && (size+transsize+mapsize+sizeof(IControl_Type)) <= (unsigned long)buffsize) {
 
 				idata = (IControl_Type *)iconsetptr;
 
@@ -203,7 +205,7 @@ void *  Load_Icon_Set(char const *filename, void *iconsetptr, long buffsize)
 				**	raw icon data because it might have been compressed and thus need any
 				**	extra space to perform an overlapped decompression.
 				*/
-					if (buffsize > size + transsize + mapsize + sizeof(IControl_Type)) {
+					if ((unsigned long)buffsize > size + transsize + mapsize + sizeof(IControl_Type)) {
 						buffsize = size + transsize + mapsize + sizeof(IControl_Type);
 					}
 

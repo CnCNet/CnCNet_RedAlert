@@ -98,7 +98,7 @@
  *=============================================================================================*/
 inline int Lepton_To_Pixel(LEPTON lepton)
 {
-	return (((int)(signed short)lepton * ICON_PIXEL_W) + (ICON_LEPTON_W / 2)) / ICON_LEPTON_W;
+	return (((int)(signed short)lepton * ICON_PIXEL_W) + (ICON_LEPTON_W / 2) - ((lepton < 0) ? (ICON_LEPTON_W - 1) : 0)) / ICON_LEPTON_W;
 }
 
 
@@ -118,7 +118,7 @@ inline int Lepton_To_Pixel(LEPTON lepton)
  *=============================================================================================*/
 inline LEPTON Pixel_To_Lepton(int pixel)
 {
-	return (LEPTON)(((pixel * ICON_LEPTON_W) + (ICON_PIXEL_W / 2)) / ICON_PIXEL_W);
+	return (LEPTON)(((pixel * ICON_LEPTON_W) + (ICON_PIXEL_W / 2) - ((pixel < 0) ? (ICON_PIXEL_W - 1) : 0)) / ICON_PIXEL_W);
 }
 
 

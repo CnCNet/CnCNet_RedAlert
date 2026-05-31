@@ -115,9 +115,9 @@ void CreditClass::Graphic_Logic(bool forced)
 		/*
 		**	Display the new current value.
 		*/
-		TabClass::Draw_Credits_Tab();
+		// PG TabClass::Draw_Credits_Tab();
 #ifdef WIN32
-		Fancy_Text_Print("%ld", xx, 0, &MetalScheme, TBLACK, TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL, Current);
+		//PG Fancy_Text_Print("%ld", xx, 0, &MetalScheme, TBLACK, TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL, Current);
 #else
 		Fancy_Text_Print("%ld", xx, 0, &ColorRemaps[PCOLOR_GREY], TBLACK, TPF_NOSHADOW|TPF_6PT_GRAD|TPF_CENTER|TPF_BRIGHT_COLOR, Current);
 #endif	//WIN32
@@ -128,7 +128,7 @@ void CreditClass::Graphic_Logic(bool forced)
 			long hours = mins / 60;
 			secs %= 60;
 			mins %= 60;
-
+#if (0) //Moved to LOGIC.CPP
 			/*
 			**	Speak mission timer reminders.
 			*/
@@ -146,13 +146,15 @@ void CreditClass::Graphic_Logic(bool forced)
 				Speak(vox);
 				Map.FlasherTimer = 7;
 			}
-
+#endif
 #ifdef WIN32
+#if (0) //PG
 			if (hours) {
 				Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, 200 * RESFACTOR, 0, &MetalScheme, TBLACK, TPF_METAL12|TPF_CENTER|TPF_USE_GRAD_PAL, hours, mins, secs);
 			} else {
 				Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, 200 * RESFACTOR, 0, &MetalScheme, TBLACK, TPF_METAL12|TPF_CENTER|TPF_USE_GRAD_PAL, mins, secs);
 			}
+#endif
 #else
 			if (hours) {
 				Fancy_Text_Print("%02d:%02d:%02d", 120 * RESFACTOR, 0, &ColorRemaps[PCOLOR_GREY], TBLACK, TPF_NOSHADOW|TPF_6PT_GRAD|TPF_CENTER|TPF_BRIGHT_COLOR, hours, mins, secs);
@@ -179,6 +181,8 @@ void CreditClass::Graphic_Logic(bool forced)
  * INPUT:   forced   -- Should the credit display immediately reflect the current credit       *
  *                      total for the player? This is usually desired when initially loading   *
  *                      a scenario or saved game.                                              *
+ *          player_ptr -- Player to calculate visible credits for                              *
+ *          logic_only -- If true, don't flag map for redraw                                   *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -186,15 +190,22 @@ void CreditClass::Graphic_Logic(bool forced)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   03/13/1995 JLB : Created.                                                                 *
+ *   10/16/2019  ST : Added house and logic parameters so we can call this from HouseClass::AI *
  *=============================================================================================*/
-void CreditClass::AI(bool forced)
+void CreditClass::AI(bool forced, HouseClass *player_ptr, bool logic_only)
 {
 	static int _last = 0;
 
-	if (!forced && Frame == _last) return;
-	_last = Frame;
+	if (!forced && !logic_only && Frame == _last) return;
+	if (!logic_only) {
+		_last = Frame;
+	}
 
-	Credits = PlayerPtr->Available_Money();
+	if (player_ptr == NULL) {
+		return;
+	}
+
+	Credits = player_ptr->Available_Money();
 
 	/*
 	**	Make sure that the credit counter doesn't drop below zero.
@@ -241,5 +252,8 @@ void CreditClass::AI(bool forced)
 		}
 	}
 	IsToRedraw = true;
-	Map.Flag_To_Redraw(false);
+
+	if (!logic_only) {
+		Map.Flag_To_Redraw(false);
+	}
 }

@@ -171,9 +171,9 @@ bool SuperClass::Enable(bool onetime, bool player, bool quiet)
  * HISTORY:                                                                                    *
  *   07/28/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool SuperClass::Remove(void)
+bool SuperClass::Remove(bool forced)
 {
-	if (IsPresent && !IsOneTime) {
+	if (IsPresent && (!IsOneTime || forced)) {
 		IsReady = false;
 		IsPresent = false;
 		return(true);

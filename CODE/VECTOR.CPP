@@ -59,7 +59,7 @@
 #include	"WSPUDP.h"
 #endif	//WINSOCK_IPX
 #include "vector.h"
-#include	<mem.h>
+//#include	<mem.h>
 #include	<stdio.h>
 
 /*
@@ -67,7 +67,7 @@
 **	declared in a header file this module includes. By placing the template functions here,
 **	it speeds up compiler operation and reduces object module size.
 */
-
+#if (0)
 /***********************************************************************************************
  * VectorClass<T>::VectorClass -- Constructor for vector class.                                *
  *                                                                                             *
@@ -181,7 +181,7 @@ VectorClass<T> & VectorClass<T>::operator =(VectorClass<T> const & vector)
 			Vector = new T[VectorMax];
 			if (Vector) {
 				IsAllocated = true;
-				for (int index = 0; index < VectorMax; index++) {
+				for (int index = 0; index < (int)VectorMax; index++) {
 					Vector[index] = vector[index];
 				}
 			}
@@ -214,7 +214,7 @@ template<class T>
 int VectorClass<T>::operator == (VectorClass<T> const & vector) const
 {
 	if (VectorMax == vector.Length()) {
-		for (int index = 0; index < VectorMax; index++) {
+		for (int index = 0; index < (int)VectorMax; index++) {
 			if (Vector[index] != vector[index]) {
 				return(false);
 			}
@@ -269,7 +269,7 @@ inline int VectorClass<T>::ID(T const * ptr)
 template<class T>
 int VectorClass<T>::ID(T const & object)
 {
-	for (int index = 0; index < VectorMax; index++) {
+	for (int index = 0; index < (int)VectorMax; index++) {
 		if ((*this)[index] == object) {
 			return(index);
 		}
@@ -388,7 +388,7 @@ int VectorClass<T>::Resize(unsigned newsize, T const * array)
 	}
 	return(true);
 }
-
+#endif
 //----------------------------------------------------------------------------------------------
 
 /***********************************************************************************************
@@ -527,8 +527,8 @@ int BooleanVectorClass::Resize(unsigned size)
 		**	clearing of the bits is required.
 		*/
 		BitCount = size;
-		if (success && oldsize < size) {
-			for (int index = oldsize; index < size; index++) {
+		if (success && oldsize < (int)size) {
+			for (int index = oldsize; index < (int)size; index++) {
 				(*this)[index] = 0;
 			}
 		}
@@ -642,7 +642,7 @@ void BooleanVectorClass::Fixup(int index) const
 	**	If the requested index value is illegal, then force the index
 	**	to be -1. This is the default non-index value.
 	*/
-	if ((unsigned)index >= BitCount) {
+	if (index >= BitCount) {
 		index = -1;
 	}
 

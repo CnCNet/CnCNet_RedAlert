@@ -61,8 +61,8 @@
 
 #include "function.h"
 #include <stdio.h>
-#include <mem.h>
-#include <i86.h>
+//#include <mem.h>
+//#include <i86.h>
 #include "ipx.h"
 
 #ifdef WIN32
@@ -71,7 +71,7 @@
 
 
 // Turn off "expression is not meaningful".
-#pragma warning 628 9
+//#pragma warning 628 9
 
 
 /***************************************************************************
@@ -91,16 +91,19 @@
  *=========================================================================*/
 int IPX_SPX_Installed(void)
 {
+	return false;
 #ifdef WIN32
 
 #ifdef TIBERIAN_SUN
 	return(false);
 #else
+#if (0)//PG
 	if ( Load_IPX_Dll () ){
 		return ( IPX_Initialise() );
 	}else{
 		return(false);
 	}
+#endif
 #endif
 
 #else	//WIN32

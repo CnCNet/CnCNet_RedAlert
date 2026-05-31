@@ -35,6 +35,7 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#if (0)//PG
 //#include	"function.h"
 #include	"watcom.h"
 #include "rotbmp.h"
@@ -413,3 +414,4 @@ Rotate_Bitmap(GraphicViewPortClass * srcvp, GraphicViewPortClass * destvp, int a
 	}
 	return 0;
 }
+#endif

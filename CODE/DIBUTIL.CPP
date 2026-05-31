@@ -57,7 +57,7 @@
 //   Sample Application Files which are modified.
 //
 //**********************************************************************
-
+#if (0) // ST - 5/8/2019
 /* header files */
 #include <windows.h>
 #include <assert.h>
@@ -1314,3 +1314,4 @@ HDIB FAR ChangeBitmapFormat(HBITMAP  hBitmap,
 
    return hNewDIB;
 }
+#endif

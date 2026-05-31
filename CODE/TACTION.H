@@ -39,7 +39,7 @@
 #ifndef ACTION_H
 #define ACTION_H
 
-typedef enum TActionType {
+typedef enum TActionType : unsigned char {
 	TACTION_NONE,
 
 	TACTION_WIN,								// player wins!

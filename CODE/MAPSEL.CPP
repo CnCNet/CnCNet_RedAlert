@@ -110,6 +110,8 @@ extern short StreamLowImpact;
 #endif
 char const * Map_Selection(void)
 {
+	return NULL;
+#if (0)//PG
 	static char scenarioname[_MAX_FNAME+_MAX_EXT];
 
 #ifdef FIXIT_ANTS
@@ -318,6 +320,7 @@ char const * Map_Selection(void)
 //	Scen.ScenVar = (ScenarioVarType)selection;
 //Mono_Printf("Chose variant %d  \n", selection);
 	return(scenarioname);
+#endif
 }
 
 int Mouse_Over_Spot(int house, int scenario)

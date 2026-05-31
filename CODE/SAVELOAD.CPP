@@ -55,6 +55,9 @@
 
 //#include "WolDebug.h"
 
+extern bool DLLSave(Pipe &file);
+extern bool DLLLoad(Straw &file);
+
 extern bool SpawnedFromWChat;
 #endif
 
@@ -189,6 +192,7 @@ static void Put_All(Pipe & pipe, int save_net)
 
 	int count = MapTriggers.Count();
 	pipe.Put(&count, sizeof(count));
+	int index;
 	for (int index = 0; index < MapTriggers.Count(); index++) {
 		TARGET target = MapTriggers[index]->As_Target();
 		pipe.Put(&target, sizeof(target));
@@ -268,6 +272,7 @@ static void Put_All(Pipe & pipe, int save_net)
 	/*
 	**	Save multiplayer values
 	*/
+	pipe.Put(&save_net, sizeof(save_net));		// Write out whether we saved the net values so we know if we have to load them again. ST - 10/22/2019 2:10PM
 	if (save_net) {
 		Save_MPlayer_Values(pipe);
 	}
@@ -318,12 +323,6 @@ static void Put_All(Pipe & pipe, int save_net)
 bool Save_Game(int id, char const * descr, bool )
 {
 	char name[_MAX_FNAME+_MAX_EXT];
-	unsigned scenario;
-	HousesType house;
-	int save_net = 0;									// 1 = save network/modem game
-
-	scenario = Scen.Scenario;						// get current scenario #
-	house = PlayerPtr->Class->House;				// get current house
 
 	/*
 	**	Generate the filename to save.  If 'id' is -1, it means save a
@@ -331,10 +330,35 @@ bool Save_Game(int id, char const * descr, bool )
 	*/
 	if (id==-1) {
 		strcpy(name, NET_SAVE_FILE_NAME);
-		save_net = 1;
+		//save_net = 1;
 	} else {
 		sprintf(name, "SAVEGAME.%03d", id);
 	}
+
+	return Save_Game(name, descr);
+}
+
+
+
+/*
+** Version that takes file name. ST - 9/9/2019 11:10AM
+*/
+bool NowSavingGame = false; // TEMP MBL: Need to discuss better solution with Steve
+bool Save_Game(const char *file_name, const char *descr)
+{
+	NowSavingGame = true; // TEMP MBL: Need to discuss better solution with Steve
+
+	int save_net = 0;									// 1 = save network/modem game
+	
+	if (Session.Type  == GAME_GLYPHX_MULTIPLAYER) {
+		save_net = 1;
+	}
+	
+	unsigned scenario;
+	HousesType house;
+
+	scenario = Scen.Scenario;						// get current scenario #
+	house = PlayerPtr->Class->House;				// get current house
 
 	/*
 	**	Code everybody's pointers
@@ -344,9 +368,16 @@ bool Save_Game(int id, char const * descr, bool )
 	/*
 	**	Open the file
 	*/
-	BufferIOFileClass file(name);
+	BufferIOFileClass file(file_name);
 
 	FilePipe fpipe(&file);
+
+	/*
+	** Save the DLLs variables first, so we can do a version check in the DLL when we begin the load
+	*/
+	if (RunningAsDLL) {
+		DLLSave(fpipe);
+	}
 
 	/*
 	**	Save the description, scenario #, and house
@@ -360,7 +391,7 @@ bool Save_Game(int id, char const * descr, bool )
 	char descr_buf[DESCRIP_MAX];
 	memset(descr_buf, '\0', sizeof(descr_buf));
 	sprintf(descr_buf, "%s\r\n", descr);			// put CR-LF after text
-	descr_buf[strlen(descr_buf) + 1] = 26;		// put CTRL-Z after NULL
+	//descr_buf[strlen(descr_buf) + 1] = 26;		// put CTRL-Z after NULL
 	fpipe.Put(descr_buf, DESCRIP_MAX);
 
 	fpipe.Put(&scenario, sizeof(scenario));
@@ -415,6 +446,8 @@ bool Save_Game(int id, char const * descr, bool )
 
 	Decode_All_Pointers();
 
+	NowSavingGame = false; // TEMP MBL: Need to discuss better solution with Steve
+
 	return(true);
 }
 
@@ -462,12 +495,6 @@ bool Save_Game(int id, char const * descr, bool )
 bool Load_Game(int id)
 {
 	char name[_MAX_FNAME+_MAX_EXT];
-	int i;
-	unsigned scenario;
-	HousesType house;
-	char descr_buf[DESCRIP_MAX];
-	int load_net = 0;									// 1 = save network/modem game
-
 
 	/*
 	**	Generate the filename to load.  If 'id' is -1, it means save a
@@ -475,15 +502,29 @@ bool Load_Game(int id)
 	*/
 	if (id == -1) {
 		strcpy(name, NET_SAVE_FILE_NAME);
-		load_net = 1;
+		//load_net = 1;
 	} else {
 		sprintf(name, "SAVEGAME.%03d", id);
 	}
+	return Load_Game(name);
+}
 
+
+/*
+** Version that takes a file name instead. ST - 9/9/2019 11:13AM
+*/
+bool Load_Game(const char *file_name)
+{		
+	int i;
+	unsigned scenario;
+	HousesType house;
+	char descr_buf[DESCRIP_MAX];
+	int load_net = 0;									// 1 = save network/modem game
+	
 	/*
 	**	Open the file
 	*/
-	RawFileClass file(name);
+	RawFileClass file(file_name);
 	if (!file.Is_Available()) {
 		return(false);
 	}
@@ -491,6 +532,13 @@ bool Load_Game(int id)
 	FileStraw fstraw(file);
 
 	Call_Back();
+
+	/*
+	** Load the DLLs variables first, in case we need to do something different based on version
+	*/
+	if (RunningAsDLL) {
+		DLLLoad(fstraw);
+	}
 
 	/*
 	**	Read & discard the save-game's header info
@@ -680,7 +728,8 @@ bool Load_Game(int id)
 	int count;
 	straw.Get(&count, sizeof(count));
 	MapTriggers.Clear();
-	for (int index = 0; index < count; index++) {
+	int index;
+	for (index = 0; index < count; index++) {
 		TARGET target;
 		straw.Get(&target, sizeof(target));
 		MapTriggers.Add(As_Trigger(target));
@@ -762,6 +811,7 @@ bool Load_Game(int id)
 	/*
 	**	Load multiplayer values
 	*/
+	straw.Get(&load_net, sizeof(load_net));
 	if (load_net) {
 		Load_MPlayer_Values(straw);
 	}
@@ -776,6 +826,16 @@ bool Load_Game(int id)
 	**	data loaded.
 	*/
 	Post_Load_Game(load_net);
+
+	/*
+	** Re-init unit trackers. They will be garbage pointers after the load
+	*/
+	for (HousesType house = HOUSE_FIRST; house < HOUSE_COUNT; house++) {
+		HouseClass * hptr = HouseClass::As_Pointer(house);
+		if (hptr && hptr->IsActive) {
+			hptr->Init_Unit_Trackers();
+		}
+	}
 
 	Call_Back();
 
@@ -858,7 +918,7 @@ bool Load_Game(int id)
 	}
 
 	if (!Force_CD_Available(RequiredCD)) {
-		//Prog_End();
+		Prog_End("Load_Game Force_CD_Available failed", true);
 		Emergency_Exit(EXIT_FAILURE);
 	}
 
@@ -866,9 +926,11 @@ bool Load_Game(int id)
 
 	if (load_net) {
 
-		if (!Reconcile_Players()) {	// (must do after Decode pointers)
-			return(false);
-		}
+		// Removed as this is ensured by the GlyphX & DLL save/load code. ST - 10/22/2019 5:20PM
+		//if (!Reconcile_Players()) {	// (must do after Decode pointers)
+		//	return(false);
+		//}
+		
 		//!!!!!!!!!! put Fixup_Player_Units() here
 		Session.LoadGame = true;
 	}
@@ -945,7 +1007,7 @@ bool Load_Game(int id)
 			if(Get_CD_Index(CCFileClass::Get_CD_Drive(), 1*60) != 3) {
 				GamePalette.Set(FADE_PALETTE_FAST, Call_Back);
 				if (!Force_CD_Available(3)) {	// force Aftermath CD in drive.
-   	   		//Prog_End();
+					Prog_End("Load_Game Force_CD_Available(3) failed", true);
 #ifndef FIXIT_VERSION_3			//	WChat eliminated.
 #ifdef WIN32
 if(Special.IsFromWChat || SpawnedFromWChat) {
@@ -973,11 +1035,17 @@ if(Special.IsFromWChat || SpawnedFromWChat) {
 
 	}
 #endif
+
 	if (Scen.TransitTheme == THEME_NONE) {
 		Theme.Queue_Song(THEME_FIRST);
 	} else {
 		Theme.Queue_Song(Scen.TransitTheme);
 	}
+	
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		Rule.IsSmartDefense = true;
+	}
+	
 	return(true);
 }
 
@@ -1000,7 +1068,7 @@ if(Special.IsFromWChat || SpawnedFromWChat) {
  *=========================================================================*/
 bool Save_Misc_Values(Pipe & file)
 {
-	int i;
+	int i, j;
 	int count;								// # ptrs in 'CurrentObject'
 	ObjectClass * ptr;					// for saving 'CurrentObject' ptrs
 
@@ -1019,15 +1087,18 @@ bool Save_Misc_Values(Pipe & file)
 	**	Save currently-selected objects list.
 	**	Save the # of ptrs in the list.
 	*/
-	count = CurrentObject.Count();
-	file.Put(&count, sizeof(count));
+	for (i = 0; i < SelectedObjectsType::COUNT; i++) {
+		DynamicVectorClass<ObjectClass *>& selection = CurrentObject.Raw(i);
+		count = selection.Count();
+		file.Put(&count, sizeof(count));
 
-	/*
-	**	Save the pointers.
-	*/
-	for (i = 0; i < count; i++) {
-		ptr = CurrentObject[i];
-		file.Put(&ptr, sizeof(ptr));
+		/*
+		**	Save the pointers.
+		*/
+		for (j = 0; j < count; j++) {
+			ptr = selection[j];
+			file.Put(&ptr, sizeof(ptr));
+		}
 	}
 
 	/*
@@ -1075,19 +1146,22 @@ bool Load_Misc_Values(Straw & file)
 	*/
 	file.Get(&Frame, sizeof(Frame));
 
-	/*
-	**	Load currently-selected objects list.
-	**	Load the # of ptrs in the list.
-	*/
-	int count;								// # ptrs in 'CurrentObject'
-	file.Get(&count, sizeof(count));
+	for (int i = 0; i < SelectedObjectsType::COUNT; i++) {
+		/*
+		**	Load currently-selected objects list.
+		**	Load the # of ptrs in the list.
+		*/
+		DynamicVectorClass<ObjectClass *>& selection = CurrentObject.Raw(i);
+		int count;								// # ptrs in 'CurrentObject'
+		file.Get(&count, sizeof(count));
 
-	/*
-	**	Load the pointers.
-	*/
-	for (int i = 0; i < count; i++) {
-		file.Get(&ptr, sizeof(ptr));
-		CurrentObject.Add(ptr);	// add to the list
+		/*
+		**	Load the pointers.
+		*/
+		for (int j = 0; j < count; j++) {
+			file.Get(&ptr, sizeof(ptr));
+			selection.Add(ptr);	// add to the list
+		}
 	}
 
 	/*
@@ -1170,6 +1244,11 @@ bool Load_MPlayer_Values(Straw & file)
 	return (true);
 }
 
+/*
+** ST - 9/26/2019 11:43AM
+*/
+extern void DLL_Code_Pointers(void);
+extern void DLL_Decode_Pointers(void);
 
 /***********************************************************************************************
  * Code_All_Pointers -- Code all pointers.                                                     *
@@ -1185,7 +1264,7 @@ bool Load_MPlayer_Values(Straw & file)
  *=============================================================================================*/
 void Code_All_Pointers(void)
 {
-	int i;
+	int i, j;
 
 	/*
 	**	The Map.
@@ -1237,9 +1316,17 @@ void Code_All_Pointers(void)
 	/*
 	**	Currently-selected objects.
 	*/
-	for (i = 0; i < CurrentObject.Count(); i++) {
-		CurrentObject[i] = (ObjectClass *)CurrentObject[i]->As_Target();
+	for (i = 0; i < SelectedObjectsType::COUNT; i++) {
+		DynamicVectorClass<ObjectClass *>& selection = CurrentObject.Raw(i);
+		for (j = 0; j < selection.Count(); j++) {
+			selection[j] = (ObjectClass *)selection[j]->As_Target();
+		}
 	}
+
+	/*
+	** DLL data
+	*/
+	DLL_Code_Pointers();
 
 	/*
 	** Houses must be coded last, because the Class->House member of the HouseClass
@@ -1274,6 +1361,11 @@ void Decode_All_Pointers(void)
 	** House pointers
 	*/
 	Houses.Decode_Pointers();
+
+	/*
+	** DLL data
+	*/
+	DLL_Decode_Pointers();
 
 	/*
 	**	The ArrayOf's.
@@ -1322,9 +1414,12 @@ void Decode_All_Pointers(void)
 	/*
 	**	Currently-selected objects.
 	*/
-	for (int index = 0; index < CurrentObject.Count(); index++) {
-		CurrentObject[index] = As_Object((TARGET)CurrentObject[index]);
-		assert(CurrentObject[index] != NULL);
+	for (int index = 0; index < SelectedObjectsType::COUNT; index++) {
+		DynamicVectorClass<ObjectClass *>& selection = CurrentObject.Raw(index);
+		for (int j = 0; j < selection.Count(); j++) {
+			selection[j] = As_Object((TARGET)selection[j]);
+			assert(selection[j] != NULL);
+		}
 	}
 
 	/*
@@ -1560,4 +1655,3 @@ void MPlayer_Save_Message(void)
 {
 	//char *txt = Text_String(
 }
-

@@ -149,7 +149,7 @@ bool	bNoMovies = false;
 bool Main_Loop(void);
 void Keyboard_Process(KeyNumType & input);
 static void Message_Input(KeyNumType &input);
-static void Color_Cycle(void);
+void Color_Cycle(void);
 bool Map_Edit_Loop(void);
 
 extern "C" {
@@ -231,6 +231,12 @@ void Main_Game(int argc, char * argv[])
 	**		until they indicate that the user wants to exit the scenario.
 	*/
 	while (Select_Game(fade)) {
+
+		// ST 5/14/2019
+		if (RunningAsDLL) {
+			return;
+		}
+
 		fade = false;
 		ScenarioInit = 0;		// Kludge.
 
@@ -447,12 +453,12 @@ void Main_Game(int argc, char * argv[])
 
 		if (Session.Type == GAME_NULL_MODEM || Session.Type == GAME_MODEM) {
 			if (!Session.Play) {
-				Modem_Signoff();
+				//PG Modem_Signoff();
 			}
 		} else {
 			if (Session.Type == GAME_IPX) {
 				if (!Session.Play) {
-					Shutdown_Network();
+					//PG Shutdown_Network();
 				}
 			}
 		}
@@ -486,7 +492,7 @@ void Main_Game(int argc, char * argv[])
 #ifndef WOLAPI_INTEGRATION
 #ifdef WIN32
 		if (Special.IsFromWChat) {
-			Shutdown_Network();		      // Clear up the pseudo IPX stuff
+			//PG Shutdown_Network();		      // Clear up the pseudo IPX stuff
 #ifndef WINSOCK_IPX
 			Winsock.Close();
 #endif	//WINSOCK_IPX
@@ -951,6 +957,9 @@ void Keyboard_Process(KeyNumType & input)
 
 
 void Toggle_Formation(void) {
+
+// MBL 03.23.2020: this has been copied to DLLExportClass::Team_Units_Formation_Toggle_On(), and modified as needed
+#if 0
 	int team = -1;
 	long minx = 0x7FFFFFFFL, miny = 0x7FFFFFFFL;
 	long maxx = 0, maxy = 0;
@@ -1120,6 +1129,7 @@ void Toggle_Formation(void) {
 			}
 		}
 	}
+#endif
 }
 
 
@@ -1138,14 +1148,14 @@ void Toggle_Formation(void) {
  * HISTORY:                                                                                    *
  *   05/22/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
-#pragma off (unreferenced)
+//#pragma off (unreferenced)
 static void Message_Input(KeyNumType &input)
 {
 	int rc;
 	char txt[MAX_MESSAGE_LENGTH+32];
 	int id;
-	SerialPacketType * serial_packet;
-	int i;
+//	SerialPacketType * serial_packet;
+	//int i;
 	KeyNumType copy_input;
 	//char *msg;
 
@@ -1342,6 +1352,7 @@ static void Message_Input(KeyNumType &input)
 	**	Send a message
 	*/
 	if ((rc==3 || rc==4) && Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) {
+#if (0)
 		/*
 		**	Serial game: fill in a SerialPacketType & send it.
 		**	(Note: The size of the SerialPacketType.Command must be the same as
@@ -1498,9 +1509,10 @@ static void Message_Input(KeyNumType &input)
 		**	Tell the map to completely update itself, since a message is now missing.
 		*/
 		Map.Flag_To_Redraw(true);
+#endif
 	}
 }
-#pragma on (unreferenced)
+//#pragma on (unreferenced)
 
 
 /***********************************************************************************************
@@ -1635,7 +1647,7 @@ void Call_Back(void)
 	**	Serial game maintenance.
 	*/
 	if (Session.Type == GAME_NULL_MODEM || ((Session.Type == GAME_MODEM) && Session.ModemService)) {
-		NullModem.Service();
+		//NullModem.Service();		ST - 5/7/2019
 	}
 
 #ifdef WOLAPI_INTEGRATION
@@ -1691,6 +1703,7 @@ void Call_Back(void)
 
 void IPX_Call_Back(void)
 {
+#if (0)//PG
 	Ipx.Service();
 
 	/*
@@ -1721,6 +1734,7 @@ void IPX_Call_Back(void)
 					/*
 					**	Process a message from another user.
 					*/
+
 					if (Session.GPacket.Command == NET_MESSAGE) {
 						bool msg_ok = false;
 
@@ -1777,7 +1791,7 @@ void IPX_Call_Back(void)
 			}
 		}
 	}
-
+#endif
 }
 
 
@@ -2392,7 +2406,7 @@ Mono_Set_Cursor(0,0);
 	}
 
 
-
+#if (0)	//ST - 5/8/2019
 #ifdef WIN32
 	if (Debug_MotionCapture) {
 		static void ** _array = 0;
@@ -2445,7 +2459,7 @@ Mono_Set_Cursor(0,0);
 		}
 	}
 #endif
-
+#endif
 	BEnd(BENCH_GAME_FRAME);
 
 	Sync_Delay();
@@ -2579,7 +2593,7 @@ void Go_Editor(bool flag)
 
 #endif
 
-
+#if (0)
 /***********************************************************************************************
  * MixFileHandler -- Handles VQ file access.                                                   *
  *                                                                                             *
@@ -2701,7 +2715,7 @@ long MixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes)
 
 	return(error);
 }
-
+#endif
 
 void Rebuild_Interpolated_Palette(unsigned char * interpal)
 {
@@ -2822,8 +2836,19 @@ extern void Resume_Audio_Thread(void);
 extern GraphicBufferClass VQ640;
 #endif
 #endif
-void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
+
+extern void Play_Movie_GlyphX(const char * movie_name, ThemeType theme, bool immediate);
+
+void Play_Movie(char const * name, ThemeType theme, bool clrscrn, bool immediate)
 	{
+#if (1)
+	if (strcmp(name, "x") == 0 || strcmp(name, "X") == 0) {
+		return;
+	}
+
+	Play_Movie_GlyphX(name, theme, immediate);
+	return;
+#else
 	#ifdef MPEGMOVIE
 	//theme = theme;
 	//clrscrn = clrscrn;
@@ -2991,16 +3016,17 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn)
 		}
 		Show_Mouse();
 	}
+#endif
 }
 
 
-void Play_Movie(VQType name, ThemeType theme, bool clrscrn)
+void Play_Movie(VQType name, ThemeType theme, bool clrscrn, bool immediate)
 {
 	if (name != VQ_NONE) {
 		if (name == VQ_REDINTRO) {
 			IsVQ640 = true;
 		}
-		Play_Movie(VQName[name], theme, clrscrn);
+		Play_Movie(VQName[name], theme, clrscrn, immediate);
 		IsVQ640 = false;
 	}
 }
@@ -3201,8 +3227,43 @@ MPG_RESPONSE far __stdcall MpegCallback(MPG_CMD cmd, LPVOID data, LPVOID user)
  *=============================================================================================*/
 void Unselect_All(void)
 {
+	//while (CurrentObject.Count()) {
+	//	CurrentObject[0]->Unselect();
+	//}
+
+	//Added some error handling incase there was an issue removing the object - JAS 6/28/2019
 	while (CurrentObject.Count()) {
+
+		int count_before = CurrentObject.Count();
 		CurrentObject[0]->Unselect();
+
+		if (count_before <= CurrentObject.Count()) {
+			GlyphX_Debug_Print("Unselect_All failed to remove an object");
+			CurrentObject.Delete(CurrentObject[0]);
+		}
+	}
+	//End of change - JAS 6/28/2019
+
+}
+
+
+void Unselect_All_Except(ObjectClass* object)
+{
+	int index = 0;
+	while (index < CurrentObject.Count()) {
+
+		if (CurrentObject[index] == object) {
+			index++;
+			continue;
+		}
+
+		int count_before = CurrentObject.Count();
+		CurrentObject[index]->Unselect();
+
+		if (count_before <= CurrentObject.Count()) {
+			GlyphX_Debug_Print("Unselect_All failed to remove an object");
+			CurrentObject.Delete(CurrentObject[index]);
+		}
 	}
 }
 
@@ -3368,6 +3429,46 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
 }
 
 
+extern void DLL_Draw_Intercept(int shape_number, int x, int y, int width, int height, int flags, const ObjectClass *object, DirType rotation, long scale, const char *shape_file_name, char override_owner);
+extern void DLL_Draw_Pip_Intercept(const ObjectClass* object, int pip);
+void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation);
+
+void CC_Draw_Shape(const ObjectClass *object, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation, long virtualscale, int width, int height)
+{
+	if (window == WINDOW_VIRTUAL) {
+		if (width == 0) width = Get_Build_Frame_Width(shapefile);
+		if (height == 0) height = Get_Build_Frame_Height(shapefile);
+		DLL_Draw_Intercept(shapenum, x, y, width, height, (int)flags, object, rotation, virtualscale, NULL, HOUSE_NONE);
+		return;
+	}
+
+	CC_Draw_Shape(shapefile, shapenum, x, y, window, flags, fadingdata, ghostdata, rotation);
+}
+
+void CC_Draw_Shape(const ObjectClass *object, const char *shape_file_name, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation, long virtualscale, char override_owner)
+{
+	if (window == WINDOW_VIRTUAL) {
+		int width = Get_Build_Frame_Width(shapefile);
+		int height = Get_Build_Frame_Height(shapefile);
+		DLL_Draw_Intercept(shapenum, x, y, width, height, (int)flags, object, rotation, virtualscale, shape_file_name, override_owner);
+		return;
+	}
+
+	CC_Draw_Shape(shapefile, shapenum, x, y, window, flags, fadingdata, ghostdata, rotation);
+}
+
+
+void CC_Draw_Pip(const ObjectClass *object, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation)
+{
+	if (window == WINDOW_VIRTUAL) {
+		DLL_Draw_Pip_Intercept(object, shapenum);
+		return;
+	}
+
+	CC_Draw_Shape(shapefile, shapenum, x, y, window, flags, fadingdata, ghostdata, rotation);
+}
+
+
 /***********************************************************************************************
  * CC_Draw_Shape -- Custom draw shape handler.                                                 *
  *                                                                                             *
@@ -3404,7 +3505,7 @@ void const * Get_Radar_Icon(void const * shapefile, int shapenum, int frames, in
  * HISTORY:                                                                                    *
  *   02/21/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation, long scale)
+void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata, void const * ghostdata, DirType rotation)
 {
 	int predoffset;
 #ifdef WIN32
@@ -3477,9 +3578,9 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 
 			UseOldShapeDraw = false;
 			/*
-			**	Rotation and scale handler.
+			**	Rotation handler.
 			*/
-			if (rotation != DIR_N || scale != 0x0100) {
+			if (rotation != DIR_N) {
 
 				/*
 				** Get the raw shape data without the new header and flag to use the old shape drawing
@@ -3490,7 +3591,7 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 #endif
 
 				if (Debug_Rotate) {
-
+#if (0)//PG
 					GraphicBufferClass src(width, height, buffer);
 					width *= 2;
 					height *= 2;
@@ -3498,7 +3599,7 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 					GraphicBufferClass dst(width, height, _xbuffer);
 					Rotate_Bitmap(&src, &dst, rotation);
 					buffer = _xbuffer;
-
+#endif
 				} else {
 
 					BitmapClass bm(width, height, buffer);
@@ -3508,7 +3609,7 @@ void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNum
 					GraphicBufferClass gb(width, height, _xbuffer);
 					TPoint2D pt(width/2, height/2);
 
-					gb.Scale_Rotate(bm, pt, scale, (256-(rotation-64)));
+					gb.Scale_Rotate(bm, pt, 0x0100, (256-(rotation-64)));
 					buffer = _xbuffer;
 				}
 			}
@@ -3614,7 +3715,7 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	/*
 	**	Find bottom edge of the shape.
 	*/
-	for (y = ylimit; y >= rect.Y; y--) {
+	for (int y = ylimit; y >= rect.Y; y--) {
 		for (int x = xlimit; x >= 0; x--) {
 			if (shape[y*width + x] != 0) {
 				rect.Height = (y-rect.Y)+1;
@@ -3629,7 +3730,7 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	**	Find left edge of the shape.
 	*/
 	for (int x = 0; x < rect.X; x++) {
-		for (y = rect.Y; y < rect.Y+rect.Height; y++) {
+		for (int y = rect.Y; y < rect.Y+rect.Height; y++) {
 			if (shape[y*width + x] != 0) {
 				rect.X = x;
 				x = rect.X;
@@ -3641,8 +3742,8 @@ Rect const Shape_Dimensions(void const * shapedata, int shapenum)
 	/*
 	**	Find the right edge of the shape.
 	*/
-	for (x = width-1; x >= xlimit; x--) {
-		for (y = rect.Y; y < rect.Y+rect.Height; y++) {
+	for (int x = width-1; x >= xlimit; x--) {
+		for (int y = rect.Y; y < rect.Y+rect.Height; y++) {
 			if (shape[y*width + x] != 0) {
 				rect.Width = (x-rect.X)+1;
 				x = xlimit-1;
@@ -3730,13 +3831,15 @@ TechnoTypeClass const * Fetch_Techno_Type(RTTIType type, int id)
  *   06/24/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
 #ifdef WIN32
-void VQA_PauseAudio(void);
+void VQA_PauseAudio(void) {};
 void Check_VQ_Palette_Set(void);
 
 extern GraphicBufferClass VQ640;
 extern bool IsVQ640;
 long VQ_Call_Back(unsigned char *, long )
 {
+	return 0;
+#if (0)//PG
 	int key = 0;
 	if (Keyboard->Check()) {
 		key = Keyboard->Get();
@@ -3767,6 +3870,7 @@ long VQ_Call_Back(unsigned char *, long )
 		}
 	}
 	return(false);
+#endif
 }
 
 #else	//WIN32
@@ -3820,6 +3924,8 @@ void Handle_Team(int team, int action)
 		TeamEvent = (char)action + 1;
 	}
 
+	TeamFormDataStruct& team_form_data = TeamFormData[PlayerPtr->Class->House];
+
 	AllowVoice = true;
 	switch (action) {
 
@@ -3834,15 +3940,17 @@ void Handle_Team(int team, int action)
 			**	If a non team member is currently selected, then deselect all objects
 			**	before selecting this team.
 			*/
-			if (CurrentObject.Count()) {
-				if (CurrentObject[0]->Is_Foot() && ((FootClass *)CurrentObject[0])->Group != team) {
+			for (index = 0; index < CurrentObject.Count(); index++) {
+				ObjectClass * obj = CurrentObject[index];
+				if (obj->Is_Foot() && ((FootClass *)obj)->Group != team) {
 					Unselect_All();
+					break;
 				}
 			}
 			for (index = 0; index < Vessels.Count(); index++) {
 				VesselClass * obj = Vessels.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3851,7 +3959,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Units.Count(); index++) {
 				UnitClass * obj = Units.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3860,7 +3968,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Infantry.Count(); index++) {
 				InfantryClass * obj = Infantry.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3869,7 +3977,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Aircraft.Count(); index++) {
 				AircraftClass * obj = Aircraft.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3894,7 +4002,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Units.Count(); index++) {
 				UnitClass * obj = Units.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3903,7 +4011,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Vessels.Count(); index++) {
 				VesselClass * obj = Vessels.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3912,7 +4020,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Infantry.Count(); index++) {
 				InfantryClass * obj = Infantry.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3921,7 +4029,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Aircraft.Count(); index++) {
 				AircraftClass * obj = Aircraft.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->Group == team && obj->House->IsPlayerControl) {
-					if (!obj->IsSelected) {
+					if (!obj->Is_Selected_By_Player()) {
 						obj->Select();
 						AllowVoice = false;
 					}
@@ -3935,13 +4043,13 @@ void Handle_Team(int team, int action)
 		case 2: {
 			long minx = 0x7FFFFFFFL, miny = 0x7FFFFFFFL;
 			long maxx = 0, maxy = 0;
-			TeamSpeed[team] = SPEED_WHEEL;
-			TeamMaxSpeed[team] = MPH_LIGHT_SPEED;
+			team_form_data.TeamSpeed[team] = SPEED_WHEEL;
+			team_form_data.TeamMaxSpeed[team] = MPH_LIGHT_SPEED;
 			for (index = 0; index < Units.Count(); index++) {
 				UnitClass * obj = Units.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl) {
 				 	if (obj->Group == team) obj->Group = 0xFF;
-					if (obj->IsSelected) {
+					if (obj->Is_Selected_By_Player()) {
 						obj->Group = team;
 						obj->Mark(MARK_CHANGE);
 						long xc = Cell_X(Coord_Cell(obj->Center_Coord()));
@@ -3950,9 +4058,9 @@ void Handle_Team(int team, int action)
 						if (xc > maxx) maxx = xc;
 						if (yc < miny) miny = yc;
 						if (yc > maxy) maxy = yc;
-						if (obj->Class->MaxSpeed < TeamMaxSpeed[team]) {
-							TeamMaxSpeed[team] = obj->Class->MaxSpeed;
-							TeamSpeed[team] = obj->Class->Speed;
+						if (obj->Class->MaxSpeed < team_form_data.TeamMaxSpeed[team]) {
+							team_form_data.TeamMaxSpeed[team] = obj->Class->MaxSpeed;
+							team_form_data.TeamSpeed[team] = obj->Class->Speed;
 						}
 					}
 				}
@@ -3962,7 +4070,7 @@ void Handle_Team(int team, int action)
 				VesselClass * obj = Vessels.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl) {
 				 	if (obj->Group == team) obj->Group = -1;
-					if (obj->IsSelected) {
+					if (obj->Is_Selected_By_Player()) {
 						obj->Group = team;
 						obj->Mark(MARK_CHANGE);
 						long xc = Cell_X(Coord_Cell(obj->Center_Coord()));
@@ -3971,9 +4079,9 @@ void Handle_Team(int team, int action)
 						if (xc > maxx) maxx = xc;
 						if (yc < miny) miny = yc;
 						if (yc > maxy) maxy = yc;
-						if (obj->Class->MaxSpeed < TeamMaxSpeed[team]) {
-							TeamMaxSpeed[team] = obj->Class->MaxSpeed;
-							TeamSpeed[team] = obj->Class->Speed;
+						if (obj->Class->MaxSpeed < team_form_data.TeamMaxSpeed[team]) {
+							team_form_data.TeamMaxSpeed[team] = obj->Class->MaxSpeed;
+							team_form_data.TeamSpeed[team] = obj->Class->Speed;
 						}
 					}
 				}
@@ -3983,7 +4091,7 @@ void Handle_Team(int team, int action)
 				InfantryClass * obj = Infantry.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl) {
 				 	if (obj->Group == team) obj->Group = 0xFF;
-					if (obj->IsSelected) {
+					if (obj->Is_Selected_By_Player()) {
 						obj->Group = team;
 						obj->Mark(MARK_CHANGE);
 						long xc = Cell_X(Coord_Cell(obj->Center_Coord()));
@@ -3992,8 +4100,8 @@ void Handle_Team(int team, int action)
 						if (xc > maxx) maxx = xc;
 						if (yc < miny) miny = yc;
 						if (yc > maxy) maxy = yc;
-						if (obj->Class->MaxSpeed < TeamMaxSpeed[team]) {
-							TeamMaxSpeed[team] = obj->Class->MaxSpeed;
+						if (obj->Class->MaxSpeed < team_form_data.TeamMaxSpeed[team]) {
+							team_form_data.TeamMaxSpeed[team] = obj->Class->MaxSpeed;
 						}
 					}
 				}
@@ -4002,7 +4110,7 @@ void Handle_Team(int team, int action)
 				AircraftClass * obj = Aircraft.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl) {
 				 	if (obj->Group == team) obj->Group = 0xFF;
-					if (obj->IsSelected) {
+					if (obj->Is_Selected_By_Player()) {
 						obj->Group = team;
 						obj->Mark(MARK_CHANGE);
 					}
@@ -4012,7 +4120,7 @@ void Handle_Team(int team, int action)
 			for (index = 0; index < Units.Count(); index++) {
 				UnitClass * obj = Units.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl &&
-				 	(obj->Group == team) && (obj->IsSelected) ) {
+				 	(obj->Group == team) && (obj->Is_Selected_By_Player()) ) {
 
 					/*
 					** When a team is first created, they're created without a
@@ -4044,8 +4152,8 @@ void Handle_Team(int team, int action)
 				InfantryClass * obj = Infantry.Ptr(index);
 				if (obj && !obj->IsInLimbo && obj->House->IsPlayerControl) {
 				 	if (obj->Group == team) obj->Group = 0xFF;
-					if (obj->IsSelected) obj->Group = team;
-					if (obj->Group == team  && obj->IsSelected) {
+					if (obj->Is_Selected_By_Player()) obj->Group = team;
+					if (obj->Group == team  && obj->Is_Selected_By_Player()) {
 #if(1)
 						obj->XFormOffset = obj->YFormOffset = (int)0x80000000;
 #else
@@ -4321,6 +4429,55 @@ int Get_CD_Index(int cd_drive, int)
  *   01/20/1997 V.Grippi added expansion cd message
  *=============================================================================================*/
 
+#if (1) //ST - 5/13/2019
+bool Force_CD_Available(int cd)
+{
+	static int _last = -1;
+
+	if (_last != cd || cd == ALWAYS_RELOAD_CD) {
+		if (cd != ALWAYS_RELOAD_CD) {
+			_last = cd;
+		}
+		Theme.Stop();
+
+		//		if (ConquerMix) delete ConquerMix;
+		if (MoviesMix) {
+			delete MoviesMix;
+			MoviesMix = 0;
+		}
+		if (GeneralMix) {
+			delete GeneralMix;
+			GeneralMix = 0;
+		}
+		if (ScoreMix) {
+			delete ScoreMix;
+			ScoreMix = 0;
+		}
+		if (MainMix) {
+			delete MainMix;
+			MainMix = 0;
+		}
+
+		MainMix = new MFCD("MAIN.MIX", &FastKey);
+		assert(MainMix != NULL);
+		//		ConquerMix = new MFCD("CONQUER.MIX", &FastKey);
+		if (CCFileClass("MOVIES1.MIX").Is_Available())
+			MoviesMix = new MFCD("MOVIES1.MIX", &FastKey);
+		else
+			MoviesMix = new MFCD("MOVIES2.MIX", &FastKey);
+		assert(MoviesMix != NULL);
+		GeneralMix = new MFCD("GENERAL.MIX", &FastKey);
+		ScoreMix = new MFCD("SCORES.MIX", &FastKey);
+	}
+
+	return true;
+}
+
+
+#endif
+
+#if (0) //ST - 5/13/2019
+
 typedef enum {
 	CD_LOCAL = -2,
 	CD_ANY = -1,
@@ -4369,6 +4526,8 @@ bool Force_CD_Available( int cd_desired )				//	ajw
 		"RED ALERT DVD",
 	};
 #endif
+
+
 
 	int new_cd_drive = 0;
 	int cd_current;
@@ -4533,7 +4692,7 @@ bool Force_CD_Available( int cd_desired )				//	ajw
 			if( cd_desired == CD_DVD )
 			{
 				#ifdef FRENCH
-			   	sprintf(buffer, "InsŠrez le %s",  _cd_name[4]);
+			   	sprintf(buffer, "Insï¿½rez le %s",  _cd_name[4]);
 				#else
 				#ifdef GERMAN
 				sprintf(buffer, "Bitte %s",  _cd_name[4]);
@@ -4545,7 +4704,7 @@ bool Force_CD_Available( int cd_desired )				//	ajw
 			else if( cd_desired == CD_COUNTERSTRIKE || cd_desired == CD_AFTERMATH )
 			{
 				#ifdef FRENCH
-			   	sprintf(buffer, "InsŠrez le %s",  _cd_name[cd_desired]);
+			   	sprintf(buffer, "Insï¿½rez le %s",  _cd_name[cd_desired]);
 				#else
 				#ifdef GERMAN
 				sprintf(buffer, "Bitte %s",  _cd_name[cd_desired]);
@@ -4929,7 +5088,7 @@ bool Force_CD_Available(int cd)
 			#endif
 
 				#ifdef FRENCH
-			   	sprintf(buffer, "InsŠrez le %s",  _cd_name[cd]);
+			   	sprintf(buffer, "Insï¿½rez le %s",  _cd_name[cd]);
 				#else
 				#ifdef GERMAN
 				sprintf(buffer, "Bitte %s",  _cd_name[cd]);
@@ -4942,7 +5101,7 @@ bool Force_CD_Available(int cd)
 				{
 				#ifdef DVD
 				#ifdef FRENCH
-			   	sprintf(buffer, "InsŠrez le %s", _cd_name[4]);
+			   	sprintf(buffer, "Insï¿½rez le %s", _cd_name[4]);
 				#else
 				#ifdef GERMAN 
 				sprintf(buffer, "Bitte %s", _cd_name[4]);
@@ -5053,6 +5212,8 @@ bool Force_CD_Available(int cd)
 
 
 #endif	//	FIXIT_VERSION_3
+#endif	// ST - 5/13/2019
+
 
 /***************************************************************************
  * DISK_SPACE_AVAILABLE -- returns bytes of free disk space                *
@@ -5066,6 +5227,8 @@ bool Force_CD_Available(int cd)
  *=========================================================================*/
 unsigned long Disk_Space_Available(void)
 {
+	return 0x7fffffff;	//ST - 5/8/2019
+#if (0)
 	struct diskfree_t diskdata;
 	unsigned drive;
 
@@ -5073,6 +5236,7 @@ unsigned long Disk_Space_Available(void)
 	_dos_getdiskfree(drive, &diskdata);
 
 	return(diskdata.avail_clusters * diskdata.sectors_per_cluster * diskdata.bytes_per_sector);
+#endif
 }
 
 
@@ -5143,8 +5307,7 @@ static void Do_Record_Playback(void)
 		Session.RecordFile.Write (&TeamEvent, sizeof(TeamEvent));
 		Session.RecordFile.Write (&TeamNumber, sizeof(TeamNumber));
 		Session.RecordFile.Write (&FormationEvent, sizeof(FormationEvent));
-		Session.RecordFile.Write (TeamMaxSpeed, sizeof(TeamMaxSpeed));
-		Session.RecordFile.Write (TeamSpeed, sizeof(TeamSpeed));
+		Session.RecordFile.Write (TeamFormData, sizeof(TeamFormData));
 		Session.RecordFile.Write (&FormMove, sizeof(FormMove));
 		Session.RecordFile.Write (&FormSpeed, sizeof(FormSpeed));
 		Session.RecordFile.Write (&FormMaxSpeed, sizeof(FormMaxSpeed));
@@ -5215,11 +5378,11 @@ static void Do_Record_Playback(void)
 			Toggle_Formation();
 		}
 
-Session.RecordFile.Read (TeamMaxSpeed, sizeof(TeamMaxSpeed));
-Session.RecordFile.Read (TeamSpeed, sizeof(TeamSpeed));
-Session.RecordFile.Read (&FormMove, sizeof(FormMove));
-Session.RecordFile.Read (&FormSpeed, sizeof(FormSpeed));
-Session.RecordFile.Read (&FormMaxSpeed, sizeof(FormMaxSpeed));
+		Session.RecordFile.Read (TeamFormData, sizeof(TeamFormData));
+		Session.RecordFile.Read (&FormMove, sizeof(FormMove));
+		Session.RecordFile.Read (&FormSpeed, sizeof(FormSpeed));
+		Session.RecordFile.Read (&FormMaxSpeed, sizeof(FormMaxSpeed));
+
 		/*
 		**	The map isn't drawn in playback mode, so draw it here.
 		*/
@@ -5337,6 +5500,7 @@ int Owner_From_Name(char const * text)
  *    This routine will shake the game screen the number of shakes requested.                  *
  *                                                                                             *
  * INPUT:   shakes   -- The number of shakes to shake the screen.                              *
+ *          house    -- House to perform the shake for (or HOUSE_NONE if all players).         *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -5345,8 +5509,19 @@ int Owner_From_Name(char const * text)
  * HISTORY:                                                                                    *
  *   09/04/1996 BWG : Created.                                                                 *
  *=============================================================================================*/
-void Shake_The_Screen(int shakes)
+void Shake_The_Screen(int shakes, HousesType house)
 {
+	for (char h = HOUSE_FIRST; h < HOUSE_COUNT; ++h) {
+		if ((house != HOUSE_NONE) && (h != house)) {
+			continue;
+		}
+		HouseClass* hptr = HouseClass::As_Pointer((HousesType)h);
+		if ((hptr != nullptr) && hptr->IsActive && hptr->IsHuman) {
+			hptr->ScreenShakeTime = CDTimerClass<FrameTimerClass>(hptr->ScreenShakeTime + shakes + shakes);
+			hptr->ScreenShakeTime.Start();
+		}
+	}
+#if (0)
 #ifdef WIN32
 	shakes += shakes;
 
@@ -5377,6 +5552,7 @@ void Shake_The_Screen(int shakes)
 	Show_Mouse();
 #else
 	Shake_Screen(shakes);
+#endif
 #endif
 }
 
@@ -5469,6 +5645,9 @@ const char* Game_Registry_Key()
  *=============================================================================================*/
 bool Is_Counterstrike_Installed (void)
 {
+	return true;		// Remasters always have Counterstrike. ST - 10/18/2019 11:06AM
+
+#if (0)
 	//	ajw 9/29/98
 	static bool	bAlreadyChecked = false;
 	static bool bInstalled = false;
@@ -5492,6 +5671,7 @@ bool Is_Counterstrike_Installed (void)
 
 //	RawFileClass file("EXPAND.MIX");
 //	return(file.Is_Available());
+#endif
 }
 
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
@@ -5499,6 +5679,9 @@ bool Is_Counterstrike_Installed (void)
  *=============================================================================================*/
 bool Is_Aftermath_Installed (void)
 {
+	return true;		// Remasters always have Aftermath. ST - 10/18/2019 11:06AM
+
+#if (0)	 
 	//	ajw 9/29/98
 	static bool	bAlreadyChecked = false;
 	static bool bInstalled = false;
@@ -5522,6 +5705,7 @@ bool Is_Aftermath_Installed (void)
 
 //	RawFileClass file("EXPAND2.MIX");
 //	return(file.Is_Available());
+#endif
 }
 #endif
 

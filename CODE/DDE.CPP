@@ -52,14 +52,16 @@
  * These are static members of Instance_Class
  *=========================================================================*/
 
-static DWORD	Instance_Class::id_inst;			// instance identifier set by DdeInitialize
-static BOOL		Instance_Class::process_pokes;	// controls response to pokes
-static char 	Instance_Class::ascii_name[32];	// name of server
+DWORD	Instance_Class::id_inst;			// instance identifier set by DdeInitialize
+BOOL		Instance_Class::process_pokes;	// controls response to pokes
+char 	Instance_Class::ascii_name[32];	// name of server
 
+#if (0)	//ST - 5/8/2019
 static BOOL CALLBACK	(*Instance_Class::callback) (
 			LPBYTE pointer,		// pointer to received data
 			long	length			// length of received data or advisory flag
 			) = NULL;
+#endif
 
 /***************************************************************************
  * Instance_Class::InstanceClass -- class constructor              			*
@@ -80,7 +82,10 @@ static BOOL CALLBACK	(*Instance_Class::callback) (
 
 Instance_Class::Instance_Class( LPSTR name1, LPSTR name2 )
 {
+	name1; name2;
+	return;
 
+#if (0)	//ST - 5/8/2019
 	dde_error = FALSE;		// no errors
 	process_pokes = FALSE;	// disable pokes in callback
 
@@ -122,7 +127,7 @@ Instance_Class::Instance_Class( LPSTR name1, LPSTR name2 )
 		id_inst,         		// instance identifier
 		SZDDESYS_TOPIC, 		// System topic
 		CP_WINANSI);    		// Windows ANSI code page
-
+#endif
 }
 
 /***************************************************************************
@@ -185,7 +190,7 @@ BOOL	Instance_Class::Enable_Callback( BOOL flag )		// enable or disable callback
  * HISTORY:                                                                *
  *   6/1/1996 SW : Created.                                                *
  *=========================================================================*/
-
+#if (0)	//ST - 5/8/2019
 BOOL	Instance_Class::Register_Server( BOOL CALLBACK ( *callback_fnc) (LPBYTE, long) )
 {
 
@@ -196,6 +201,7 @@ BOOL	Instance_Class::Register_Server( BOOL CALLBACK ( *callback_fnc) (LPBYTE, lo
 		return ( FALSE );
 	}
 }
+#endif
 
 /***************************************************************************
  * Instance_Class::Test_Server_Running -- does a trial connect to remote   *
@@ -364,8 +370,14 @@ HDDEDATA CALLBACK Instance_Class::dde_callback(
 	DWORD  			 	// transaction-specific data
 	)
 {
+	dde_event;
+	uFmt;
+	hsz1;
+	hsz2;
+	hdata;
+	return (HDDEDATA)NULL;
 
-
+#if (0) // ST 5/8/2019
 	if (!Instance_Class::callback){
 		return (HDDEDATA) NULL;
 	}
@@ -447,6 +459,7 @@ HDDEDATA CALLBACK Instance_Class::dde_callback(
 		default:
       	return (HDDEDATA) NULL;
     }
+#endif
 }
 
 #endif	//WIN32

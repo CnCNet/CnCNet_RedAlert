@@ -102,6 +102,6 @@ class CCFileClass : public CDFileClass
 		CCFileClass (CCFileClass const & );
 };
 
-class MixFileClass<CDFileClass>;
+template <> class MixFileClass<CDFileClass>;
 
 #endif

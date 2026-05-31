@@ -112,6 +112,7 @@ class ChronalVortexClass {
 		/*
 		** Members to allow read access to private data
 		*/
+		COORDINATE Get_Position  (void) {return (Position);};
 		int Get_Range  (void) {return (Range);};
 		int Get_Speed  (void) {return (Speed);};
 		int Get_Damage (void) {return (Damage);};
@@ -126,7 +127,7 @@ class ChronalVortexClass {
 		/*
 		** Possible states the vortex can be in.
 		*/
-		typedef enum AnimStateType{
+		typedef enum AnimStateType : unsigned char {
 			STATE_GROW,			//Vortex has just appeared and is growing larger
 			STATE_ROTATE,		//Vortex is rotating
 			STATE_SHRINK		//Vortex is shrinking and about to disappear

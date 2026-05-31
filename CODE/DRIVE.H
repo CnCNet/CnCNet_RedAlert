@@ -132,7 +132,7 @@ class DriveClass : public FootClass
 		**	Smooth turning tracks are controlled by this structure and these
 		**	processing bits.
 		*/
-		typedef enum TrackControlType {
+		typedef enum TrackControlType : unsigned char		{
 			F_=0x00,		// No translation necessary?
 			F_T=0x01,	// Transpose X and Y components?
 			F_X=0x02,	// Reverse X component sign?
@@ -203,9 +203,9 @@ class DriveClass : public FootClass
 		static TrackType const Track1[24];
 };
 
-inline DriveClass::TrackControlType operator |(DriveClass::TrackControlType, DriveClass::TrackControlType);
-inline DriveClass::TrackControlType operator &(DriveClass::TrackControlType, DriveClass::TrackControlType);
-inline DriveClass::TrackControlType operator ~(DriveClass::TrackControlType);
+//PG inline DriveClass::TrackControlType operator |(DriveClass::TrackControlType, DriveClass::TrackControlType);
+//PG inline DriveClass::TrackControlType operator &(DriveClass::TrackControlType, DriveClass::TrackControlType);
+//PG inline DriveClass::TrackControlType operator ~(DriveClass::TrackControlType);
 
 
 #endif

@@ -519,7 +519,7 @@ bool MissionClass::Restore_Mission(void)
  * HISTORY:                                                                                    *
  *   09/14/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool MissionClass::Is_Recruitable_Mission(MissionType mission) const
+bool MissionClass::Is_Recruitable_Mission(MissionType mission)
 {
 	if (mission == MISSION_NONE) {
 		return(true);

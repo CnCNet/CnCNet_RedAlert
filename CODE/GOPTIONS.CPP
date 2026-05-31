@@ -332,6 +332,7 @@ void GameOptionsClass::Process(void)
 					Version_Name());
 
 #else
+#if (0)//PG
 			Fancy_Text_Print("%s\rV%s",
 					(OptionX+OptionWidth)-(25 * RESFACTOR),
 					OptionY+OptionHeight-((Session.Type == GAME_NORMAL) ? (32 * RESFACTOR) : (24 * RESFACTOR)),
@@ -339,6 +340,7 @@ void GameOptionsClass::Process(void)
 					TPF_EFNT|TPF_NOSHADOW|TPF_RIGHT,
 					Scen.ScenarioName,
 					Version_Name());
+#endif
 #endif
 
 			buttons->Draw_All();
@@ -450,7 +452,6 @@ void GameOptionsClass::Process(void)
 					if (!Restate_Mission(Scen.ScenarioName, TXT_VIDEO, TXT_RESUME_MISSION/*KOTXT_OPTIONS*/)) {
 						BreakoutAllowed = true;
 						Play_Movie(Scen.BriefMovie);
-
 						BlackPalette.Adjust(0x08, WhitePalette);
 						BlackPalette.Set();
 						BlackPalette.Adjust(0xFF);

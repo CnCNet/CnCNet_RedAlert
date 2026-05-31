@@ -57,8 +57,8 @@ typedef int bool;
 
 /*
 **	This is a very simple fixed point class that functions like a regular integral type. However
-**	it is under certain restrictions. The whole part must not exceed 255. The fractional part is
-**	limited to an accuracy of 1/256. It cannot represent or properly handle negative values. It
+**	it is under certain restrictions. The whole part must not exceed 65535. The fractional part is
+**	limited to an accuracy of 1/65536. It cannot represent or properly handle negative values. It
 **	really isn't all that fast (if an FPU is guaranteed to be present than using "float" might be
 **	more efficient). It doesn't detect overflow or underflow in mathematical or bit-shift operations.
 **
@@ -83,29 +83,38 @@ typedef int bool;
 */
 class fixed
 {
+	static constexpr unsigned int PRECISION = 1 << 16;
+
 	public:
 		// The default constructor must not touch the data members in any way.
 		fixed(void) {}
+
+		// Copy constructor
+		fixed(fixed const & rvalue) {Data.Raw = rvalue.Data.Raw;}
 
 		// Convenient constructor if numerator and denominator components are known.
 		fixed(int numerator, int denominator);
 
 		// Conversion constructor to get fixed point from integer.
-		fixed(int value) {Data.Composite.Fraction = 0;Data.Composite.Whole = (unsigned char)value;}
+		fixed(int value) {Data.Composite.Fraction = 0U;Data.Composite.Whole = (unsigned short)value;}
+		fixed(unsigned int value) {Data.Composite.Fraction = 0U;Data.Composite.Whole = (unsigned short)value;}
+
+		// Conversion constructor to get fixed point from floating-point.
+		fixed(float value) {value += 1.0f/(PRECISION<<1);Data.Composite.Fraction = (unsigned short)((value - (unsigned short)value) * PRECISION);Data.Composite.Whole = (unsigned short)value;}
 
 		// Constructor if ASCII image of number is known.
 		fixed(char const * ascii);
 
 		// Convert to integer when implicitly required.
-		operator unsigned (void) const {return(((unsigned)Data.Raw+(256/2)) / 256);}
+		operator unsigned (void) const {return(unsigned)(((unsigned __int64)Data.Raw+(PRECISION>>1)) / PRECISION);}
 
 		/*
 		**	The standard operators as they apply to in-place operation.
 		*/
-		fixed & operator *= (fixed const & rvalue) {Data.Raw = (unsigned short)(((int)Data.Raw * rvalue.Data.Raw) / 256);return(*this);}
-		fixed & operator *= (int rvalue) {Data.Raw = (unsigned short)(Data.Raw * rvalue);return(*this);}
-		fixed & operator /= (fixed const & rvalue) {if (rvalue.Data.Raw != 0 && rvalue.Data.Raw != 256) Data.Raw = (unsigned short)(((int)Data.Raw * 256) / rvalue);return(*this);}
-		fixed & operator /= (int rvalue) {if (rvalue) Data.Raw = (unsigned short)((unsigned)Data.Raw / rvalue);return(*this);}
+		fixed & operator *= (fixed const & rvalue) {Data.Raw = (unsigned int)(((unsigned __int64)Data.Raw * rvalue.Data.Raw) / PRECISION);return(*this);}
+		fixed & operator *= (int rvalue) {Data.Raw *= (unsigned int)rvalue;return(*this);}
+		fixed & operator /= (fixed const & rvalue) {if (rvalue.Data.Raw != 0U && rvalue.Data.Raw != PRECISION) Data.Raw = (unsigned int)((((unsigned __int64)Data.Raw * PRECISION)+(PRECISION>>1)) / rvalue.Data.Raw);return(*this);}
+		fixed & operator /= (int rvalue) {if (rvalue) Data.Raw /= (unsigned int)rvalue;return(*this);}
 		fixed & operator += (fixed const & rvalue) {Data.Raw += rvalue.Data.Raw;return(*this);}
 		fixed & operator -= (fixed const & rvalue) {Data.Raw -= rvalue.Data.Raw;return(*this);}
 
@@ -113,26 +122,22 @@ class fixed
 		**	The standard "My Dear Aunt Sally" operators. The integer versions of multiply
 		**	and divide are more efficient than using the fixed point counterparts.
 		*/
-//		const fixed operator * (fixed const & rvalue) const {return(fixed(*this) *= rvalue);}
-		const fixed operator * (fixed const & rvalue) const {fixed temp = *this;temp.Data.Raw = (unsigned short)(((int)temp.Data.Raw * (int)rvalue.Data.Raw) / 256);return(temp);}
-		const int operator * (int rvalue) const {return ((((unsigned)Data.Raw * rvalue) + (256/2)) / 256);}
-//		const fixed operator / (fixed const & rvalue) const {return(fixed(*this) /= rvalue);}
-		const fixed operator / (fixed const & rvalue) const {fixed temp = *this;if (rvalue.Data.Raw != 0 && rvalue.Data.Raw != 256) temp.Data.Raw = (unsigned short)(((int)temp.Data.Raw * 256) / rvalue.Data.Raw);return(temp);}
-		const int operator / (int rvalue) const {if (rvalue) return(((unsigned)Data.Raw+(256/2)) / ((unsigned)rvalue*256));return(*this);}
-//		const fixed operator + (fixed const & rvalue) const {return(fixed(*this) += rvalue);}
-		const fixed operator + (fixed const & rvalue) const {fixed temp = *this;temp += rvalue;return(temp);}
-		const int operator + (int rvalue) const {return((((unsigned)Data.Raw+(256/2))/256) + rvalue);}
-//		const fixed operator - (fixed const & rvalue) const {return(fixed(*this) -= rvalue);}
-		const fixed operator - (fixed const & rvalue) const {fixed temp = *this;temp -= rvalue;return(temp);}
-		const int operator - (int rvalue) const {return((((unsigned)Data.Raw+(256/2))/256) - rvalue);}
+		const fixed operator * (fixed const & rvalue) const { return fixed(*this) *= rvalue; }
+		const int operator * (int rvalue) const { return fixed(*this) *= rvalue; }
+		const fixed operator / (fixed const & rvalue) const { return fixed(*this) /= rvalue; }
+		const int operator / (int rvalue) const { return fixed(*this) /= rvalue; }
+		const fixed operator + (fixed const & rvalue) const { return fixed(*this) += rvalue; }
+		const int operator + (int rvalue) const { return fixed(*this) += rvalue; }
+		const fixed operator - (fixed const & rvalue) const { return fixed(*this) -= rvalue; }
+		const int operator - (int rvalue) const { return fixed(*this) -= rvalue; }
 
 		/*
 		**	The Shift operators are more efficient than using multiplies or divides by power-of-2 numbers.
 		*/
 		fixed & operator >>= (unsigned rvalue) {Data.Raw >>= rvalue;return(*this);}
 		fixed & operator <<= (unsigned rvalue) {Data.Raw <<= rvalue;return(*this);}
-		const fixed operator >> (unsigned rvalue) const {fixed temp = *this;temp >>= rvalue;return(temp);}
-		const fixed operator << (unsigned rvalue) const {fixed temp = *this;temp <<= rvalue;return(temp);}
+		const fixed operator >> (unsigned rvalue) const {return fixed(*this) >>= rvalue;}
+		const fixed operator << (unsigned rvalue) const {return fixed(*this) <<= rvalue;}
 
 		/*
 		**	The full set of comparison operators.
@@ -143,46 +148,46 @@ class fixed
 		bool operator > (fixed const & rvalue) const {return(Data.Raw > rvalue.Data.Raw);}
 		bool operator <= (fixed const & rvalue) const {return(Data.Raw <= rvalue.Data.Raw);}
 		bool operator >= (fixed const & rvalue) const {return(Data.Raw >= rvalue.Data.Raw);}
-		bool operator ! (void) const {return(Data.Raw == 0);}
+		bool operator ! (void) const {return(Data.Raw == 0U);}
 
 		/*
 		**	Comparison to integers requires consideration of fractional component.
 		*/
-		bool operator < (int rvalue) const {return(Data.Raw < (rvalue*256));}
-		bool operator > (int rvalue) const {return(Data.Raw > (rvalue*256));}
-		bool operator <= (int rvalue) const {return(Data.Raw <= (rvalue*256));}
-		bool operator >= (int rvalue) const {return(Data.Raw >= (rvalue*256));}
-		bool operator == (int rvalue) const {return(Data.Raw == (rvalue*256));}
-		bool operator != (int rvalue) const {return(Data.Raw != (rvalue*256));}
+		bool operator < (int rvalue) const {return(Data.Raw < ((unsigned int)rvalue*PRECISION));}
+		bool operator > (int rvalue) const {return(Data.Raw > ((unsigned int)rvalue*PRECISION));}
+		bool operator <= (int rvalue) const {return(Data.Raw <= ((unsigned int)rvalue*PRECISION));}
+		bool operator >= (int rvalue) const {return(Data.Raw >= ((unsigned int)rvalue*PRECISION));}
+		bool operator == (int rvalue) const {return(Data.Raw == ((unsigned int)rvalue*PRECISION));}
+		bool operator != (int rvalue) const {return(Data.Raw != ((unsigned int)rvalue*PRECISION));}
 
 		/*
 		**	Friend functions to handle the alternate positioning of fixed and integer parameters.
 		*/
-		friend const int operator * (int lvalue, fixed const & rvalue) {return(rvalue * lvalue);}
-		friend const int operator / (int lvalue, fixed const & rvalue) {if (rvalue.Data.Raw == 0 || rvalue.Data.Raw == 256) return (lvalue); return(((unsigned)(lvalue * 256)+(256/2)) / rvalue.Data.Raw);}
-		friend const int operator + (int lvalue, fixed const & rvalue) {return(rvalue + lvalue);}
-		friend const int operator - (int lvalue, fixed const & rvalue) {return((((lvalue*256) - rvalue.Data.Raw) + (256/2)) / 256);}
-		friend bool operator < (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) < rvalue.Data.Raw);}
-		friend bool operator > (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) > rvalue.Data.Raw);}
-		friend bool operator <= (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) <= rvalue.Data.Raw);}
-		friend bool operator >= (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) >= rvalue.Data.Raw);}
-		friend bool operator == (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) == rvalue.Data.Raw);}
-		friend bool operator != (unsigned lvalue, fixed const & rvalue) {return((lvalue*256) != rvalue.Data.Raw);}
-		friend int operator *= (int & lvalue, fixed const & rvalue) {lvalue = lvalue * rvalue;return(lvalue);}
-		friend int operator /= (int & lvalue, fixed const & rvalue) {lvalue = lvalue / rvalue;return(lvalue);}
-		friend int operator += (int & lvalue, fixed const & rvalue) {lvalue = lvalue + rvalue;return(lvalue);}
-		friend int operator -= (int & lvalue, fixed const & rvalue) {lvalue = lvalue - rvalue;return(lvalue);}
+		friend const int operator * (int lvalue, fixed const & rvalue) { return fixed(lvalue) * rvalue; }
+		friend const int operator / (int lvalue, fixed const & rvalue) { return fixed(lvalue) / rvalue; }
+		friend const int operator + (int lvalue, fixed const & rvalue) { return fixed(lvalue) + rvalue; }
+		friend const int operator - (int lvalue, fixed const & rvalue) { return fixed(lvalue) - rvalue; }
+		friend bool operator < (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) < rvalue; }
+		friend bool operator > (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) > rvalue; }
+		friend bool operator <= (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) <= rvalue; }
+		friend bool operator >= (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) >= rvalue; }
+		friend bool operator == (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) == rvalue; }
+		friend bool operator != (unsigned lvalue, fixed const & rvalue) { return fixed(lvalue) != rvalue; }
+		friend int operator *= (int & lvalue, fixed const & rvalue) { lvalue = lvalue * rvalue; return(lvalue); }
+		friend int operator /= (int & lvalue, fixed const & rvalue) { lvalue = lvalue / rvalue; return(lvalue); }
+		friend int operator += (int & lvalue, fixed const & rvalue) { lvalue = lvalue + rvalue; return(lvalue); }
+		friend int operator -= (int & lvalue, fixed const & rvalue) { lvalue = lvalue - rvalue; return(lvalue); }
 
 		/*
 		**	Helper functions to handle simple and common operations on fixed point numbers.
 		*/
-		void Round_Up(void) {Data.Raw += (unsigned short)(256-1);Data.Composite.Fraction = 0;}
-		void Round_Down(void) {Data.Composite.Fraction = 0;}
-		void Round(void) {if (Data.Composite.Fraction >= 256/2) Round_Up();Round_Down();}
-		void Saturate(unsigned capvalue) {if (Data.Raw > (capvalue*256)) Data.Raw = (unsigned short)(capvalue*256);}
+		void Round_Up(void) {Data.Raw += (PRECISION-1U);Data.Composite.Fraction = 0U;}
+		void Round_Down(void) {Data.Composite.Fraction = 0U;}
+		void Round(void) {if (Data.Composite.Fraction >= PRECISION>>1) Round_Up();Round_Down();}
+		void Saturate(unsigned capvalue) {if (Data.Raw > (capvalue*PRECISION)) Data.Raw = capvalue*PRECISION;}
 		void Saturate(fixed const & capvalue) {if (*this > capvalue) *this = capvalue;}
-		void Sub_Saturate(unsigned capvalue) {if (Data.Raw >= (capvalue*256)) Data.Raw = (unsigned short)((capvalue*256)-1);}
-		void Sub_Saturate(fixed const & capvalue) {if (*this >= capvalue) Data.Raw = (unsigned short)(capvalue.Data.Raw-1);}
+		void Sub_Saturate(unsigned capvalue) {if (Data.Raw >= (capvalue*PRECISION)) Data.Raw = (capvalue*PRECISION)-1U;}
+		void Sub_Saturate(fixed const & capvalue) {if (*this >= capvalue) Data.Raw = capvalue.Data.Raw-1U;}
 		void Inverse(void) {*this = fixed(1) / *this;}
 
 		/*
@@ -217,14 +222,14 @@ class fixed
 		union {
 			struct {
 #ifdef BIG_ENDIAN
-				unsigned char Whole;
-				unsigned char Fraction;
+				unsigned short Whole;
+				unsigned short Fraction;
 #else
-				unsigned char Fraction;
-				unsigned char Whole;
+				unsigned short Fraction;
+				unsigned short Whole;
 #endif
 			} Composite;
-			unsigned short Raw;
+			unsigned int Raw;
 		} Data;
 };
 

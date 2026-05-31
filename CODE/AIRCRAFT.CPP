@@ -179,7 +179,7 @@ void * AircraftClass::operator new(size_t)
 {
 	void * ptr = Aircraft.Allocate();
 	if (ptr) {
-		((AircraftClass *)ptr)->IsActive = true;
+		((AircraftClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -444,17 +444,32 @@ void AircraftClass::Draw_It(int x, int y, WindowNumberType window) const
 		jitter = _jitter[::Frame % 16];
 	}
 
-	/*
-	**	Special manual shadow draw code.
-	*/
-	if (Visual_Character() <= VISUAL_DARKEN) {
-		CC_Draw_Shape(shapefile, shapenum, x+1, y+2, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, DisplayClass::FadingShade, NULL);
-	}
+	// Virtual window needs to draw the body first so it's considered the primary object and the shadow is a sub-object
+	if (window == WINDOW_VIRTUAL) {
+		/*
+		**	Draw the root body of the unit.
+		*/
+		Techno_Draw_Object(shapefile, shapenum, x, y+jitter, window, rotation);
 
-	/*
-	**	Actually draw the root body of the unit.
-	*/
-	Techno_Draw_Object(shapefile, shapenum, x, y+jitter, window, rotation);
+		/*
+		**	Special manual shadow draw code.
+		*/
+		if (Visual_Character() <= VISUAL_DARKEN) {
+			CC_Draw_Shape(this, shapefile, shapenum, x+1, y+2, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, DisplayClass::FadingShade, NULL);
+		}
+	} else {
+		/*
+		**	Special manual shadow draw code.
+		*/
+		if (Visual_Character() <= VISUAL_DARKEN) {
+			CC_Draw_Shape(this, shapefile, shapenum, x+1, y+2, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, DisplayClass::FadingShade, NULL);
+		}
+
+		/*
+		**	Draw the root body of the unit.
+		*/
+		Techno_Draw_Object(shapefile, shapenum, x, y+jitter, window, rotation);
+	}
 
 	/*
 	**	If this aircraft is equipped with rotor blades, then draw them at this time.
@@ -512,17 +527,20 @@ void AircraftClass::Draw_Rotors(int x, int y, WindowNumberType window) const
 		short yy = y-Lepton_To_Pixel(Height);
 		FacingType face = Dir_Facing(SecondaryFacing);
 		Move_Point(xx, yy, SecondaryFacing.Current(), _stretch[face]);
-		CC_Draw_Shape(AircraftTypeClass::RRotorData, shapenum, xx, yy-2, window, flags, NULL, DisplayClass::UnitShadow);
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, "RROTOR", AircraftTypeClass::RRotorData, shapenum, xx, yy-2, window, flags, NULL, DisplayClass::UnitShadow);
 
 		Move_Point(xx, yy, SecondaryFacing.Current()+DIR_S, _stretch[face]*2);
-		CC_Draw_Shape(AircraftTypeClass::LRotorData, shapenum, xx, yy-2, window, flags, NULL, DisplayClass::UnitShadow);
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, "LROTOR", AircraftTypeClass::LRotorData, shapenum, xx, yy-2, window, flags, NULL, DisplayClass::UnitShadow);
 
 	} else {
 
 		/*
 		**	Single rotor centered about shape.
 		*/
-		CC_Draw_Shape(AircraftTypeClass::RRotorData, shapenum, x, ((y-Lepton_To_Pixel(Height))-2), window, flags, NULL, DisplayClass::UnitShadow);
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, "RROTOR", AircraftTypeClass::RRotorData, shapenum, x, ((y-Lepton_To_Pixel(Height))-2), window, flags, NULL, DisplayClass::UnitShadow);
 	}
 }
 
@@ -561,45 +579,47 @@ void AircraftClass::Read_INI(CCINIClass & ini)
 
 			if (classid != AIRCRAFT_NONE) {
 
-				air = new AircraftClass(classid, inhouse);
-				if (air) {
-					COORDINATE	coord;
-					int	strength;
-					DirType dir;
+				if (HouseClass::As_Pointer(inhouse) != NULL) {
+					air = new AircraftClass(classid, inhouse);
+					if (air) {
+						COORDINATE	coord;
+						int	strength;
+						DirType dir;
 
-					/*
-					**	Read the raw data.
-					*/
-					char * token = strtok(NULL, ",");
-					if (token) {
-						strength = atoi(token);
-					} else {
-						strength = 0;
-					}
-
-					token = strtok(NULL, ",");
-					if (token) {
-						coord = Cell_Coord((CELL)atoi(token));
-					} else {
-						coord = 0xFFFFFFFFL;
-					}
-
-					token = strtok(NULL, ",");
-					if (token) {
-						dir = (DirType)atoi(token);
-					} else {
-						dir = DIR_N;
-					}
-
-					if (!Map.In_Radar(Coord_Cell(coord))) {
-						delete air;
-					} else {
-
-						air->Strength = air->Class->MaxStrength * fixed(strength, 256);
-						if (air->Unlimbo(coord, dir)) {
-							air->Assign_Mission(AircraftClass::Mission_From_Name(strtok(NULL, ",\n\r")));
+						/*
+						**	Read the raw data.
+						*/
+						char * token = strtok(NULL, ",");
+						if (token) {
+							strength = atoi(token);
 						} else {
+							strength = 0;
+						}
+
+						token = strtok(NULL, ",");
+						if (token) {
+							coord = Cell_Coord((CELL)atoi(token));
+						} else {
+							coord = 0xFFFFFFFFL;
+						}
+
+						token = strtok(NULL, ",");
+						if (token) {
+							dir = (DirType)atoi(token);
+						} else {
+							dir = DIR_N;
+						}
+
+						if (!Map.In_Radar(Coord_Cell(coord))) {
 							delete air;
+						} else {
+
+							air->Strength = (int)air->Class->MaxStrength * fixed(strength, 256);		// Cast this to (int). ST - 5/8/19
+							if (air->Unlimbo(coord, dir)) {
+								air->Assign_Mission(AircraftClass::Mission_From_Name(strtok(NULL, ",\n\r")));
+							} else {
+								delete air;
+							}
 						}
 					}
 				}
@@ -914,7 +934,8 @@ void AircraftClass::AI(void)
 	/*
 	**	Perform sighting every so often as controlled by the sight timer.
 	*/
-	if (IsOwnedByPlayer && Class->SightRange && SightTimer == 0) {
+	//if (IsOwnedByPlayer && Class->SightRange && SightTimer == 0) {  // Changed to facilitate client/server multiplayer. ST - 8/2/2019 2:29PM	
+	if (House->IsHuman && Class->SightRange && SightTimer == 0) {
 		Look();
 		SightTimer = TICKS_PER_SECOND;
 	}
@@ -1397,7 +1418,8 @@ int AircraftClass::Exit_Object(TechnoClass * unit)
 	/*
 	**	Find a free cell to drop the unit off at.
 	*/
-	for (FacingType face = FACING_N; face < FACING_COUNT; face++) {
+	FacingType face;
+	for (face = FACING_N; face < FACING_COUNT; face++) {
 		cell = Adjacent_Cell(Coord_Cell(Coord), _toface[face]);
 		if (unit->Can_Enter_Cell(cell) == MOVE_OK) break;
 	}
@@ -1416,6 +1438,7 @@ int AircraftClass::Exit_Object(TechnoClass * unit)
 		if (Transmit_Message(RADIO_HELLO, unit) == RADIO_ROGER) {
 			Transmit_Message(RADIO_UNLOAD);
 		}
+		unit->Look(false);
 		return(true);
 	}
 	return(false);
@@ -1504,9 +1527,25 @@ BulletClass * AircraftClass::Fire_At(TARGET target, int which)
 	**	ground instead of normal weapon fire.
 	*/
 	if (Class->PrimaryWeapon != NULL && Class->PrimaryWeapon->IsCamera) {
-		if (House->Is_Ally(PlayerPtr)) {
-			Map.Sight_From(Coord_Cell(Center_Coord()), 9, House, false);
+		
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+
+			if (House->Is_Ally(PlayerPtr)) {
+				Map.Sight_From(Coord_Cell(Center_Coord()), 9, House, false);
+			}
+			
+		} else {
+		
+			for (int i = 0; i < Session.Players.Count(); i++) {
+				HousesType house_type = Session.Players[i]->Player.ID;
+				HouseClass *house = HouseClass::As_Pointer(house_type);
+
+				if (house == House || House->Is_Ally(house)) {
+					Map.Sight_From(Coord_Cell(Center_Coord()), 9, house, false);
+				}
+			}
 		}
+		
 		Ammo = 0;
 		Arm = Rearm_Delay(IsSecondShot);
 		return(0);
@@ -1516,6 +1555,14 @@ BulletClass * AircraftClass::Fire_At(TARGET target, int which)
 	BulletClass * bullet = FootClass::Fire_At(target, which);
 
 	if (bullet) {
+
+		/*
+		**	Aircraft reveal when firing
+		*/
+		HouseClass *player = HouseClass::As_Pointer(Owner());
+		if (player != nullptr && player->IsHuman) {
+			Map.Sight_From(Coord_Cell(Center_Coord()), 1, player, false);
+		}
 
 		/*
 		**	Falling bullets move at a speed proportionate to the delivery craft.
@@ -1552,7 +1599,7 @@ BulletClass * AircraftClass::Fire_At(TARGET target, int which)
  * HISTORY:                                                                                    *
  *   05/26/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-ResultType AircraftClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType AircraftClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(Aircraft.ID(this) == ID);
 	assert(IsActive);
@@ -1577,23 +1624,28 @@ ResultType AircraftClass::Take_Damage(int & damage, int distance, WarheadType wa
 	*/
 	switch (res) {
 		case RESULT_DESTROYED:
-			Kill_Cargo(source);
-			Death_Announcement();
-			new AnimClass(ANIM_FBALL1, Target_Coord());
+			{
+				Kill_Cargo(source);
+				Death_Announcement();
+				COORDINATE coord = Target_Coord();
+				if (!(coord & HIGH_COORD_MASK)) {
+					new AnimClass(ANIM_FBALL1, coord);
+				}
 
-			/*
-			**	Parachute a survivor if possible.
-			*/
-			if (Class->IsCrew && Percent_Chance(90) && Map[Center_Coord()].Is_Clear_To_Move(SPEED_FOOT, true, false)) {
-				InfantryClass * infantry = new InfantryClass(INFANTRY_E1, House->Class->House);
-				if (infantry != NULL) {
-					if (!infantry->Paradrop(Center_Coord())) {
-						delete infantry;
+				/*
+				**	Parachute a survivor if possible.
+				*/
+				if (Class->IsCrew && Percent_Chance(90) && Map[Center_Coord()].Is_Clear_To_Move(SPEED_FOOT, true, false)) {
+					InfantryClass * infantry = new InfantryClass(INFANTRY_E1, House->Class->House);
+					if (infantry != NULL) {
+						if (!infantry->Paradrop(Center_Coord())) {
+							delete infantry;
+						}
 					}
 				}
-			}
 
-			delete this;
+				delete this;
+			}
 			break;
 
 		default:
@@ -1864,7 +1916,7 @@ void AircraftClass::Enter_Idle_Mode(bool )
 	assert(Aircraft.ID(this) == ID);
 	assert(IsActive);
 
-	MissionType mission = MISSION_GUARD;
+	MissionType mission = (Class->IsFixedWing && IsALoaner && Class->PrimaryWeapon != NULL) ? MISSION_HUNT : MISSION_GUARD;
 	if (Class->IsFixedWing) {
 		if (In_Which_Layer() == LAYER_GROUND) {
 			if (IsALoaner) {
@@ -1899,9 +1951,17 @@ void AircraftClass::Enter_Idle_Mode(bool )
 					/*
 					**	Normal aircraft try to find a good landing spot to rest.
 					*/
-					BuildingClass * building = Find_Docking_Bay(Class->Building, false);
+					BuildingClass * building = NULL;
+					if (In_Radio_Contact() && Contact_With_Whom()->What_Am_I() == RTTI_BUILDING) {
+						building = (BuildingClass *)Contact_With_Whom();
+					} else {
+						building = Find_Docking_Bay(Class->Building, false);
+						if (Transmit_Message(RADIO_HELLO, building) != RADIO_ROGER) {
+							building = NULL;
+						}
+					}
 					Assign_Destination(TARGET_NONE);
-					if (building != NULL && Transmit_Message(RADIO_HELLO, building) == RADIO_ROGER) {
+					if (building != NULL) {
 						if (Class->IsFixedWing) {
 							Status = 0;	//BG - reset the mission status to avoid landing on the ground next to the airstrip
 							if (IsLanding) {
@@ -2254,7 +2314,7 @@ ActionType AircraftClass::What_Action(ObjectClass const * target) const
 
 	ActionType action = FootClass::What_Action(target);
 
-	if (action == ACTION_SELF && !How_Many()) {
+	if (action == ACTION_SELF && (!How_Many() || (Height > 0) || IsTethered)) {
 		action = ACTION_NONE;
 	}
 
@@ -2317,7 +2377,8 @@ ActionType AircraftClass::What_Action(CELL cell) const
 
 	ActionType action = FootClass::What_Action(cell);
 
-	if (action == ACTION_MOVE && Session.Type == GAME_NORMAL && !Map[cell].IsVisible) {
+	//using function for IsVisible so we have different results for different players - JAS 2019/09/30
+	if ((action == ACTION_MOVE || action == ACTION_ATTACK) && !Map[cell].Is_Visible(PlayerPtr)) {
 		action = ACTION_NOMOVE;
 	}
 
@@ -2803,7 +2864,7 @@ RadioMessageType AircraftClass::Receive_Message(RadioClass * from, RadioMessageT
 		**	Asks if the passenger can load on this transport.
 		*/
 		case RADIO_CAN_LOAD:
-			if (Class->Max_Passengers() == 0 || from == NULL || !House->Is_Ally(from->Owner())) return(RADIO_STATIC);
+			if (Class->Max_Passengers() == 0 || from == NULL || !House->Is_Ally(from->Owner()) || Height > 0) return(RADIO_STATIC);
 			if (/*!In_Radio_Contact() &&*/ How_Many() < Class->Max_Passengers()) {
 				return(RADIO_ROGER);
 			}
@@ -3018,7 +3079,7 @@ MoveType AircraftClass::Can_Enter_Cell(CELL cell, FacingType ) const
 	if (occupier == NULL ||
 		!occupier->Is_Techno() ||
 		((TechnoClass *)occupier)->House->Is_Ally(House) ||
-		(((TechnoClass *)occupier)->Cloak != CLOAKED &&
+		(!((TechnoClass *)occupier)->Is_Cloaked(this) &&
 			(ScenarioInit == 0 && (occupier->What_Am_I() != RTTI_BUILDING || !((BuildingClass*)occupier)->Class->IsInvisible)) )
 		) {
 
@@ -3078,8 +3139,10 @@ TARGET AircraftClass::Good_Fire_Location(TARGET target) const
 			for (int face = 0; face < 255; face += 16) {
 				COORDINATE newcoord = Coord_Move(tcoord, (DirType)face, r);
 				CELL newcell = Coord_Cell(newcoord);
+				CELL actualcell = Coord_Cell(Coord_Sub(newcoord, XY_Coord(0, FLIGHT_LEVEL)));
 
-				if (Map.In_Radar(newcell) && (Session.Type != GAME_NORMAL || Map[newcell].IsVisible) && Cell_Seems_Ok(newcell, true)) {
+				//using function for IsVisible so we have different results for different players - JAS 2019/09/30
+				if (Map.In_Radar(actualcell) && (Session.Type != GAME_NORMAL || Map[newcell].Is_Visible(PlayerPtr)) && Cell_Seems_Ok(newcell, true)) {
 					int dist;
 					if (altcoord != 0) {
 						dist = ::Distance(newcoord, altcoord);
@@ -3184,7 +3247,8 @@ int AircraftClass::Pip_Count(void) const
 
 	int retval = 0;
 
-	if (Class->Max_Passengers() > 0) {
+	bool carrying_passengers = (Class->Max_Passengers() > 0) && ((*this != AIRCRAFT_BADGER) || (Mission != MISSION_HUNT));
+	if (carrying_passengers) {
 		retval = How_Many();
 	} else {
 		if (Ammo) {
@@ -4372,4 +4436,19 @@ void AircraftClass::Look(bool incremental)
 	if (sight_range) {
 		Map.Sight_From(Coord_Cell(Coord), sight_range, House, incremental);
 	}
+}
+
+unsigned AircraftClass::Spied_By() const
+{
+	unsigned spiedby = FootClass::Spied_By();
+
+	/*
+	** Aircraft inherit the spied by flags of the helipad they've landed on
+	*/
+	BuildingClass* building = Map[Coord].Cell_Building();
+	if ((Height == 0) && In_Radio_Contact() && (building == Contact_With_Whom())) {
+		spiedby |= building->Spied_By();
+	}
+
+	return spiedby;
 }

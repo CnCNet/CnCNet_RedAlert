@@ -51,7 +51,7 @@
 #include	"goptions.h"
 #include	"options.h"
 #include	"infantry.H"
-
+#include "DSOUND.H"
 
 extern char _staging_buffer[32000];
 extern "C" {
@@ -88,6 +88,7 @@ extern bool Debug_Smart_Print;
 extern bool Debug_Trap_Check_Heap;
 extern bool Debug_Modem_Dump;
 extern bool Debug_Print_Events;
+extern bool Debug_Force_Crash;
 
 extern void const *LightningShapes;
 
@@ -102,6 +103,7 @@ extern bool AntsEnabled;
 extern bool NewUnitsEnabled;
 extern bool SecretUnitsEnabled;
 extern int MTankDistance;
+extern bool OverrideNewUnitsEnabled;	 // ST - 12/13/2019 12:19PM	
 #ifdef FIXIT_CARRIER	//	checked - ajw 9/28/98
 extern int CarrierLaunchDelay;
 #endif
@@ -152,7 +154,7 @@ extern CCINIClass					RuleINI;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 extern CCINIClass					AftermathINI;
 #endif
-extern Benchmark *				Benches;
+//extern Benchmark *				Benches;
 extern int							MapTriggerID;
 extern int							LogicTriggerID;
 extern PKey							FastKey;
@@ -247,7 +249,8 @@ extern QueueClass<EventClass, (MAX_EVENTS * 64)>		DoList;
 extern QueueClass<EventClass, (MAX_EVENTS * 64)>		MirrorList;
 #endif
 
-extern DynamicVectorClass<ObjectClass *>					CurrentObject;
+typedef DynamicVectorArrayClass<ObjectClass *, HOUSE_COUNT, HOUSE_FIRST> SelectedObjectsType;
+extern SelectedObjectsType									CurrentObject;
 extern DynamicVectorClass<TriggerClass *>					LogicTriggers;
 extern DynamicVectorClass<TriggerClass *>					MapTriggers;
 extern DynamicVectorClass<TriggerClass *> 				HouseTriggers[HOUSE_COUNT];
@@ -255,8 +258,7 @@ extern DynamicVectorClass<TriggerClass *> 				HouseTriggers[HOUSE_COUNT];
 extern BaseClass													Base;
 
 /* These variables are used to keep track of the slowest speed of a team */
-extern MPHType TeamMaxSpeed[10];
-extern SpeedType TeamSpeed[10];
+extern TeamFormDataStruct TeamFormData[HOUSE_COUNT];
 extern bool FormMove;
 extern SpeedType FormSpeed;
 extern MPHType FormMaxSpeed;
@@ -304,7 +306,7 @@ extern ChronalVortexClass		ChronalVortex;
 extern TTimerClass<SystemTimerClass> TickCount;
 extern bool							PassedProximity;	// used in display.cpp
 extern HousesType					Whom;
-extern _VQAConfig					AnimControl;
+//extern _VQAConfig					AnimControl;
 extern long							SpareTicks;
 extern long							PathCount;
 extern long							CellCount;
@@ -313,7 +315,7 @@ extern long							SidebarRedraws;
 extern DMonoType					MonoPage;
 extern bool							GameActive;
 extern bool							SpecialFlag;
-extern bool							ScenarioInit;
+extern int							ScenarioInit;
 extern HouseClass *				PlayerPtr;
 extern PaletteClass 				CCPalette;
 extern PaletteClass 				BlackPalette;
@@ -342,7 +344,7 @@ extern CELL 						CurrentCell;
 #endif
 
 extern SessionClass				Session;
-extern NullModemClass 			NullModem;
+//extern NullModemClass 			NullModem;
 extern IPXManagerClass 	 		Ipx;
 
 #if(TEN)
@@ -378,10 +380,10 @@ extern char const * const					SpecialWeaponFile[SPC_COUNT];
 extern char const * const					ArmorName[ARMOR_COUNT];
 extern char const * const					QuarryName[QUARRY_COUNT];
 extern char const * const					FormationName[FORMATION_COUNT];
-extern long const								PlayCodes[];
-extern long const								CheatCodes[];
+extern unsigned long const					PlayCodes[];
+extern unsigned long const					CheatCodes[];
 //extern char const * const					ProjectileNames[];
-extern long const								EditorCodes[];
+extern unsigned long const					EditorCodes[];
 extern char const * const					SourceName[SOURCE_COUNT];
 extern int const								GroundColor[LAND_COUNT];
 extern int const								SnowColor[LAND_COUNT];
@@ -445,7 +447,7 @@ void Do_Vortex (int x, int y, int frame);
 ** Win32 specific externs
 */
 #ifdef WIN32
-extern bool ReadyToQuit;							//Are we about to exit cleanly
+extern int ReadyToQuit;							//Are we about to exit cleanly
 extern bool InDebugger;							//Are we being run from a debugger
 void Memory_Error_Handler(void);				//Memory error handler function
 void WWDebugString (char *string);
@@ -501,5 +503,8 @@ extern MCIMovie* MciMovie;
 extern MPGSettings* MpgSettings;
 #endif
 
-#endif
+extern "C" bool MMXAvailable;
 
+extern bool ShareAllyVisibility;
+
+#endif

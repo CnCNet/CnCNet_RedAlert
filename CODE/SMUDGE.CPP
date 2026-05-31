@@ -70,7 +70,7 @@ void * SmudgeClass::operator new(size_t )
 {
 	void * ptr = Smudges.Allocate();
 	if (ptr != NULL) {
-		((SmudgeClass *)ptr)->IsActive = true;
+		((SmudgeClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }

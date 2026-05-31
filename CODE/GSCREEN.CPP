@@ -437,7 +437,7 @@ void GScreenClass::Render(void)
 		}
 		Session.Messages.Draw();
 
-		Blit_Display();
+		//Blit_Display(); // 5/19/20 SKY - Skip copying to scene page, we can get the data directly from hidden page
 		IsToUpdate = false;
 		IsToRedraw = false;
 
@@ -476,7 +476,7 @@ void GScreenClass::Blit_Display(void)
 			HidPage.Blit(SeenBuff , 0 , 0 , 0 , 0 , HidPage.Get_Width() , HidPage.Get_Height() , (BOOL) FALSE );
 			WWMouse->Erase_Mouse(&HidPage, FALSE);
 		} else {
-			ModeX_Blit(&HiddenPage);
+			//PG ModeX_Blit(&HiddenPage);
 		}
 	#else
 		Shadow_Blit(0, 0, 320, 200, HidPage, SeenPage, ShadowPage->Get_Buffer());

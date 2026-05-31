@@ -35,12 +35,13 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+
 #ifndef DPMI_Hx
 #define DPMI_Hx
 #include	<dos.h>
 #include	<stdlib.h>
 #include	<stdio.h>
-#include	<mem.h>
+//#include	<mem.h>
 
 
 extern void output(short port, short data);

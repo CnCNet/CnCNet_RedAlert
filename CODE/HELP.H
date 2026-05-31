@@ -129,7 +129,8 @@ class HelpClass: public TabClass
 		**	which cells are under the help text and thus which cells need to be redrawn if
 		**	the help text is to be erased.
 		*/
-		static short const OverlapList[60];
+		//static short const OverlapList[60];  // Can't be const - it's expected to be written to. ST - 2/7/2019 5:16PM		
+		static short OverlapList[60];
 
 		enum HelpClassEnum {
 			HELP_DELAY=TIMER_SECOND*1,				// The countdown timer delay before help text pops up.

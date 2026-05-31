@@ -248,6 +248,8 @@ class BuildingClass : public TechnoClass
 		virtual ActionType What_Action(ObjectClass const * target) const;
 		virtual ActionType What_Action(CELL cell) const;
 		virtual bool Can_Demolish(void) const;
+		virtual bool Can_Demolish_Unit(void) const;
+		virtual bool Can_Capture(void) const;
 		virtual ObjectTypeClass const & Class_Of(void) const {return *Class;};
 		virtual DirType Fire_Direction(void) const;
 		virtual short const * Overlap_List(bool redraw=false) const;
@@ -347,8 +349,15 @@ class BuildingClass : public TechnoClass
 		bool Load(Straw & file);
 		bool Save(Pipe & file) const;
 
+		virtual unsigned Spied_By() const;
+
 	private:
 		void Drop_Debris(TARGET source = TARGET_NONE);
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 
 		static COORDINATE const CenterOffset[BSIZE_COUNT];
 };

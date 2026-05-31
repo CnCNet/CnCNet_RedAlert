@@ -187,7 +187,7 @@ void TeamClass::Decode_Pointers(void)
 	**	Decode the 'Member'
 	*/
 	if (Member) {
-		Member = (FootClass *)As_Techno((TARGET)Member);
+		Member = (FootClass *)As_Techno((TARGET)Member, false);
 		assert(Member != NULL);
 	}
 }
@@ -305,7 +305,7 @@ void BulletClass::Decode_Pointers(void)
 	**	Decode 'Payback'
 	*/
 	if (Payback) {
-		Payback = As_Techno((TARGET)Payback);
+		Payback = As_Techno((TARGET)Payback, false);
 		assert(Payback != NULL);
 	}
 
@@ -367,11 +367,13 @@ void FactoryClass::Code_Pointers(void)
 void FactoryClass::Decode_Pointers(void)
 {
 	if (Object) {
-		Object = As_Techno((TARGET)Object);
+		Object = As_Techno((TARGET)Object, false);
 		assert(Object != NULL);
 	}
 
-	((HouseClass *&)House) = HouseClass::As_Pointer((HousesType)House);
+	unsigned int house_ptr_val = *((unsigned int*)&House);
+	((HouseClass *&)House) = HouseClass::As_Pointer((HousesType)house_ptr_val);
+
 	assert(House != NULL);
 }
 
@@ -502,7 +504,7 @@ void LayerClass::Decode_Pointers(void)
 {
 	for (int index = 0; index < Count(); index++) {
 		TARGET target = (TARGET)(*this)[index];
-		(*this)[index] = (ObjectClass *)As_Object(target);
+		(*this)[index] = (ObjectClass *)As_Object(target, false);
 		assert((*this)[index] != NULL);
 	}
 }
@@ -558,6 +560,7 @@ void HouseClass::Decode_Pointers(void)
 	** Loading the house from disk will have over-written the house's RemapTable, so
 	** Init_Data() is called to reset it to a valid pointer.
 	*/
+	
 	Init_Data(RemapColor, ActLike, Credits);
 }
 
@@ -657,7 +660,7 @@ void FootClass::Code_Pointers(void)
 void FootClass::Decode_Pointers(void)
 {
 	if ((TARGET)Member != TARGET_NONE) {
-		Member = (FootClass *)As_Techno((TARGET)Member);
+		Member = (FootClass *)As_Techno((TARGET)Member, false);
 		assert(Member != NULL);
 	}
 
@@ -722,7 +725,7 @@ void RadioClass::Decode_Pointers(void)
 	**	Decode 'Radio'
 	*/
 	if (Radio) {
-		Radio = As_Techno((TARGET)Radio);
+		Radio = As_Techno((TARGET)Radio, false);
 		assert(Radio != NULL);
 	}
 
@@ -837,7 +840,7 @@ void CargoClass::Decode_Pointers(void)
 	**	Decode 'CargoHold'
 	*/
 	if (CargoHold) {
-		CargoHold = (FootClass *)As_Techno((TARGET)CargoHold);
+		CargoHold = (FootClass *)As_Techno((TARGET)CargoHold, false);
 		assert(CargoHold != NULL);
 	}
 }
@@ -892,8 +895,7 @@ void ObjectClass::Code_Pointers(void)
 void ObjectClass::Decode_Pointers(void)
 {
 	if (Next) {
-		Next = As_Object((TARGET)Next);
+		Next = As_Object((TARGET)Next, false);
 		assert(Next != NULL);
 	}
 }
-

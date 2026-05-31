@@ -80,6 +80,13 @@ class FactoryClass : private StageClass
 		void Set(TechnoClass & object);
 		HouseClass * Get_House(void) {return(House);};
 		char const * Name(void) {return("Factory");}
+		bool Is_Blocked(void) {return IsBlocked;}
+		void Set_Is_Blocked(bool set) {IsBlocked = set;}
+
+		/*
+		** Added for debugging / testing. ST - 8/23/2019 3:52PM
+		*/
+		void Force_Complete(void);
 
 		/*
 		**	This flag is used to maintain the pool of factory class objects. If the object has
@@ -114,6 +121,12 @@ class FactoryClass : private StageClass
 		unsigned IsDifferent:1;
 
 		/*
+		** The exit from the factory is blocked by something, which means a unit is prevented from exiting after construction
+		** has completed. ST - 2/25/2020 11:29AM
+		*/
+		unsigned IsBlocked:1;
+
+		/*
 		**	This records the balance due on the current production item. This value will
 		**	be reduced as production proceeds. It will reach zero the moment production has
 		**	finished. Using this method ensures that the total production cost will be EXACT
@@ -141,6 +154,11 @@ class FactoryClass : private StageClass
 		** for.
 		*/
 		HouseClass  * House;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 };
 
 #endif

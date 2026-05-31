@@ -41,7 +41,7 @@ typedef int bool;
 #include "buff.h"
 
 template<class T>
-class MixFileClass : public Node<MixFileClass>
+class MixFileClass : public Node<MixFileClass<T>>
 {
 	public:
 		char const * Filename;			// Filename of mixfile.
@@ -52,6 +52,7 @@ class MixFileClass : public Node<MixFileClass>
 
 		static bool Free(char const *filename);
 		void Free(void);
+		static void Free_All(void);	// ST - 12/18/2019 11:35AM
 		bool Cache(Buffer const * buffer = NULL);
 		static bool Cache(char const *filename, Buffer const * buffer=NULL);
 		static bool Offset(char const *filename, void ** realptr = 0, MixFileClass ** mixfile = 0, long * offset = 0, long * size = 0);
@@ -69,7 +70,7 @@ class MixFileClass : public Node<MixFileClass>
 
 	private:
 		static MixFileClass * Finder(char const * filename);
-		long Offset(long crc, long * size = 0) const;
+		//long Offset(long crc, long * size = 0) const;	// ST - 5/10/2019
 
 		/*
 		**	If this mixfile has an attached message digest, then this flag

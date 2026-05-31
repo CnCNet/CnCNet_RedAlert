@@ -38,6 +38,7 @@
 
 #ifndef BENCH_H
 #define BENCH_H
+#if (0)
 
 #include	"mpu.h"
 #include	"ftimer.h"
@@ -119,4 +120,5 @@ class Benchmark
 };
 
 
+#endif
 #endif

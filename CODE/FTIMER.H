@@ -486,14 +486,17 @@ class CDTimerClass : public BasicTimerClass<T> {
 		// Queries whether the timer is currently active.
 		bool Is_Active(void) const;
 
+		bool Was_Started(void) const { return WasStarted; }
+
 	private:
 		unsigned long DelayTime;			// Ticks remaining before countdown timer expires.
+		bool WasStarted;
 };
 
 
 template<class T>
 inline CDTimerClass<T>::CDTimerClass(NoInitClass const & x) :
-	BasicTimerClass<T>(x)
+	BasicTimerClass<T>(x), WasStarted(false)
 {
 }
 
@@ -517,7 +520,8 @@ inline CDTimerClass<T>::CDTimerClass(NoInitClass const & x) :
 template<class T>
 inline CDTimerClass<T>::CDTimerClass(unsigned long set) :
 	BasicTimerClass<T>(0),
-	DelayTime(set)
+	DelayTime(set),
+	WasStarted(false)
 {
 }
 
@@ -682,6 +686,8 @@ void CDTimerClass<T>::Stop(void)
 template<class T>
 void CDTimerClass<T>::Start(void)
 {
+	WasStarted = true;
+
 	if (Started == 0xFFFFFFFFU) {
 		Started = Timer();
 	}

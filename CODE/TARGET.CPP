@@ -119,9 +119,13 @@ CellClass * xTargetClass::As_Cell(void) const
  * HISTORY:                                                                                    *
  *   07/08/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-TriggerClass * As_Trigger(TARGET target)
+TriggerClass * As_Trigger(TARGET target, bool check_active)
 {
-	return(Is_Target_Trigger(target) ? Triggers.Raw_Ptr(Target_Value(target)) : NULL);
+	TriggerClass* trigger = Is_Target_Trigger(target) ? Triggers.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && trigger != NULL && !trigger->IsActive) {
+		trigger = NULL;
+	}
+	return(trigger);
 }
 
 
@@ -140,9 +144,13 @@ TriggerClass * As_Trigger(TARGET target)
  * HISTORY:                                                                                    *
  *   07/08/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-TeamClass * As_Team(TARGET target)
+TeamClass * As_Team(TARGET target, bool check_active)
 {
-	return(Is_Target_Team(target) ? Teams.Raw_Ptr(Target_Value(target)) : NULL);
+	TeamClass* team = Is_Target_Team(target) ? Teams.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && team != NULL && !team->IsActive) {
+		team = NULL;
+	}
+	return(team);
 }
 
 
@@ -182,9 +190,13 @@ TeamTypeClass * As_TeamType(TARGET target)
  * HISTORY:                                                                                    *
  *   07/08/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-AnimClass * As_Animation(TARGET target)
+AnimClass * As_Animation(TARGET target, bool check_active)
 {
-	return(Is_Target_Animation(target) ? Anims.Raw_Ptr(Target_Value(target)) : NULL);
+	AnimClass* anim = Is_Target_Animation(target) ? Anims.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && anim != NULL && !anim->IsActive) {
+		anim = NULL;
+	}
+	return(anim);
 }
 
 
@@ -203,9 +215,13 @@ AnimClass * As_Animation(TARGET target)
  * HISTORY:                                                                                    *
  *   07/08/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-BulletClass * As_Bullet(TARGET target)
+BulletClass * As_Bullet(TARGET target, bool check_active)
 {
-	return(Is_Target_Bullet(target) ? Bullets.Raw_Ptr(Target_Value(target)) : NULL);
+	BulletClass* bullet = Is_Target_Bullet(target) ? Bullets.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && bullet != NULL && !bullet->IsActive) {
+		bullet = NULL;
+	}
+	return(bullet);
 }
 
 
@@ -224,9 +240,13 @@ BulletClass * As_Bullet(TARGET target)
  * HISTORY:                                                                                    *
  *   08/27/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-AircraftClass * As_Aircraft(TARGET target)
+AircraftClass * As_Aircraft(TARGET target, bool check_active)
 {
-	return(Is_Target_Aircraft(target) ? Aircraft.Raw_Ptr(Target_Value(target)) : NULL);
+	AircraftClass* aircraft = Is_Target_Aircraft(target) ? Aircraft.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && aircraft != NULL && !aircraft->IsActive) {
+		aircraft = NULL;
+	}
+	return(aircraft);
 }
 
 
@@ -246,9 +266,9 @@ AircraftClass * As_Aircraft(TARGET target)
  * HISTORY:                                                                                    *
  *   06/02/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-TechnoClass * As_Techno(TARGET target)
+TechnoClass * As_Techno(TARGET target, bool check_active)
 {
-	ObjectClass * obj = As_Object(target);
+	ObjectClass * obj = As_Object(target, check_active);
 
 	if (obj && obj->Is_Techno()) {
 		return(TechnoClass *)obj;
@@ -273,7 +293,7 @@ TechnoClass * As_Techno(TARGET target)
  * HISTORY:                                                                                    *
  *   05/27/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-ObjectClass * As_Object(TARGET target)
+ObjectClass * As_Object(TARGET target, bool check_active)
 {
 	int val = Target_Value(target);
 	ObjectClass * object = NULL;
@@ -321,7 +341,7 @@ ObjectClass * As_Object(TARGET target)
 	**	object it refers to is destroyed between the time an event message
 	**	is sent and when it is received.
 	*/
-	if (object != NULL && !object->IsActive) {
+	if (check_active && object != NULL && !object->IsActive) {
 		object = NULL;
 	}
 
@@ -345,9 +365,13 @@ ObjectClass * As_Object(TARGET target)
  * HISTORY:                                                                                    *
  *   05/27/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-UnitClass * As_Unit(TARGET target)
+UnitClass * As_Unit(TARGET target, bool check_active)
 {
-	return(Is_Target_Unit(target) ? Units.Raw_Ptr(Target_Value(target)) : NULL);
+	UnitClass* unit = Is_Target_Unit(target) ? Units.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && unit != NULL && !unit->IsActive) {
+		unit = NULL;
+	}
+	return(unit);
 }
 
 
@@ -367,9 +391,13 @@ UnitClass * As_Unit(TARGET target)
  * HISTORY:                                                                                    *
  *   07/16/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-VesselClass * As_Vessel(TARGET target)
+VesselClass * As_Vessel(TARGET target, bool check_active)
 {
-	return(Is_Target_Vessel(target) ? Vessels.Raw_Ptr(Target_Value(target)) : NULL);
+	VesselClass* vessel = Is_Target_Vessel(target) ? Vessels.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && vessel != NULL && !vessel->IsActive) {
+		vessel = NULL;
+	}
+	return(vessel);
 }
 
 
@@ -389,9 +417,13 @@ VesselClass * As_Vessel(TARGET target)
  * HISTORY:                                                                                    *
  *   10/17/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-InfantryClass * As_Infantry(TARGET target)
+InfantryClass * As_Infantry(TARGET target, bool check_active)
 {
-	return(Is_Target_Infantry(target) ? Infantry.Raw_Ptr(Target_Value(target)) : NULL);
+	InfantryClass* infantry = Is_Target_Infantry(target) ? Infantry.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && infantry != NULL && !infantry->IsActive) {
+		infantry = NULL;
+	}
+	return(infantry);
 }
 
 
@@ -410,13 +442,16 @@ InfantryClass * As_Infantry(TARGET target)
  * HISTORY:                                                                                    *
  *   05/27/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-BuildingClass * As_Building(TARGET target)
+BuildingClass * As_Building(TARGET target, bool check_active)
 {
-	return(Is_Target_Building(target) ? Buildings.Raw_Ptr(Target_Value(target)) : NULL);
+	BuildingClass* building = Is_Target_Building(target) ? Buildings.Raw_Ptr(Target_Value(target)) : NULL;
+	if (check_active && building != NULL && !building->IsActive) {
+		building = NULL;
+	}
+	return(building);
 }
 
 
-#ifdef NEVER
 /***********************************************************************************************
  * Target_Legal -- Determines if the specified target is legal.                                *
  *                                                                                             *
@@ -436,15 +471,14 @@ BuildingClass * As_Building(TARGET target)
  *=============================================================================================*/
 bool Target_Legal(TARGET target)
 {
-	if (!Target_Legal(target)) return(false);
+	if (target == TARGET_NONE) return(false);
 
-	ObjectClass * obj = As_Object(target);
+	ObjectClass * obj = As_Object(target, false);
 	if (obj) {
-		return(obj->Get_Strength() > 0 && obj->IsActive && !obj->IsInLimbo && obj->Class_Of().IsLegalTarget);
+		return(obj->IsActive);
 	}
 	return(true);
 }
-#endif
 
 
 /***********************************************************************************************
@@ -580,46 +614,61 @@ COORDINATE As_Movement_Coord(TARGET target)
  * HISTORY:                                                                                    *
  *   03/05/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-AbstractClass * xTargetClass::As_Abstract(void) const
+AbstractClass * xTargetClass::As_Abstract(bool check_active) const
 {
+	AbstractClass* abst = NULL;
 	switch ((RTTIType)*this) {
 		case RTTI_TEAM:
-			return(Teams.Raw_Ptr(Value()));
+			abst = Teams.Raw_Ptr(Value());
+			break;
 
 		case RTTI_BULLET:
-			return(Bullets.Raw_Ptr(Value()));
+			abst = Bullets.Raw_Ptr(Value());
+			break;
 
 		case RTTI_OVERLAY:
-			return(Overlays.Raw_Ptr(Value()));
+			abst = Overlays.Raw_Ptr(Value());
+			break;
 
 		case RTTI_SMUDGE:
-			return(Smudges.Raw_Ptr(Value()));
+			abst = Smudges.Raw_Ptr(Value());
+			break;
 
 		case RTTI_UNIT:
-			return(Units.Raw_Ptr(Value()));
+			abst = Units.Raw_Ptr(Value());
+			break;
 
 		case RTTI_VESSEL:
-			return(Vessels.Raw_Ptr(Value()));
+			abst = Vessels.Raw_Ptr(Value());
+			break;
 
 		case RTTI_BUILDING:
-			return(Buildings.Raw_Ptr(Value()));
+			abst = Buildings.Raw_Ptr(Value());
+			break;
 
 		case RTTI_INFANTRY:
-			return(Infantry.Raw_Ptr(Value()));
+			abst = Infantry.Raw_Ptr(Value());
+			break;
 
 		case RTTI_AIRCRAFT:
-			return(Aircraft.Raw_Ptr(Value()));
+			abst = Aircraft.Raw_Ptr(Value());
+			break;
 
 		case RTTI_TERRAIN:
-			return(Terrains.Raw_Ptr(Value()));
+			abst = Terrains.Raw_Ptr(Value());
+			break;
 
 		case RTTI_ANIM:
-			return(Anims.Raw_Ptr(Value()));
+			abst = Anims.Raw_Ptr(Value());
+			break;
 
 		default:
 			break;
 	}
-	return(0);
+	if (check_active && abst != NULL && !abst->IsActive) {
+		abst = NULL;
+	}
+	return(abst);
 }
 
 
@@ -685,68 +734,91 @@ AbstractTypeClass * xTargetClass::As_TypeClass(void) const
  * HISTORY:                                                                                    *
  *   03/05/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-TechnoClass * xTargetClass::As_Techno(void) const
+TechnoClass * xTargetClass::As_Techno(bool check_active) const
 {
+	TechnoClass* techno = NULL;
 	switch ((RTTIType)*this) {
 		case RTTI_UNIT:
-			return(Units.Raw_Ptr(Value()));
+			techno = Units.Raw_Ptr(Value());
+			break;
 
 		case RTTI_VESSEL:
-			return(Vessels.Raw_Ptr(Value()));
+			techno = Vessels.Raw_Ptr(Value());
+			break;
 
 		case RTTI_BUILDING:
-			return(Buildings.Raw_Ptr(Value()));
+			techno = Buildings.Raw_Ptr(Value());
+			break;
 
 		case RTTI_INFANTRY:
-			return(Infantry.Raw_Ptr(Value()));
+			techno = Infantry.Raw_Ptr(Value());
+			break;
 
 		case RTTI_AIRCRAFT:
-			return(Aircraft.Raw_Ptr(Value()));
+			techno = Aircraft.Raw_Ptr(Value());
+			break;
 
 		default:
 			break;
 	}
-	return(0);
+	if (check_active && techno != NULL && !techno->IsActive) {
+		techno = NULL;
+	}
+	return(techno);
 }
 
 
-ObjectClass * xTargetClass::As_Object(void) const
+ObjectClass * xTargetClass::As_Object(bool check_active) const
 {
+	ObjectClass* object = NULL;
 	switch ((RTTIType)*this) {
 		case RTTI_TERRAIN:
-			return(Terrains.Raw_Ptr(Value()));
+			object = Terrains.Raw_Ptr(Value());
+			break;
 
 		case RTTI_SMUDGE:
-			return(Smudges.Raw_Ptr(Value()));
+			object = Smudges.Raw_Ptr(Value());
+			break;
 
 		case RTTI_OVERLAY:
-			return(Overlays.Raw_Ptr(Value()));
+			object = Overlays.Raw_Ptr(Value());
+			break;
 
 		case RTTI_BULLET:
-			return(Bullets.Raw_Ptr(Value()));
+			object = Bullets.Raw_Ptr(Value());
+			break;
 
 		case RTTI_ANIM:
-			return(Anims.Raw_Ptr(Value()));
+			object = Anims.Raw_Ptr(Value());
+			break;
 
 		case RTTI_UNIT:
-			return(Units.Raw_Ptr(Value()));
+			object = Units.Raw_Ptr(Value());
+			break;
 
 		case RTTI_VESSEL:
-			return(Vessels.Raw_Ptr(Value()));
+			object = Vessels.Raw_Ptr(Value());
+			break;
 
 		case RTTI_BUILDING:
-			return(Buildings.Raw_Ptr(Value()));
+			object = Buildings.Raw_Ptr(Value());
+			break;
 
 		case RTTI_INFANTRY:
-			return(Infantry.Raw_Ptr(Value()));
+			object = Infantry.Raw_Ptr(Value());
+			break;
 
 		case RTTI_AIRCRAFT:
-			return(Aircraft.Raw_Ptr(Value()));
+			object = Aircraft.Raw_Ptr(Value());
+			break;
 
 		default:
 			break;
 	}
-	return(0);
+	if (check_active && object != NULL && !object->IsActive) {
+		object = NULL;
+	}
+	return(object);
 }
 
 

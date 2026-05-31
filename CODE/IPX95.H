@@ -44,6 +44,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+#if (0)
 
 /*
 ** Types for function pointers
@@ -82,9 +83,9 @@ typedef int  __stdcall (*IPXGetLocalTarget95) (unsigned char *, unsigned char*, 
 */
 bool Load_IPX_Dll (void);
 void Unload_IPX_Dll (void);
+#endif
 
-
-#if (0)
+#if (1)
 extern "C"{
 	extern BOOL __stdcall IPX_Initialise(void);
 	extern BOOL __stdcall IPX_Get_Outstanding_Buffer95(unsigned char *buffer);
@@ -97,6 +98,7 @@ extern "C"{
 	extern int  __stdcall IPX_Get_Connection_Number95(void);
 	extern int  __stdcall IPX_Get_Local_Target95(unsigned char *, unsigned char*, unsigned short, unsigned char*);
 }
-#endif	//(0)
+#endif	//(1)
 
 extern bool WindowsNT;
+

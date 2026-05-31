@@ -90,6 +90,12 @@ class OverlayClass : public ObjectClass
 		**	upon will be flagged as being owned by the specified house.
 		*/
 		static HousesType ToOwn;
+
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[8];
 };
 
 #endif

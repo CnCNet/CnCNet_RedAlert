@@ -414,6 +414,8 @@ void SidebarClass::Reload_Sidebar(void)
 		houseloaded = PlayerPtr->ActLike;
 	}
 
+	/*  Don't have write access to the static char array. ST - 5/20/2019 */
+#if (0)
 	char * sidename = sidebarnames[houseloaded];
 	*(sidename+4) = '1';
 	SidebarShape = (void*)MFCD::Retrieve(sidename);
@@ -421,6 +423,20 @@ void SidebarClass::Reload_Sidebar(void)
 	SidebarMiddleShape = (void*)MFCD::Retrieve(sidename);
 	*(sidename+4) = '3';
 	SidebarBottomShape = (void*)MFCD::Retrieve(sidename);
+#else
+	char sb_name[16];
+	strcpy(sb_name, sidebarnames[houseloaded]);
+	sb_name[4] = '1';
+	SidebarShape = (void*)MFCD::Retrieve(sb_name);
+	sb_name[4] = '2';
+	SidebarMiddleShape = (void*)MFCD::Retrieve(sb_name);
+	sb_name[4] = '3';
+	SidebarBottomShape = (void*)MFCD::Retrieve(sb_name);
+
+#endif
+
+
+
 
 	Column[0].Reload_LogoShapes();
 	Column[1].Reload_LogoShapes();
@@ -664,8 +680,9 @@ bool SidebarClass::Activate_Demolish(int control)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   11/17/1994 JLB : Created.                                                                 *
+ *   9/24/2019 3:17PM : Added via capture parameter for new sidebar functionality              *
  *=============================================================================================*/
-bool SidebarClass::Add(RTTIType type, int id)
+bool SidebarClass::Add(RTTIType type, int id, bool via_capture)
 {
 	assert((unsigned)type < RTTI_COUNT);
 
@@ -675,7 +692,7 @@ bool SidebarClass::Add(RTTIType type, int id)
 	if (!Debug_Map) {
 		int column = Which_Column(type);
 
-		if (Column[column].Add(type, id)) {
+		if (Column[column].Add(type, id, via_capture)) {
 			Activate(1);
 			IsToRedraw = true;
 			Flag_To_Redraw(false);
@@ -822,6 +839,14 @@ void SidebarClass::AI(KeyNumType & input, int x, int y)
 {
 	bool redraw = false;
 
+	//
+	// We need to process the sidebar differently in multiplayer. ST - 8/7/2019 10:48AM
+	//
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		PowerClass::AI(input, x, y);
+		return;
+	}
+
 	/*
 	**	Toggle the sidebar in and out with the <TAB> key.
 	*/
@@ -934,6 +959,11 @@ void SidebarClass::Recalc(void)
 {
 	bool redraw = false;
 
+	// Done elsewhere for new multiplayer. ST - 8/7/2019 10:49AM
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		return;
+	}
+
 	redraw |= Column[0].Recalc();
 	redraw |= Column[1].Recalc();
 
@@ -964,6 +994,13 @@ void SidebarClass::Recalc(void)
  *=============================================================================================*/
 bool SidebarClass::Activate(int control)
 {
+	//
+	// We don't want the original sidebar to be visible. ST - 1/31/2019 11:28AM
+	//
+	if (control < 100) {
+		return IsSidebarActive;
+	}
+
 	bool old = IsSidebarActive;
 
 	if (Session.Play)
@@ -1071,6 +1108,7 @@ SidebarClass::StripClass::StripClass(InitClass const & ) :
 		Buildables[index].BuildableID = 0;
 		Buildables[index].BuildableType = RTTI_NONE;
 		Buildables[index].Factory = -1;
+		Buildables[index].BuildableViaCapture = false;		// Added for new sidebar functionality. ST - 9/24/2019 3:10PM 
 	}
 }
 
@@ -1161,6 +1199,7 @@ void SidebarClass::StripClass::Init_Clear(void)
 		Buildables[index].BuildableID = 0;
 		Buildables[index].BuildableType = RTTI_NONE;
 		Buildables[index].Factory = -1;
+		Buildables[index].BuildableViaCapture = false;		// Added for new sidebar functionality. ST - 9/24/2019 3:10PM 
 	}
 }
 
@@ -1368,8 +1407,9 @@ void SidebarClass::StripClass::Deactivate(void)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   12/31/1994 JLB : Created.                                                                 *
+ *   9/24/2019 3:17PM : Added via capture parameter for new sidebar functionality              *
  *=============================================================================================*/
-bool SidebarClass::StripClass::Add(RTTIType type, int id)
+bool SidebarClass::StripClass::Add(RTTIType type, int id, bool via_capture)
 {
 	if (BuildableCount <= MAX_BUILDABLES) {
 		for (int index = 0; index < BuildableCount; index++) {
@@ -1382,6 +1422,7 @@ bool SidebarClass::StripClass::Add(RTTIType type, int id)
 		}
 		Buildables[BuildableCount].BuildableType = type;
 		Buildables[BuildableCount].BuildableID = id;
+		Buildables[BuildableCount].BuildableViaCapture = via_capture;
 		BuildableCount++;
 		IsToRedraw = true;
 		return(true);
@@ -1570,7 +1611,7 @@ bool SidebarClass::StripClass::AI(KeyNumType & input, int , int )
 			if (factoryid != -1) {
 				FactoryClass * factory = Factories.Raw_Ptr(factoryid);
 
-				if (factory && factory->Has_Changed()) {
+				if (factory && (factory->Has_Changed() || factory->Is_Blocked())) {
 					redraw = true;
 					if (factory->Has_Completed()) {
 
@@ -1587,7 +1628,9 @@ bool SidebarClass::StripClass::AI(KeyNumType & input, int , int )
 								case RTTI_UNIT:
 								case RTTI_AIRCRAFT:
 									OutList.Add(EventClass(EventClass::PLACE, pending->What_Am_I(), -1));
-									Speak(VOX_UNIT_READY);
+									if (!factory->Is_Blocked()) {
+										Speak(VOX_UNIT_READY);
+									}
 									break;
 
 								case RTTI_BUILDING:
@@ -1596,7 +1639,9 @@ bool SidebarClass::StripClass::AI(KeyNumType & input, int , int )
 
 								case RTTI_INFANTRY:
 									OutList.Add(EventClass(EventClass::PLACE, pending->What_Am_I(), -1));
-									Speak(VOX_UNIT_READY);
+									if (!factory->Is_Blocked()) {
+										Speak(VOX_UNIT_READY);
+									}
 									break;
 							}
 						}
@@ -1639,6 +1684,10 @@ void SidebarClass::StripClass::Draw_It(bool complete)
 {
 	if (IsToRedraw || complete) {
 		IsToRedraw = false;
+
+		if (RunningAsDLL) {
+			return;
+		}
 
 		SidebarRedraws++;
 
@@ -1688,7 +1737,7 @@ void SidebarClass::StripClass::Draw_It(bool complete)
 			**	Fetch the shape number for the object type located at this current working
 			**	slot. This shape pointer is used to draw the underlying graphic there.
 			*/
-			if ((unsigned)index < BuildableCount) {
+			if (index < BuildableCount) {
 				ObjectTypeClass const * obj = NULL;
 				SpecialWeaponType spc = SPC_NONE;
 

@@ -42,7 +42,7 @@ void Delay(int duration)
 
 	while (duration--) {
 		count = timer.Time() + 1L;
-		while (count >= timer.Time()) {
+		while (count >= (unsigned)timer.Time()) {
 			;
 		}
 	}

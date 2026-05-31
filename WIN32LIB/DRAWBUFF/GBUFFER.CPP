@@ -50,7 +50,7 @@
 #include "gbuffer.h"
 #include "misc.h"
 #endif
-#pragma inline
+//#pragma inline
 
 int		TotalLocks;
 BOOL 	AllowHardwareBlitFills = TRUE;
@@ -81,11 +81,10 @@ BOOL 	AllowHardwareBlitFills = TRUE;
  * HISTORY:                                                                *
  *   05/09/1994 PWG : Created.                                             *
  *=========================================================================*/
-GraphicViewPortClass::GraphicViewPortClass(GraphicBufferClass *gbuffer, int x, int y, int w, int h)
+GraphicViewPortClass::GraphicViewPortClass(GraphicBufferClass *gbuffer, int x, int y, int w, int h) :
+	LockCount(0),
+	GraphicBuff(NULL)
 {
-	LockCount = 0;
-	GraphicBuff = NULL;
-
 	Attach(gbuffer, x, y, w, h);
 }
 
@@ -524,7 +523,7 @@ GraphicViewPortClass *Set_Logic_Page(GraphicViewPortClass &ptr)
  *   10/09/1995     : Code stolen from Steve Tall                          *
  *=========================================================================*/
 extern	void Colour_Debug (int call_number);
-extern BOOL GameInFocus;
+extern bool GameInFocus;
 
 extern void Block_Mouse(GraphicBufferClass *buffer);
 extern void Unblock_Mouse(GraphicBufferClass *buffer);

@@ -285,7 +285,7 @@ EventClass::EventClass(EventType type, TargetClass src, TargetClass dest)
  * HISTORY:                                                                                    *
  *   05/19/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-EventClass::EventClass(AnimType anim, HousesType owner, COORDINATE coord)
+EventClass::EventClass(AnimType anim, HousesType owner, COORDINATE coord, int visible)
 {
 	ID = PlayerPtr->ID;
 	Type = ANIMATION;
@@ -293,6 +293,7 @@ EventClass::EventClass(AnimType anim, HousesType owner, COORDINATE coord)
 	Data.Anim.What = anim;
 	Data.Anim.Owner = owner;
 	Data.Anim.Where = coord;
+	Data.Anim.Visible = visible;
 }
 
 
@@ -518,7 +519,7 @@ void EventClass::Execute(void)
 		case ARCHIVE:
 			techno = Data.NavCom.Whom.As_Techno();
 			if (techno && techno->IsActive) {
-				techno->ArchiveTarget = Data.NavCom.Where;
+				techno->ArchiveTarget = Data.NavCom.Where.As_TARGET();
 			}
 			break;
 
@@ -551,7 +552,8 @@ void EventClass::Execute(void)
 				Special = Data.Options.Data;
 				HouseClass * house = Houses.Raw_Ptr(ID);
 
-				sprintf(txt, Text_String(TXT_SPECIAL_WARNING), house->Name);
+				//sprintf(txt, Text_String(TXT_SPECIAL_WARNING), house->Name);	// Should be IniName? ST - 5/8/2019
+				sprintf(txt, Text_String(TXT_SPECIAL_WARNING), house->IniName);
 				Session.Messages.Add_Message(NULL, 0, txt,
 					house->RemapColor,
 					TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, 1200);
@@ -602,8 +604,17 @@ void EventClass::Execute(void)
 		case ANIMATION:
 			anim = new AnimClass(Data.Anim.What, Data.Anim.Where);
 			if (anim) {
-				if (Data.Anim.Owner != HOUSE_NONE && PlayerPtr->Class->House != Data.Anim.Owner) {
-					anim->Make_Invisible();
+				anim->Set_Owner(Data.Anim.Owner);
+				anim->Set_Visible_Flags(static_cast<unsigned int>(Data.Anim.Visible));
+				/*
+				**	Beacons have a 30-second kill time.
+				*/
+				if (Data.Anim.What == ANIM_BEACON) {
+					FILETIME ft;
+					GetSystemTimeAsFileTime(&ft);
+
+					unsigned long long kill_time = ((unsigned long long)ft.dwLowDateTime + ((unsigned long long)ft.dwHighDateTime << 32ULL)) + 300000000ULL;
+					anim->Kill_At(kill_time);
 				}
 			}
 			break;
@@ -724,8 +735,12 @@ void EventClass::Execute(void)
 				}
 
 				if (object != NULL) {
-					if (PlayerPtr->Is_Ally(techno)) {
-						object->Clicked_As_Target();
+
+					// 2019/09/20 JAS - Added record of who clicked on the object
+					HouseClass* house = Houses.Raw_Ptr(ID);
+					bool is_allied = house != nullptr && house->Is_Ally(techno);
+					if (is_allied) {
+						object->Clicked_As_Target((HousesType)ID);
 					}
 				}
 
@@ -753,6 +768,12 @@ void EventClass::Execute(void)
 					techno->Assign_Target(TARGET_NONE);
 					techno->Assign_Destination(Data.MegaMission.Target.As_TARGET());
 					techno->ArchiveTarget = Data.MegaMission.Target.As_TARGET();
+				} else if (Data.MegaMission.Mission == MISSION_ENTER &&
+							object != NULL &&
+							object->What_Am_I() == RTTI_BUILDING &&
+							*((BuildingClass*)object) == STRUCT_REFINERY) {
+					techno->Transmit_Message(RADIO_HELLO, (BuildingClass*)object);
+					techno->Assign_Destination(TARGET_NONE);
 				} else {
 					if (q && techno->Is_Foot()) {
 						((FootClass *)techno)->Queue_Navigation_List(Data.MegaMission.Destination.As_TARGET());
@@ -773,14 +794,20 @@ void EventClass::Execute(void)
 				//
 				RTTIType rt = techno->What_Am_I();
 //				rt = Data.MegaMission.Whom;
-				if (rt == RTTI_VESSEL && techno != NULL && techno->What_Am_I() == RTTI_VESSEL && Data.MegaMission.Mission == MISSION_MOVE) {
+				if (rt == RTTI_VESSEL && techno != NULL && techno->What_Am_I() == RTTI_VESSEL) {
 					VesselClass *ship = (VesselClass *)techno;
-					if (object != NULL) {
-						if (object->What_Am_I() == RTTI_BUILDING &&
-//						if ((RTTIType)Data.MegaMission.Destination == RTTI_BUILDING &&
-							(((BuildingClass *)object)->Class->Type == STRUCT_SHIP_YARD ||
-							((BuildingClass *)object)->Class->Type == STRUCT_SUB_PEN)) {
-							ship->IsToSelfRepair = true;
+					if (Data.MegaMission.Mission == MISSION_MOVE) {
+						if (object != NULL) {
+							if (object->What_Am_I() == RTTI_BUILDING &&
+								((BuildingClass *)object)->House->Is_Ally(techno) &&
+//							if ((RTTIType)Data.MegaMission.Destination == RTTI_BUILDING &&
+								(((BuildingClass *)object)->Class->Type == STRUCT_SHIP_YARD ||
+								((BuildingClass *)object)->Class->Type == STRUCT_SUB_PEN)) {
+								ship->IsToSelfRepair = true;
+							} else {
+								ship->IsToSelfRepair = false;
+								ship->IsSelfRepairing = false;
+							}
 						} else {
 							ship->IsToSelfRepair = false;
 							ship->IsSelfRepairing = false;
@@ -913,7 +940,7 @@ void EventClass::Execute(void)
 		case ADDPLAYER:
 			int i;
 			printf("ADDPLAYER EVENT!\n");
-			for (i=0;i<Data.Variable.Size;i++) {
+			for (i=0;i<(int)Data.Variable.Size;i++) {
 				printf("%d\n", ((char *)Data.Variable.Pointer)[i]);
 			}
 			if (ID != PlayerPtr->ID) {
@@ -987,7 +1014,7 @@ void EventClass::Execute(void)
 					break;
 				}
 				Scen.bLocalProposesDraw = true;
-				Session.Messages.Add_Message( NULL, 0, TXT_WOL_DRAW_PROPOSED_LOCAL, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
+				//PG Session.Messages.Add_Message( NULL, 0, TXT_WOL_DRAW_PROPOSED_LOCAL, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
 			}
 			else
 			{
@@ -1002,7 +1029,7 @@ void EventClass::Execute(void)
 				{
 					if (ID == Session.Players[i]->Player.ID) 
 					{
-						sprintf( szMessage, TXT_WOL_DRAW_PROPOSED_OTHER, Session.Players[i]->Name );
+						//PG sprintf( szMessage, TXT_WOL_DRAW_PROPOSED_OTHER, Session.Players[i]->Name );
 						break;
 					}
 				}
@@ -1016,7 +1043,7 @@ void EventClass::Execute(void)
 			if( ID == PlayerPtr->ID )
 			{
 				Scen.bLocalProposesDraw = false;
-				Session.Messages.Add_Message( NULL, 0, TXT_WOL_DRAW_RETRACTED_LOCAL, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
+				//PG Session.Messages.Add_Message( NULL, 0, TXT_WOL_DRAW_RETRACTED_LOCAL, PCOLOR_GOLD, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE );
 			}
 			else
 			{
@@ -1025,7 +1052,7 @@ void EventClass::Execute(void)
 				{
 					if (ID == Session.Players[i]->Player.ID) 
 					{
-						sprintf( szMessage, TXT_WOL_DRAW_RETRACTED_OTHER, Session.Players[i]->Name );
+						//PG sprintf( szMessage, TXT_WOL_DRAW_RETRACTED_OTHER, Session.Players[i]->Name );
 						break;
 					}
 				}

@@ -284,9 +284,9 @@ void Increase_Palette_Luminance (unsigned char * palette , int red_percentage , 
 		green	+= green*green_percentage/100;
 		blue	+= blue*blue_percentage/100;
 
-		red 	= MIN (cap, red);
-		green	= MIN (cap, green);
-		blue	= MIN (cap, blue);
+		red 	= MIN (cap, (int)red);
+		green	= MIN (cap, (int)green);
+		blue	= MIN (cap, (int)blue);
 
 		*(palette+i)	=(unsigned char)red;
 		*(palette+i+1)	=(unsigned char)green;
@@ -324,6 +324,9 @@ int	CopyType	=0;
  *=========================================================================*/
 void Interpolate_2X_Scale( GraphicBufferClass * source, GraphicViewPortClass * dest , char const * palette_file_name)
 {
+	// Not needed. ST - 5/13/2019
+	source; dest; palette_file_name;
+#if (0)
 	unsigned char	* src_ptr;
 	unsigned char	* dest_ptr;
 	unsigned char	* last_dest_ptr;
@@ -455,6 +458,7 @@ void Interpolate_2X_Scale( GraphicBufferClass * source, GraphicViewPortClass * d
 
 //BG	long *longptr = (long *)&PaletteInterpolationTable[0][0];
 //BG	Mono_Printf("Clock cycles: %08x\n",*longptr);
+#endif
 }
 #endif
 

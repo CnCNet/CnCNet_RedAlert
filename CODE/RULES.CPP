@@ -186,7 +186,6 @@ RulesClass::RulesClass(void) :
 	IsCompEasyBonus(true),
 	IsFineDifficulty(false),
 	IsExplosiveHarvester(false),
-	IsHealthBar(true),
 	IsMCVDeploy(false),
 	IsAllyReveal(true),
 	IsSeparate(false),
@@ -271,7 +270,9 @@ RulesClass::RulesClass(void) :
 	PathDelay(".016"),
 	MovieTime(fixed::_1_4),
 	TiberiumShortScan(0x0600),
-	TiberiumLongScan(0x2000)
+	TiberiumLongScan(0x2000),
+	HealthBarDisplayMode(HB_SELECTED),
+	ResourceBarDisplayMode(RB_SELECTED)
 {
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 	NewUnitsEnabled = SecretUnitsEnabled = 0;
@@ -482,7 +483,6 @@ bool RulesClass::General(CCINIClass & ini)
 		Incoming = ini.Get_MPHType(GENERAL, "Incoming", MPH_IMMOBILE);
 		IronCurtainDuration = ini.Get_Fixed(GENERAL, "IronCurtain", IronCurtainDuration);
 		IsAllyReveal = ini.Get_Bool(GENERAL, "AllyReveal", IsAllyReveal);
-		IsHealthBar = ini.Get_Bool(GENERAL, "EnemyHealth", IsHealthBar);
 		IsMCVDeploy = ini.Get_Bool(GENERAL, "MCVUndeploy", IsMCVDeploy);
 		MaxDamage = ini.Get_Int(GENERAL, "MaxDamage", MaxDamage);
 		MinDamage = ini.Get_Int(GENERAL, "MinDamage", MinDamage);
@@ -630,6 +630,11 @@ bool RulesClass::Heap_Maximums(CCINIClass & ini)
 		WarheadMax = ini.Get_Int(MAXIMUMS, "Warhead", WarheadMax);
 		TrigTypeMax = ini.Get_Int(MAXIMUMS, "TrigType", TrigTypeMax);
 	}
+
+	/*
+	**	Special case: double maximum animations to accomodate lots of action
+	*/
+	AnimMax = max(AnimMax, 200);
 
 	/*
 	**	Any heaps that use the maximums that were just loaded, must
@@ -856,11 +861,11 @@ bool RulesClass::Land_Types(CCINIClass & ini)
 		GroundType * gptr = &Ground[land];
 
 		if (ini.Is_Present(_lands[land])) {
-			gptr->Cost[SPEED_FOOT] = Sub_Saturate(ini.Get_Fixed(_lands[land], "Foot", 1), 1);
-			gptr->Cost[SPEED_TRACK] = Sub_Saturate(ini.Get_Fixed(_lands[land], "Track", 1), 1);
-			gptr->Cost[SPEED_WHEEL] = Sub_Saturate(ini.Get_Fixed(_lands[land], "Wheel", 1), 1);
-			gptr->Cost[SPEED_WINGED] = Sub_Saturate(1, 1);
-			gptr->Cost[SPEED_FLOAT] = Sub_Saturate(ini.Get_Fixed(_lands[land], "Float", 1), 1);
+			gptr->Cost[SPEED_FOOT] = ini.Get_Fixed(_lands[land], "Foot", 1);
+			gptr->Cost[SPEED_TRACK] = ini.Get_Fixed(_lands[land], "Track", 1);
+			gptr->Cost[SPEED_WHEEL] = ini.Get_Fixed(_lands[land], "Wheel", 1);
+			gptr->Cost[SPEED_WINGED] = fixed(1);
+			gptr->Cost[SPEED_FLOAT] = ini.Get_Fixed(_lands[land], "Float", 1);
 			gptr->Build = ini.Get_Bool(_lands[land], "Buildable", false);
 		}
 	}
@@ -1042,8 +1047,31 @@ bool RulesClass::Objects(CCINIClass & ini)
  *=============================================================================================*/
 bool RulesClass::Difficulty(CCINIClass & ini)
 {
+#if 0
 	Difficulty_Get(ini, Diff[DIFF_EASY], "Easy");
 	Difficulty_Get(ini, Diff[DIFF_NORMAL], "Normal");
 	Difficulty_Get(ini, Diff[DIFF_HARD], "Difficult");
+#endif
 	return(true);
+}
+
+
+/***********************************************************************************************
+ * Is_MCV_Deploy -- Check if MCV can be deployed.                                              *
+ *                                                                                             *
+ *    This routine is used to check if the Construction Yard can revert back into an MCV.      *
+ *    It allows the special variables to override anything set by the rules.                   *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  bool; Can the Construction Yard revert back into an MCV.                           *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   10/24/2019 SKY : Created.                                                                 *
+ *=============================================================================================*/
+bool Is_MCV_Deploy()
+{
+	return Special.UseMCVDeploy ? Special.IsMCVDeploy : Rule.IsMCVDeploy;
 }

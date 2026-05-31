@@ -105,7 +105,8 @@ ListClass::ListClass (int id, int x, int y, int w, int h, TextPrintType flags, v
 	Tabs = 0;
 	SelectedIndex = 0;
 	CurrentTopIndex = 0;
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TextFlags);
+	//PG_TO_FIX
+	//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TextFlags);
 	LineHeight = FontHeight+FontYSpacing-1;
 	LineCount = (h-1) / LineHeight;
 }
@@ -221,7 +222,7 @@ int ListClass::Add_Item(int text)
 
 void ListClass::Remove_Item(int index)
 {
-	if ((unsigned)index < List.Count()) {
+	if (index < List.Count()) {
 		List.Delete(index);
 
 		/*
@@ -908,7 +909,7 @@ GadgetClass * ListClass::Remove(void)
  *=============================================================================================*/
 void ListClass::Set_Selected_Index(int index)
 {
-   if ((unsigned)index < List.Count()) {
+   if (index < List.Count()) {
 		SelectedIndex = index;
 		Flag_To_Redraw();
 		if (SelectedIndex < CurrentTopIndex) {

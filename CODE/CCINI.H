@@ -55,7 +55,7 @@ class CCINIClass : public INIClass
 		CCINIClass(void) : IsDigestPresent(false) {}
 
 		bool Load(FileClass & file, bool withdigest);
-		bool Load(Straw & file, bool withdigest);
+		int Load(Straw & file, bool withdigest);
 		int Save(FileClass & file, bool withdigest) const;
 		int Save(Pipe & pipe, bool withdigest) const;
 

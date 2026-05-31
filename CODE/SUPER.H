@@ -50,7 +50,7 @@ class SuperClass {
 		bool Enable(bool onetime = false, bool player=false, bool quiet=false);
 		void Forced_Charge(bool player=false);
 		bool AI(bool player=false);
-		bool Remove(void);
+		bool Remove(bool forced=false);
 		void Impatient_Click(void) const;
 		int Anim_Stage(void) const;
 		bool Discharged(bool player);
@@ -58,6 +58,9 @@ class SuperClass {
 		bool Is_Present(void) const {return(IsPresent);}
 		bool Is_One_Time(void) const {return(IsOneTime && IsPresent);}
 		bool Is_Powered(void) const {return(IsPowered);}
+
+		//Needed access to recharge times for tooltips - 2019/08/14 Jason Scott 
+		int Get_Recharge_Time() const { return(RechargeTime); };
 
 	private:
 		bool Recharge(bool player=false);
@@ -76,6 +79,9 @@ class SuperClass {
 		VoxType VoxSuspend;
 		int RechargeTime;
 
+		//Needed to make ANIMATION_STAGES public so the animation frame numbers could be turned into progress 
+		//percentages - 2019/08/07 Jason Scott 
+public:
 		enum {
 			ANIMATION_STAGES=54
 		};

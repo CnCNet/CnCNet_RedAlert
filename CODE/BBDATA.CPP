@@ -209,8 +209,8 @@ void BulletTypeClass::One_Time(void)
 	/*
 	**	Load the bullet shapes.
 	*/
-	for (BulletType index = BULLET_FIRST; index < BULLET_COUNT; index++) {
-		BulletTypeClass const & bullet = As_Reference(index);
+	for (int index = BULLET_FIRST; index < BULLET_COUNT; index++) {
+		BulletTypeClass const & bullet = As_Reference((BulletType)index);
 		char	fullname[_MAX_FNAME+_MAX_EXT];
 
 		if (!bullet.IsInvisible) {
@@ -293,7 +293,7 @@ bool BulletTypeClass::Read_INI(CCINIClass & ini)
 		IsFaceless = !ini.Get_Bool(Name(), "Rotates", !IsFaceless);
 		IsTranslucent = ini.Get_Bool(Name(), "Translucent", IsTranslucent);
 		IsGigundo = ini.Get_Bool(Name(), "Gigundo", IsGigundo);
-		ini.Get_String(Name(), "Image", "none", GraphicName, sizeof(GraphicName));
+		ini.Get_String(Name(), "Image", GraphicName, GraphicName, sizeof(GraphicName));
 		return(true);
 	}
 	return(false);

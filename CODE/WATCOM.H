@@ -37,6 +37,7 @@
 
 #ifndef WATCOM_H
 #define WATCOM_H
+#if (0)
 
 // Turn all warnings into errors.
 #pragma warning * 0
@@ -85,6 +86,8 @@
 enum {false=0,true=1};
 typedef int bool;
 #endif
+#endif
+
 #endif
 
 #endif

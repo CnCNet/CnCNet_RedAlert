@@ -107,7 +107,7 @@ int DropListClass::Current_Index(void)
 
 void DropListClass::Set_Selected_Index(int index)
 {
-	if ((unsigned)index < List.Count()) {
+	if (index < List.Count()) {
 		List.Set_Selected_Index(index);
 		strcpy(String, List.Get_Item(Current_Index()));
 	} else {

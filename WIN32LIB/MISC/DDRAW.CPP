@@ -45,7 +45,7 @@
 #include "misc.h"
 #include <gbuffer.h>
 #include <palette.h>
-
+#include "stdio.h"
 
 LPDIRECTDRAW		DirectDrawObject=NULL;	// Pointer to the direct draw object
 LPDIRECTDRAW2	DirectDraw2Interface = NULL;  	// Pointer to direct draw 2 interface
@@ -453,6 +453,9 @@ void Check_Overlapped_Blit_Capability(void)
  *=============================================================================================*/
 BOOL Set_Video_Mode(HWND hwnd, int w, int h, int bits_per_pixel)
 {
+// ST - 1/3/2019 10:41AM
+	return TRUE;
+#if (0)
 	HRESULT result;
 	//
 	// If there is not currently a direct draw object then we need to define one.
@@ -531,7 +534,7 @@ BOOL Set_Video_Mode(HWND hwnd, int w, int h, int bits_per_pixel)
 	//MessageBox(MainWindow, "In Set_Video_Mode. About to return success.","Note", MB_ICONEXCLAMATION|MB_OK);
 
 	return (TRUE);
-
+#endif
 }
 
 /***********************************************************************************************
@@ -685,6 +688,9 @@ unsigned Get_Video_Hardware_Capabilities(void)
 extern int ScreenWidth;
 void Wait_Vert_Blank(void)
 {
+	if (DirectDrawObject == NULL) {
+		return;
+	}
 	if( ScreenWidth!=320 && CanVblankSync){
 		HRESULT result = DirectDrawObject->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
 		if (result == E_NOTIMPL){
@@ -997,4 +1003,3 @@ void SurfaceMonitorClass::Release(void)
 	}
 
 }
-

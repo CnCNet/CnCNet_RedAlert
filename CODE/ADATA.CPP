@@ -67,7 +67,9 @@ static AnimTypeClass const AtomBomb(
 	-1,										// Number of animation stages.
 	0,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	75,										// Virtual stages
+	0x300									// Virtual scale
 );
 
 static AnimTypeClass const SputDoor(
@@ -360,7 +362,7 @@ static AnimTypeClass const LZSmoke(
 	72,										// Loop start frame number.
 	91,										// Ending frame of loop back.
 	-1,										// Number of animation stages.
-	255,										// Number of times the animation loops.
+	127,										// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
 );
@@ -613,7 +615,8 @@ static AnimTypeClass const Frag1(
 	-1,										// Number of animation stages.
 	1,											// Number of times the animation loops.
 	VOC_KABOOM30,							// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	29										// Virtual stages
 );
 
 static AnimTypeClass const VehHit1(
@@ -913,6 +916,35 @@ static AnimTypeClass const Fire3(
 	-1,										// Number of animation stages.
 	2,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,										// Virtual stages
+	0x100,									// Virtual scale
+	NULL,									// Virtual name
+	ANIM_FIRE_SMALL_VIRTUAL					// Virtual anim
+);
+
+static AnimTypeClass const Fire3Virtual(
+	ANIM_FIRE_SMALL_VIRTUAL,				// Animation number.
+	"FIRE3",									// Data name of animation.
+	23,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,									// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,										// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	10,											// Loop start frame number.
+	21,										// Ending frame of loop back.
+	29,										// Number of animation stages.
+	2,											// Number of times the animation loops.
+	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
 );
 
@@ -936,6 +968,35 @@ static AnimTypeClass const Fire1(
 	0,											// Loop start frame number.
 	-1,										// Ending frame of loop back.
 	-1,										// Number of animation stages.
+	3,											// Number of times the animation loops.
+	VOC_NONE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,										// Virtual stages
+	0x100,									// Virtual scale
+	NULL,									// Virtual name
+	ANIM_FIRE_MED2_VIRTUAL					// Virtual anim
+);
+
+static AnimTypeClass const Fire1Virtual(
+	ANIM_FIRE_MED2_VIRTUAL,		 			// Animation number.
+	"FIRE1",									// Data name of animation.
+	23,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,									// Normalized animation rate?
+	false,									// Uses white translucent table?
+	true,										// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,										// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	10,											// Loop start frame number.
+	21,										// Ending frame of loop back.
+	29,										// Number of animation stages.
 	3,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
@@ -963,6 +1024,35 @@ static AnimTypeClass const Fire4(
 	-1,										// Number of animation stages.
 	3,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,										// Virtual stages
+	0x100,									// Virtual scale
+	NULL,									// Virtual name
+	ANIM_FIRE_TINY_VIRTUAL					// Virtual anim
+);
+
+static AnimTypeClass const Fire4Virtual(
+	ANIM_FIRE_TINY_VIRTUAL,		 			// Animation number.
+	"FIRE4",									// Data name of animation.
+	7,											// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,									// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,										// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	10,											// Loop start frame number.
+	21,										// Ending frame of loop back.
+	29,										// Number of animation stages.
+	3,											// Number of times the animation loops.
+	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
 );
 
@@ -988,6 +1078,35 @@ static AnimTypeClass const Fire2(
 	-1,										// Number of animation stages.
 	3,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,										// Virtual stages
+	0x100,									// Virtual scale
+	NULL,									// Virtual name
+	ANIM_FIRE_MED_VIRTUAL					// Virtual anim
+);
+
+static AnimTypeClass const Fire2Virtual(
+	ANIM_FIRE_MED_VIRTUAL,					// Animation number.
+	"FIRE2",									// Data name of animation.
+	23,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,									// Normalized animation rate?
+	false,									// Uses white translucent table?
+	true,										// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,										// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	10,											// Loop start frame number.
+	21,										// Ending frame of loop back.
+	29,										// Number of animation stages.
+	3,											// Number of times the animation loops.
+	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
 );
 
@@ -1011,7 +1130,7 @@ static AnimTypeClass const OilFieldBurn(
 	33,										// Loop start frame number.
 	99,										// Ending frame of loop back.
 	66,										// Number of animation stages.
-	65535,									// Number of times the animation loops.
+	127,									// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
 	ANIM_NONE
 );
@@ -1038,7 +1157,8 @@ static AnimTypeClass const Gunfire(
 	1,											// Number of animation stages.
 	1,											// Ending frame of loop back.
 	VOC_NONE,								// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	10										// Virtual stages
 );
 
 static AnimTypeClass const SmokeM(
@@ -1063,7 +1183,8 @@ static AnimTypeClass const SmokeM(
 	-1,										// Number of animation stages.
 	6,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	105										// Virtual stages
 );
 
 /*
@@ -1892,7 +2013,8 @@ static AnimTypeClass const Flak(
 	-1,										// Number of animation stages.
 	1,											// Number of times the animation loops.
 	VOC_NONE,								// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	17										// Virtual stages
 );
 static AnimTypeClass const WaterExp1(
 	ANIM_WATER_EXP1,						// Animation number.
@@ -1993,9 +2115,88 @@ static AnimTypeClass const MineExp1(
 	ANIM_NONE
 );
 
+static AnimTypeClass const Flag(
+	ANIM_FLAG,						// Animation number.
+	"FLAGFLY",								// Data name of animation.
+	21,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,										// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,										// Forms a crater?
+	false,									// Sticks to unit in square?
+	false,									// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,											// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	0,											// Loop start frame number.
+	-1,										// Ending frame of loop back.
+	-1,										// Number of animation stages.
+	-1,										// Number of times the animation loops.
+	VOC_NONE,							// Sound effect to play.
+	ANIM_NONE
+);
+
+static AnimTypeClass const Beacon(
+	ANIM_BEACON,							// Animation number.
+	"MOVEFLSH",								// Data name of animation.
+	21,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	true,									// Theater specific art imagery?
+	false,										// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,										// Forms a crater?
+	false,									// Sticks to unit in square?
+	false,									// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,											// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	0,											// Loop start frame number.
+	-1,										// Ending frame of loop back.
+	1,										// Number of animation stages.
+	-1,										// Number of times the animation loops.
+	VOC_NONE,							// Sound effect to play.
+	ANIM_NONE,
+	-1,										// Virtual stages
+	0x100,									// Virtual scale
+	NULL,									// Virtual name
+	ANIM_BEACON_VIRTUAL			// Virtual anim
+);
+
+static AnimTypeClass const BeaconVirtual(
+	ANIM_BEACON_VIRTUAL,					// Animation number.
+	"BEACON",								// Data name of animation.
+	21,										// Maximum dimension of animation.
+	0,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	false,										// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,										// Forms a crater?
+	false,									// Sticks to unit in square?
+	false,									// Ground level animation?
+	false,									// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,											// Damage to apply per tick (fixed point).
+	1,											// Delay between frames.
+	0,											// Starting frame number.
+	0,											// Loop start frame number.
+	-1,										// Ending frame of loop back.
+	1,										// Number of animation stages.
+	-1,										// Number of times the animation loops.
+	VOC_NONE,							// Sound effect to play.
+	ANIM_NONE
+);
+
 #ifdef FIXIT_ANTS
-static AnimTypeClass const AntDeath(
-	ANIM_ANT_DEATH,						// Animation number.
+static AnimTypeClass const Ant1Death(
+	ANIM_ANT1_DEATH,						// Animation number.
 	"ANTDIE",								// Data name of animation.
 	28,										// Maximum dimension of animation.
 	1,											// Biggest animation stage.
@@ -2016,7 +2217,66 @@ static AnimTypeClass const AntDeath(
 	-1,										// Number of animation stages.
 	1,											// Number of times the animation loops.
 	VOC_ANTDIE,								// Sound effect to play.
-	ANIM_NONE
+	ANIM_NONE,
+	-1,
+	0x100,
+	"ANTDIE1"
+);
+
+static AnimTypeClass const Ant2Death(
+	ANIM_ANT2_DEATH,						// Animation number.
+	"ANTDIE",								// Data name of animation.
+	28,										// Maximum dimension of animation.
+	1,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	true,										// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	true,										// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,											// Damage to apply per tick (fixed point).
+	4,											// Delay between frames.
+	0,											// Starting frame number.
+	0,											// Loop start frame number.
+	-1,										// Ending frame of loop back.
+	-1,										// Number of animation stages.
+	1,											// Number of times the animation loops.
+	VOC_ANTDIE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,
+	0x100,
+	"ANTDIE2"
+);
+
+static AnimTypeClass const Ant3Death(
+	ANIM_ANT3_DEATH,						// Animation number.
+	"ANTDIE",								// Data name of animation.
+	28,										// Maximum dimension of animation.
+	1,											// Biggest animation stage.
+	false,									// Theater specific art imagery?
+	true,										// Normalized animation rate?
+	false,									// Uses white translucent table?
+	false,									// Scorches the ground?
+	false,									// Forms a crater?
+	false,									// Sticks to unit in square?
+	true,										// Ground level animation?
+	true,										// Translucent colors in this animation?
+	false,									// Is this a flame thrower animation?
+	0,											// Damage to apply per tick (fixed point).
+	4,											// Delay between frames.
+	0,											// Starting frame number.
+	0,											// Loop start frame number.
+	-1,										// Ending frame of loop back.
+	-1,										// Number of animation stages.
+	1,											// Number of times the animation loops.
+	VOC_ANTDIE,								// Sound effect to play.
+	ANIM_NONE,
+	-1,
+	0x100,
+	"ANTDIE3"
 );
 #endif
 
@@ -2057,7 +2317,11 @@ AnimTypeClass::AnimTypeClass(
 		int stages,
 		int loops,
 		VocType soundid,
-		AnimType chainto) :
+		AnimType chainto,
+		int virtualstages,
+		int virtualscale,
+		char const * virtualname,
+		AnimType virtualanim) :
 	ObjectTypeClass(RTTI_ANIMTYPE,
 			int(anim),
 			true,
@@ -2090,7 +2354,11 @@ AnimTypeClass::AnimTypeClass(
 	Stages(stages),
 	Loops(loops),
 	Sound(soundid),
-	ChainTo(chainto)
+	ChainTo(chainto),
+	VirtualStages(virtualstages),
+	VirtualScale(virtualscale),
+	VirtualName(virtualname),
+	VirtualAnim(virtualanim)
 {
 }
 
@@ -2238,9 +2506,18 @@ void AnimTypeClass::Init_Heap(void)
 	new AnimTypeClass(CrateTQuake);
 	new AnimTypeClass(ParaBomb);
 	new AnimTypeClass(MineExp1);
+	new AnimTypeClass(Flag);
+	new AnimTypeClass(Beacon);
 #ifdef FIXIT_ANTS
-	new AnimTypeClass(AntDeath);
+	new AnimTypeClass(Ant1Death);
+	new AnimTypeClass(Ant2Death);
+	new AnimTypeClass(Ant3Death);
 #endif
+	new AnimTypeClass(Fire3Virtual);
+	new AnimTypeClass(Fire2Virtual);
+	new AnimTypeClass(Fire1Virtual);
+	new AnimTypeClass(Fire4Virtual);
+	new AnimTypeClass(BeaconVirtual);
 }
 
 /***********************************************************************************************
@@ -2260,24 +2537,24 @@ void AnimTypeClass::Init_Heap(void)
  *=============================================================================================*/
 void AnimTypeClass::One_Time(void)
 {
-	for (AnimType index = ANIM_FIRST; index < ANIM_COUNT; index++) {
+	for (int index = ANIM_FIRST; index < ANIM_COUNT; index++) {
 		char fullname[_MAX_FNAME+_MAX_EXT];
 
-		AnimTypeClass const & anim = As_Reference(index);
+		AnimTypeClass const & anim = As_Reference((AnimType)index);
 
 		if (!anim.IsTheater) {
 
-			_makepath(fullname, NULL, NULL, As_Reference(index).IniName, ".SHP");
+			_makepath(fullname, NULL, NULL, As_Reference((AnimType)index).IniName, ".SHP");
 
 			#ifndef NDEBUG
 				RawFileClass file(fullname);
 				if (file.Is_Available()) {
-					((void const *&)As_Reference(index).ImageData) = Load_Alloc_Data(file);
+					((void const *&)As_Reference((AnimType)index).ImageData) = Load_Alloc_Data(file);
 				} else {
-					((void const *&)As_Reference(index).ImageData) = MFCD::Retrieve(fullname);
+					((void const *&)As_Reference((AnimType)index).ImageData) = MFCD::Retrieve(fullname);
 				}
 			#else
-				((void const *&)As_Reference(index).ImageData) = MFCD::Retrieve(fullname);
+				((void const *&)As_Reference((AnimType)index).ImageData) = MFCD::Retrieve(fullname);
 			#endif
 		}
 	}
@@ -2302,8 +2579,8 @@ void AnimTypeClass::One_Time(void)
 void AnimTypeClass::Init(TheaterType theater)
 {
 	if (theater != LastTheater) {
-		for (AnimType index = ANIM_FIRST; index < ANIM_COUNT; index++) {
-			AnimTypeClass const & anim = As_Reference(index);
+		for (int index = ANIM_FIRST; index < ANIM_COUNT; index++) {
+			AnimTypeClass const & anim = As_Reference((AnimType)index);
 
 			if (anim.IsTheater) {
 				char fullname[_MAX_FNAME+_MAX_EXT];	// Fully constructed iconset name.
@@ -2311,6 +2588,9 @@ void AnimTypeClass::Init(TheaterType theater)
 				((void const *&)anim.ImageData) = MFCD::Retrieve(fullname);
 			}
 		}
+
+		// Set up beacon image data manually since they're new animations only available in the virtual renderer
+		((void const *&)As_Reference(ANIM_BEACON_VIRTUAL).ImageData) = As_Reference(ANIM_BEACON).ImageData;
 	}
 }
 

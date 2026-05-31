@@ -42,7 +42,7 @@
 #include	"watcom.h"
 #include "rgb.h"
 #include	"hsv.h"
-#include	"palette.h"
+#include	"palettec.h"
 
 RGBClass const BlackColor(0, 0, 0);
 

@@ -34,8 +34,8 @@
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-
+#if (0)//PG
+#include "FUNCTION.H"
 #include "surface.h"
 
 
@@ -132,7 +132,7 @@ void Surface::Copy_To(Rect const & fromrect, Buffer & tobuffer) const
 	/*
 	**	Determine the source starting byte pointer.
 	*/
-	char * source = Get_Buffer() + rect.Y*Bytes_Per_Line() + rect.X;
+	char * source = (char*)Get_Buffer() + rect.Y*Bytes_Per_Line() + rect.X;
 
 	/*
 	**	Determine the destination buffer pointer. This will always be the
@@ -160,3 +160,4 @@ void Surface::Copy_To(Rect const & fromrect, Buffer & tobuffer) const
 		}
 	}
 }
+#endif

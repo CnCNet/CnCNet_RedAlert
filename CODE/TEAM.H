@@ -50,6 +50,12 @@
 */
 #define STRAY_DISTANCE		2
 
+struct TeamFormDataStruct
+{
+	MPHType TeamMaxSpeed[MAX_TEAMS];
+	SpeedType TeamSpeed[MAX_TEAMS];
+};
+
 class TeamClass : public AbstractClass
 {
 	public:
@@ -264,6 +270,12 @@ class TeamClass : public AbstractClass
 		SmartPtr<FootClass> Member;
 
 		unsigned char Quantity[TeamTypeClass::MAX_TEAM_CLASSCOUNT];
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
+
 };
 
 #endif

@@ -59,9 +59,9 @@ const fixed fixed::_2_3(2, 3);		// 2/3
 fixed::fixed(int numerator, int denominator)
 {
 	if (denominator == 0) {
-		Data.Raw = 0;
+		Data.Raw = 0U;
 	} else {
-		Data.Raw = (unsigned short)((unsigned)(numerator * 256) / (unsigned)denominator);
+		Data.Raw = (unsigned int)(((unsigned __int64)numerator * PRECISION) / denominator);
 	}
 }
 
@@ -93,7 +93,7 @@ fixed::fixed(char const * ascii)
 	**	integer parameter constructor to be called.
 	*/
 	if (ascii == NULL) {
-		Data.Raw = 0;
+		Data.Raw = 0U;
 		return;
 	}
 
@@ -122,30 +122,30 @@ fixed::fixed(char const * ascii)
 	**	Percentage value is specified as a whole number but is presumed to be
 	**	divided by 100 to get mathematical fixed point percentage value.
 	*/
-	if (*tptr == '\%') {
-		Data.Raw = (unsigned short)((atoi(ascii) * 256) / 100);
+	if (*tptr == '%') {			// Removed '/' preceding '%'. ST - 5/8/2019
+		Data.Raw = (unsigned int)(((unsigned __int64)atoi(ascii) * PRECISION) / 100ULL);
 	} else {
 
-		Data.Composite.Whole = Data.Composite.Fraction = 0;
+		Data.Composite.Whole = Data.Composite.Fraction = 0U;
 		if (wholepart && *wholepart != '.') {
-			Data.Composite.Whole = (unsigned char)atoi(wholepart);
+			Data.Composite.Whole = (unsigned short)atoi(wholepart);
 		}
 
-		char * fracpart = strchr(ascii, '.');
+		const char * fracpart = strchr(ascii, '.');
 		if (fracpart) fracpart++;
 		if (fracpart) {
-			int frac = atoi(fracpart);
+			unsigned int frac = (unsigned int)atoi(fracpart);
 
 			int len = 0;
-			int base = 1;
+			unsigned int base = 1;
 			char const * fptr = fracpart;
 			while (isdigit(*fptr)) {
 				fptr++;
 				len++;
-				base *= 10;
+				base *= 10U;
 			}
 
-			Data.Composite.Fraction = (unsigned char)((256 * frac) / base);
+			Data.Composite.Fraction = (unsigned short)(((unsigned __int64)frac * PRECISION) / base);
 		}
 	}
 }
@@ -178,8 +178,8 @@ int fixed::To_ASCII(char * buffer, int maxlen) const
 	**	Determine the whole and fractional parts of the number. The fractional
 	**	part number is the value in 1000ths.
 	*/
-	int whole = Data.Composite.Whole;
-	int frac = ((int)Data.Composite.Fraction * 1000) / 256;
+	unsigned int whole = Data.Composite.Whole;
+	unsigned int frac = ((unsigned int)Data.Composite.Fraction * 1000U) / PRECISION;
 	char tbuffer[32];
 
 	/*
@@ -189,9 +189,9 @@ int fixed::To_ASCII(char * buffer, int maxlen) const
 	**	fractional component.
 	*/
 	if (frac == 0) {
-		sprintf(tbuffer, "%d", whole);
+		sprintf(tbuffer, "%u", whole);
 	} else {
-		sprintf(tbuffer, "%d.%02d", whole, frac);
+		sprintf(tbuffer, "%u.%02u", whole, frac);
 
 		char * ptr = &tbuffer[strlen(tbuffer)-1];
 		while (*ptr == '0') {

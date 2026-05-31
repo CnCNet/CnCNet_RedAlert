@@ -39,6 +39,7 @@
 #ifndef RAMFILE_H
 #define RAMFILE_H
 
+
 #include	"wwfile.h"
 
 

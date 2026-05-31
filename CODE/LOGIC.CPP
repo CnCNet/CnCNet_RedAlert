@@ -241,6 +241,32 @@ void LogicClass::AI(void)
 		}
 	}
 
+	if (Scen.MissionTimer.Is_Active()) {
+		long secs = Scen.MissionTimer / TICKS_PER_SECOND;
+		long mins = secs / 60;
+		long hours = mins / 60;
+		secs %= 60;
+		mins %= 60;
+
+		/*
+		**	Speak mission timer reminders.
+		*/
+		VoxType vox = VOX_NONE;
+		if (Scen.MissionTimer == (1 * TICKS_PER_MINUTE)) vox = VOX_TIME_1;
+		if (Scen.MissionTimer == (2 * TICKS_PER_MINUTE)) vox = VOX_TIME_2;
+		if (Scen.MissionTimer == (3 * TICKS_PER_MINUTE)) vox = VOX_TIME_3;
+		if (Scen.MissionTimer == (4 * TICKS_PER_MINUTE)) vox = VOX_TIME_4;
+		if (Scen.MissionTimer == (5 * TICKS_PER_MINUTE)) vox = VOX_TIME_5;
+		if (Scen.MissionTimer == (10 * TICKS_PER_MINUTE)) vox = VOX_TIME_10;
+		if (Scen.MissionTimer == (20 * TICKS_PER_MINUTE)) vox = VOX_TIME_20;
+		if (Scen.MissionTimer == (30 * TICKS_PER_MINUTE)) vox = VOX_TIME_30;
+		if (Scen.MissionTimer == (40 * TICKS_PER_MINUTE)) vox = VOX_TIME_40;
+		if (vox != VOX_NONE) {
+			Speak(vox);
+			Map.FlasherTimer = 7;
+		}
+	}
+
 	/*
 	**	Clean up any status values that were maintained only for logic trigger
 	**	purposes.
@@ -256,7 +282,20 @@ void LogicClass::AI(void)
 	*/
 	if (Special.IsShadowGrow && Rule.ShroudRate != 0 && Scen.ShroudTimer == 0) {
 		Scen.ShroudTimer = TICKS_PER_MINUTE * Rule.ShroudRate;
-		Map.Encroach_Shadow();
+		
+		/*
+		** Do this for all players in Client/Server multiplayer. ST - 8/9/2019 10:23AM
+		*/
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+			Map.Encroach_Shadow(PlayerPtr);
+		} else {
+			for (int i=0 ; i<Session.Players.Count() ; i++) {
+				HouseClass *player_ptr = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+				if (player_ptr && player_ptr->IsHuman) {
+					Map.Encroach_Shadow(player_ptr);
+				}
+			}
+		}	
 	}
 
 	/*
@@ -280,13 +319,14 @@ void LogicClass::AI(void)
 	*/
 	for (index = 0; index < Count(); index++) {
 		ObjectClass * obj = (*this)[index];
+		int count = Count();
 
 		BStart(BENCH_AI);
 		obj->AI();
 		BEnd(BENCH_AI);
 
 		if (TimeQuake && obj != NULL && obj->IsActive && !obj->IsInLimbo && obj->Strength) {
-			int damage = obj->Class_Of().MaxStrength * Rule.QuakeDamagePercent;
+			int damage = (int)obj->Class_Of().MaxStrength * Rule.QuakeDamagePercent;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 			if (TimeQuakeCenter) {
 				if(::Distance(obj->As_Target(),TimeQuakeCenter)/256 < MTankDistance) {
@@ -295,14 +335,14 @@ void LogicClass::AI(void)
 							damage = QuakeInfantryDamage;
 							break;
 						case RTTI_BUILDING:
-							damage = QuakeBuildingDamage * obj->Class_Of().MaxStrength;
+							damage = QuakeBuildingDamage * (int)obj->Class_Of().MaxStrength;
 							break;
 						default:
-							damage = QuakeUnitDamage * obj->Class_Of().MaxStrength;
+							damage = QuakeUnitDamage * (int)obj->Class_Of().MaxStrength;
 							break;
 					}
 					if (damage) {
-						obj->Clicked_As_Target();
+						obj->Clicked_As_Target(HOUSE_COUNT); // 2019/09/20 JAS - Added record of who clicked on the object, HOUSE_COUNT is used to mark for all houses
 						new AnimClass(ANIM_MINE_EXP1, obj->Center_Coord());
 					}
 					obj->Take_Damage(damage, 0, WARHEAD_AP, 0, true);
@@ -318,8 +358,9 @@ void LogicClass::AI(void)
 		**	If the object was destroyed in the process of performing its AI, then
 		**	adjust the index so that no object gets skipped.
 		*/
-		if (obj != (*this)[index]) {
-			index--;
+		int count_diff = Count() - count;
+		if (count_diff < 0) {
+			index += count_diff;
 		}
 	}
 	HouseClass::Recalc_Attributes();
@@ -415,3 +456,24 @@ void LogicClass::Detach(TARGET target, bool )
 	}
 }
 
+
+/***********************************************************************************************
+ * LogicClass::Clear_Recently_Created_Bits -- Clear out the indicators that objects were       *
+ *                                            recently created                                 *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   8/19/2019 5:47PM ST : Created.                                                            *
+ *=============================================================================================*/
+void LogicClass::Clear_Recently_Created_Bits(void)
+{
+	for (int index = 0; index < Count(); index++) {
+		ObjectClass * obj = (*this)[index];
+		obj->IsRecentlyCreated = false;
+	}
+}

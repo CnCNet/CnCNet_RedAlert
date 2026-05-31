@@ -38,7 +38,7 @@
 
 static WWMouseClass *_Mouse=NULL;
 void CALLBACK Process_Mouse( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 );
-extern BOOL GameInFocus;
+extern bool GameInFocus;
 
 
 /***********************************************************************************************
@@ -91,7 +91,10 @@ WWMouseClass::WWMouseClass(GraphicViewPortClass *scr, int mouse_max_width, int m
 	EraseFlags		= FALSE;
 
 	_Mouse			= this;
-	TimerHandle = timeSetEvent( 1000/60 , 1 , ::Process_Mouse, 0 , TIME_PERIODIC);
+	
+	// Add TIME_KILL_SYNCHRONOUS flag. ST - 2/13/2019 5:07PM
+	//TimerHandle = timeSetEvent( 1000/60 , 1 , ::Process_Mouse, 0 , TIME_PERIODIC);
+	//TimerHandle = timeSetEvent( 1000/60 , 1 , ::Process_Mouse, 0 , TIME_PERIODIC | TIME_KILL_SYNCHRONOUS);		// Removed. ST - 2/13/2019 5:12PM
 
 	/*
 	** Force the windows mouse pointer to stay withing the graphic view port region
@@ -107,6 +110,7 @@ WWMouseClass::~WWMouseClass()
 	if (MouseBuffer) delete[] MouseBuffer;
 	if (TimerHandle) {
 		timeKillEvent(TimerHandle);
+		TimerHandle = 0;		//ST - 2/13/2019 5:12PM
 	}
 	timeEndPeriod (1000/60);
 	DeleteCriticalSection(&MouseCriticalSection);
@@ -156,7 +160,7 @@ void WWMouseClass::Unblock_Mouse(GraphicBufferClass *buffer)
 
 void WWMouseClass::Set_Cursor_Clip(void)
 {
-
+#if (0)		// Not needed. ST - 1/3/2019 2:18PM
 	if (Screen){
 		RECT	region;
 
@@ -167,19 +171,25 @@ void WWMouseClass::Set_Cursor_Clip(void)
 
 		ClipCursor(&region);
 	}
+#endif
 }
 
 
 
 void WWMouseClass::Clear_Cursor_Clip(void)
 {
+#if (0)
 	ClipCursor(NULL);
+#endif
 }
 
 
 
 void WWMouseClass::Process_Mouse(void)
 {
+//ST - 1/3/2019 10:50AM	
+	return;
+#if (0)
 	POINT 	pt;					// define a structure to hold current cursor pos
 
 	//
@@ -248,10 +258,19 @@ void WWMouseClass::Process_Mouse(void)
 	// Allow other threads to lock the screen again
 	//
 	//Unblock_Mouse(Screen->Get_Graphic_Buffer());
+#endif
 }
 
 void *WWMouseClass::Set_Cursor(int xhotspot, int yhotspot, void *cursor)
 {
+//ST - 1/3/2019 10:50AM	
+	xhotspot;
+	yhotspot;
+	cursor;
+	return cursor;
+
+#if (0)
+	
 	//
 	// If the pointer to the cursor we got is invalid, or its the same as the
 	// currently set cursor then just return.
@@ -286,10 +305,13 @@ void *WWMouseClass::Set_Cursor(int xhotspot, int yhotspot, void *cursor)
 	// Asm_Set_Mouse_Cursor.
 	//
 	return(retval);
+#endif
 }
 
 void WWMouseClass::Low_Hide_Mouse()
 {
+//ST - 1/3/2019 10:50AM	
+#if (0)
 	if (!State) {
 		if (MouseBuffX != -1 || MouseBuffY != -1) {
 			if (Screen->Lock()){
@@ -300,6 +322,7 @@ void WWMouseClass::Low_Hide_Mouse()
 		MouseBuffX = -1;
 		MouseBuffY = -1;
 	}
+#endif
 	State++;
 }
 void WWMouseClass::Hide_Mouse()
@@ -320,6 +343,9 @@ void WWMouseClass::Low_Show_Mouse(int x, int y)
 	// Make the mouse a little bit more visible
 	//
 	State--;
+
+//ST - 1/3/2019 10:50AM	
+#if (0)
 
 	//
 	//	If the mouse is completely visible then draw it at its current
@@ -349,6 +375,7 @@ void WWMouseClass::Low_Show_Mouse(int x, int y)
 			Screen->Unlock();
 		}
 	}
+#endif
 }
 
 void WWMouseClass::Show_Mouse()
@@ -450,6 +477,11 @@ void WWMouseClass::Conditional_Show_Mouse(void)
 
 void WWMouseClass::Draw_Mouse(GraphicViewPortClass *scr)
 {
+	scr;
+	return;
+//ST - 1/3/2019 10:50AM	
+#if (0)
+	
 	POINT pt;
 
 	if (State != 0) return;
@@ -499,10 +531,16 @@ void WWMouseClass::Draw_Mouse(GraphicViewPortClass *scr)
 	}
 
 	MouseUpdate--;
+#endif
 }
 
 void WWMouseClass::Erase_Mouse(GraphicViewPortClass *scr, int forced)
 {
+//ST - 1/3/2019 10:50AM	
+	scr;
+	forced;
+	return;
+#if (0)
 	//
 	// If we are forcing the redraw of a mouse we already managed to
 	// restore then just get outta here.
@@ -549,6 +587,7 @@ void WWMouseClass::Erase_Mouse(GraphicViewPortClass *scr, int forced)
 	}
 	MouseUpdate--;
   	EraseFlags = FALSE;
+#endif
 }
 
 int WWMouseClass::Get_Mouse_State(void)
@@ -610,7 +649,7 @@ void WWMouseClass::Get_Mouse_XY(int &x, int &y)
 	y = pt.y;
 }
 
-#pragma off(unreferenced)
+//#pragma off(unreferenced)
 
 void CALLBACK Process_Mouse( UINT event_id, UINT res1 , DWORD user, DWORD  res2, DWORD  res3 )
 {
@@ -622,7 +661,7 @@ void CALLBACK Process_Mouse( UINT event_id, UINT res1 , DWORD user, DWORD  res2,
 		in_mouse_callback = FALSE;
 	}
 }
-#pragma on(unreferenced)
+//#pragma on(unreferenced)
 
 void Hide_Mouse(void)
 {
@@ -660,14 +699,25 @@ void *Set_Mouse_Cursor(int hotx, int hoty, void *cursor)
 	return(_Mouse->Set_Cursor(hotx,hoty,cursor));
 }
 
+extern int DLLForceMouseX;
+extern int DLLForceMouseY;
+
+
 int Get_Mouse_X(void)
 {
+	if (DLLForceMouseX >= 0) {
+		return DLLForceMouseX;
+	}
 	if (!_Mouse) return(0);
 	return(_Mouse->Get_Mouse_X());
 }
 
 int Get_Mouse_Y(void)
 {
+	if (DLLForceMouseY >= 0) {
+		return DLLForceMouseY;
+	}
+	
 	if (!_Mouse) return(0);
 	return(_Mouse->Get_Mouse_Y());
 }

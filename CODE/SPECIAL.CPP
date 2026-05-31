@@ -82,6 +82,10 @@ void SpecialClass::Init(void)
 	IsThreePoint = false;
 	IsTGrowth = true;
 	IsTSpread = true;
+	UseMCVDeploy = false;
+	IsMCVDeploy = false;
+	IsEarlyWin = false;
+	ModernBalance = false;
 }
 
 
@@ -102,6 +106,8 @@ void SpecialClass::Init(void)
  *=============================================================================================*/
 void Special_Dialog(bool simple)
 {
+	simple;
+#if (0)//PG
 	SpecialClass oldspecial = Special;
 	GadgetClass * buttons = NULL;
 	static struct {
@@ -218,6 +224,7 @@ void Special_Dialog(bool simple)
 		Map.Flag_To_Redraw(true);
 		Map.Render();
 	}
+#endif
 }
 
 
@@ -272,7 +279,7 @@ void PWEditClass::Draw_Text(char const * text)
 
 		Conquer_Clip_Text_Print(buffer, X+1, Y+1, Color, TBLACK, TextFlags | flags, Width-2);
 
-		if (Has_Focus() && strlen(buffer) < MaxLength) {
+		if (Has_Focus() && (int)strlen(buffer) < MaxLength) {
 			Conquer_Clip_Text_Print( "_", X+1+String_Pixel_Width(buffer), Y+1, Color, TBLACK, TextFlags | flags);
 		}
 	} else {
@@ -280,7 +287,7 @@ void PWEditClass::Draw_Text(char const * text)
 			&ColorRemaps[PCOLOR_DIALOG_BLUE] : &ColorRemaps[PCOLOR_GREY],
 			TBLACK, TextFlags, Width-2);
 
-		if (Has_Focus() && strlen(buffer) < MaxLength) {
+		if (Has_Focus() && (int)strlen(buffer) < MaxLength) {
 			Conquer_Clip_Text_Print("_", X+1+String_Pixel_Width(buffer), Y+1,
 				&ColorRemaps[PCOLOR_DIALOG_BLUE], TBLACK, TextFlags);
 		}
@@ -318,8 +325,9 @@ char const * Fetch_Password(int caption, int message, int btext)
 	TextButtonClass ok;
 
 	if (btext == TXT_NONE) btext = TXT_OK;
-
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
+	
+	//PG_TO_FIX
+	//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
 
 	/*
 	**	Examine the optional button parameters. Fetch the width and starting
@@ -339,7 +347,8 @@ char const * Fetch_Password(int caption, int message, int btext)
 	*/
 	buffer[BUFFSIZE-1] = 0;
 	strncpy(buffer, Text_String(message), BUFFSIZE-1);
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
+	//PG_TO_FIX
+	//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
 	int width;
 	int height;
 	Format_Window_String(buffer, 255, width, height);
@@ -493,7 +502,8 @@ int Fetch_Difficulty(void)
 		}
 	}
 #endif
-	Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
+	//PG_TO_FIX
+	//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TPF_6PT_GRAD|TPF_NOSHADOW);
 	int width;
 	int height;
 	Format_Window_String(buffer, w-60*RESFACTOR, width, height);

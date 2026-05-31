@@ -222,7 +222,7 @@ bool WWKeyboardClass::Put_Key_Message(unsigned short vk_key, bool release)
 
 }
 
-
+#pragma warning (disable : 4065)
 char WWKeyboardClass::To_ASCII(unsigned short key)
 {
 	/*
@@ -297,9 +297,9 @@ char WWKeyboardClass::To_ASCII(unsigned short key)
 }
 
 
-WWKeyboardClass::Down(unsigned short key)
+bool WWKeyboardClass::Down(unsigned short key)
 {
-	return(GetAsyncKeyState(key & 0xFF));
+	return(GetAsyncKeyState(key & 0xFF) == 0 ? false : true);
 }
 
 

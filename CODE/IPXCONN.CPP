@@ -47,7 +47,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 #include "function.h"
 #include <stdio.h>
-#include <mem.h>
+//#include <mem.h>
 #include <string.h>
 #include "ipxconn.h"
 

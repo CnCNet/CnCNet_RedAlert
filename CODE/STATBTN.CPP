@@ -79,7 +79,8 @@ StaticButtonClass::StaticButtonClass(unsigned , char const * text, TextPrintType
 	Set_Text(text, false);
 
 	if (w == -1 || h == -1) {
-		Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, PrintFlags);
+		//PG_TO_FIX
+		//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, PrintFlags);
 		if (w == -1) {
 			Width = String_Pixel_Width(String);
 		}
@@ -188,7 +189,8 @@ void StaticButtonClass::Set_Text(char const * text, bool resize)
 	Flag_To_Redraw();
 	if (resize && String != NULL) {
 		Draw_Background();
-		Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, PrintFlags);
+		//PG_TO_FIX
+		//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, PrintFlags);
 		Width = String_Pixel_Width(String);
 		Height = FontHeight + FontYSpacing;
 		Background = Buffer();

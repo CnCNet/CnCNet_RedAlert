@@ -86,6 +86,11 @@
 
 #include	"function.h"
 
+/*
+** New sidebar for GlyphX multiplayer. ST - 8/7/2019 10:10AM
+*/
+#include "SidebarGlyphx.h"
+
 
 int const InfantryClass::HumanShape[32] = {0,0,7,7,7,7,6,6,6,6,5,5,5,5,5,4,4,4,3,3,3,3,2,2,2,2,1,1,1,1,1,0};
 
@@ -182,7 +187,9 @@ InfantryClass::InfantryClass(InfantryType classid, HousesType house) :
 	IsProne(false),
 	IsZoneCheat(false),
 	WasSelected(false),
-	Fear(FEAR_NONE)
+	Fear(FEAR_NONE),
+	StopDriverFrame(-1),
+	LookCell(0)
 {
 	House->Tracking_Add(this);
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
@@ -263,7 +270,7 @@ void * InfantryClass::operator new(size_t)
 {
 	void * ptr = Infantry.Allocate();
 	if (ptr != NULL) {
-		((InfantryClass *)ptr)->IsActive = true;
+		((InfantryClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -316,7 +323,7 @@ void InfantryClass::operator delete(void * ptr)
  *   11/22/1994 JLB : Shares base damage handler for techno objects.                           *
  *   03/31/1995 JLB : Revenge factor.                                                          *
  *=============================================================================================*/
-ResultType InfantryClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType InfantryClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(Infantry.ID(this) == ID);
 	assert(IsActive);
@@ -467,7 +474,7 @@ ResultType InfantryClass::Take_Damage(int & damage, int distance, WarheadType wa
  *    This will determine the shape number to use for this infantry soldier. The shape number  *
  *    is relative to the shape file associated with this infantry unit.                        *
  *                                                                                             *
- * INPUT:   none                                                                               *
+ * INPUT:   Window we will be drawing into                                                     *
  *                                                                                             *
  * OUTPUT:  Returns with the shape number for this infantry object to be used when drawing.    *
  *                                                                                             *
@@ -475,8 +482,9 @@ ResultType InfantryClass::Take_Damage(int & damage, int distance, WarheadType wa
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   07/29/1996 JLB : Created.                                                                 *
+ *   9/4/2019 1:45PM ST : Added window parameter                                               *
  *=============================================================================================*/
-int InfantryClass::Shape_Number(void) const
+int InfantryClass::Shape_Number(WindowNumberType window) const
 {
 	/*
 	**	Fetch the shape pointer to use for the infantry. This is controlled by what
@@ -487,24 +495,48 @@ int InfantryClass::Shape_Number(void) const
 	if (doit == DO_NOTHING) doit = DO_STAND_READY;
 
 	/*
+	** Hold the walk pose for a couple of frames after we come to a stop to try and avoid the problem where a moving infantry
+	** goes into the stand pose for a single frame when pausing in the assigned cell destination. ST - 9/4/2019 1:39PM
+	*/
+	if (doit == DO_STAND_READY) {
+		if (window == WINDOW_VIRTUAL) {
+			if (StopDriverFrame != -1) {
+				if (Frame - StopDriverFrame <= 2) {
+					if (Path[0] != FACING_NONE) {
+						doit = DO_WALK;
+					}
+				}
+			}
+		}					  
+	}
+
+	/*
+	** The animation frame numbers may be different when rendering in legacy mode vs. exporting for render in GlyphX. ST - 9/5/2019 12:34PM
+	*/
+	const DoInfoStruct *do_controls = (window == WINDOW_VIRTUAL) ? Class->DoControlsVirtual : Class->DoControls;
+	if (window != WINDOW_VIRTUAL && !IsOwnedByPlayer && *this == INFANTRY_SPY) {
+		do_controls = InfantryTypeClass::As_Reference(INFANTRY_E1).DoControls;
+	}
+			
+	/*
 	**	The infantry shape is always modulo the number of animation frames
 	**	of the action stage that the infantry is doing.
 	*/
-	int shapenum = Fetch_Stage() % max(Class->DoControls[doit].Count, 1);
+	int shapenum = Fetch_Stage() % max(do_controls[doit].Count, 1);
 
 	/*
 	**	If facing makes a difference, then the shape number will be incremented
 	**	by the facing accordingly.
 	*/
-	if (Class->DoControls[doit].Jump) {
-		shapenum += HumanShape[Dir_To_32(PrimaryFacing.Current())] * Class->DoControls[doit].Jump;
+	if (do_controls[doit].Jump) {
+		shapenum += HumanShape[Dir_To_32(PrimaryFacing.Current())] * do_controls[doit].Jump;
 	}
-
+	
 	/*
 	**	Finally, the shape number is biased according to the starting frame number for
 	**	that action in the infantry shape file.
 	*/
-	shapenum += Class->DoControls[doit].Frame;
+	shapenum += do_controls[doit].Frame;
 
 	/*
 	**	Return with the final infantry shape number.
@@ -552,11 +584,12 @@ void InfantryClass::Draw_It(int x, int y, WindowNumberType window) const
 	/*
 	**	Actually draw the root body of the unit.
 	*/
-	Techno_Draw_Object(shapefile, Shape_Number(), x, y, window);
+	Techno_Draw_Object(shapefile, Shape_Number(window), x, y, window);
 
 	FootClass::Draw_It(x, y, window);
 }
 
+extern bool MPSuperWeaponDisable;
 
 /***********************************************************************************************
  * InfantryClass::Per_Cell_Process -- Handles special operations that occur once per cell.     *
@@ -592,8 +625,14 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 		*/
 		if (Mission == MISSION_CAPTURE) {
 			TechnoClass * tech = cellptr->Cell_Building();
-
-			if (tech == NULL) tech = cellptr->Cell_Techno();
+			if (tech != NULL) {
+				if ((tech->As_Target() == NavCom || tech->As_Target() == TarCom) && !tech->Can_Capture()) {
+					tech = NULL;
+					Assign_Destination(TARGET_NONE);
+				}
+			} else {
+				tech = cellptr->Cell_Techno();
+			}
 			if (tech != NULL && (tech->As_Target() == NavCom || tech->As_Target() == TarCom)) {
 				if (*this == INFANTRY_RENOVATOR) {
 
@@ -608,11 +647,14 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 #else
 					if (tech->House->Is_Ally(House)) {
 #endif
+						if (tech->Trigger.Is_Valid()) {
+							tech->Trigger->Spring(TEVENT_PLAYER_ENTERED, this);
+						}
 						tech->Renovate();
 					} else {
 						bool iscapturable = false;
 						if (tech->What_Am_I() == RTTI_BUILDING) {
-							iscapturable = ((BuildingClass *)tech)->Class->IsCaptureable;
+							iscapturable = tech->Can_Capture();
 						}
 #ifdef FIXIT_ENGINEER	//	checked - ajw 9/28/98
 						if (tech->Health_Ratio() <= EngineerCaptureLevel && iscapturable) {
@@ -626,7 +668,7 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 							tech->Captured(House);
 						} else {
 #ifdef FIXIT_ENGINEER	//	checked - ajw 9/28/98
-							int damage = min( (tech->Techno_Type_Class()->MaxStrength) * EngineerDamage, tech->Strength-1);
+							int damage = min( (short)((int)(tech->Techno_Type_Class()->MaxStrength) * EngineerDamage), tech->Strength-1);
 #else
 							int damage = min( (tech->Techno_Type_Class()->MaxStrength) / 3, tech->Strength-1);
 #endif
@@ -660,12 +702,39 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 							if (build == STRUCT_RADAR /* || build == STRUCT_EYE */ ) {
 								tech->House->RadarSpied |= housespy;
 							}
-							// If they're spying on a sub pen, give 'em a sonar pulse
-							if (build == STRUCT_SUB_PEN) {
-								House->SuperWeapon[SPC_SONAR_PULSE].Enable(false, true, false);
-								if (IsOwnedByPlayer) {
-									Map.Add(RTTI_SPECIAL, SPC_SONAR_PULSE);
-									Map.Column[1].Flag_To_Redraw();
+							
+							if (Session.Type == GAME_NORMAL || !MPSuperWeaponDisable) {
+							
+								// If they're spying on a sub pen, give 'em a sonar pulse
+								if (build == STRUCT_SUB_PEN) {
+									House->SuperWeapon[SPC_SONAR_PULSE].Enable(false, true, false);
+									// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+									if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+										if (House->IsHuman) {
+											Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_SONAR_PULSE, House);
+										}
+									} else {
+										if (IsOwnedByPlayer) {
+											Map.Add(RTTI_SPECIAL, SPC_SONAR_PULSE);
+											Map.Column[1].Flag_To_Redraw();
+										}
+									}
+								}
+								// If they're spying on an airfield, they get Parabombs
+								if (build == STRUCT_AIRSTRIP) {
+									House->SuperWeapon[SPC_PARA_BOMB].Enable(true, true, false);
+									// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+									if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+										if (House->IsHuman) {
+											Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_PARA_BOMB, House);
+										}
+									}
+									else {
+										if (IsOwnedByPlayer) {
+											Map.Add(RTTI_SPECIAL, SPC_PARA_BOMB);
+											Map.Column[1].Flag_To_Redraw();
+										}
+									}
 								}
 							}
 						}
@@ -840,7 +909,8 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 			if (building != NULL && building->As_Target() == NavCom) {
 				if (!building->IronCurtainCountDown && building->Mission != MISSION_DECONSTRUCTION) {
 					building->IsGoingToBlow = true;
-					building->Clicked_As_Target((Rule.C4Delay * TICKS_PER_MINUTE) / 2);
+					building->Clicked_As_Target(PlayerPtr->Class->House, (Rule.C4Delay * TICKS_PER_MINUTE) / 2); // 2019/09/20 JAS - Added record of who clicked on the object
+					building->Clicked_As_Target(building->Owner(), (Rule.C4Delay * TICKS_PER_MINUTE) / 2);
 					building->CountDown = Rule.C4Delay * TICKS_PER_MINUTE;
 					building->WhomToRepay = As_Target();
 				}
@@ -940,7 +1010,17 @@ void InfantryClass::Per_Cell_Process(PCPType why)
 				return;
 			}
 		}
-		Look(true);
+
+		/*
+		**	If the last cell we looked from isn't adjacent to our current cell,
+		**	perform a full look.
+		*/
+		CELL cell = Coord_Cell(Coord);
+		if (::Distance(Cell_X(cell), Cell_Y(cell), Cell_X(LookCell), Cell_Y(LookCell)) > 1) {
+			Look(false);
+		} else {
+			Look(true);
+		}
 
 #if 1
 /*
@@ -1139,7 +1219,7 @@ void InfantryClass::Assign_Target(TARGET target)
 	*/
 	if (!Target_Legal(NavCom) && Class->IsCapture && !Is_Weapon_Equipped()) {
 		BuildingClass const * building = As_Building(target);
-		if (building != NULL && building->Class->IsCaptureable) {
+		if (building != NULL && building->Can_Capture()) {
 			Assign_Destination(target);
 		}
 	}
@@ -1415,7 +1495,7 @@ MoveType InfantryClass::Can_Enter_Cell(CELL cell, FacingType ) const
 					**	Cloaked enemy objects are not considered if this is a Find_Path()
 					**	call.
 					*/
-					if (!obj->Is_Techno() || ((TechnoClass *)obj)->Cloak != CLOAKED) {
+					if (!obj->Is_Techno() || !((TechnoClass *)obj)->Is_Cloaked(this)) {
 
 						/*
 						**	Any non-allied blockage is considered impassible if the infantry
@@ -1570,7 +1650,7 @@ short const * InfantryClass::Overlap_List(bool ) const
 		**	been calculated then use them, otherwise, use the default large rectangle
 		**	previously created.
 		*/
-		if (Height == 0 && !IsSelected && redraw && Class->DimensionData != NULL) {
+		if (Height == 0 && !Is_Selected_By_Player() && redraw && Class->DimensionData != NULL) {
 			int shapenum = Shape_Number();
 			if (!Class->DimensionData[shapenum].Is_Valid()) {
 				Class->DimensionData[shapenum] = Shape_Dimensions(Get_Image_Data(), shapenum);
@@ -1640,7 +1720,57 @@ FireErrorType InfantryClass::Can_Fire(TARGET target, int which) const
 		return(FIRE_MOVING);
 	}
 
+	/*
+	** Only one dog can fire on an infantry at a time
+	*/
+	if (Class->IsDog) {
+		for (int index = 0; index < Infantry.Count(); index++) {
+			InfantryClass *dog = Infantry.Ptr(index);
+			if (dog != this && dog->Class->IsDog && (dog->IsFiring || dog->IsInLimbo) && dog->TarCom == target) {
+				return(FIRE_ILLEGAL);
+			}
+		}
+	}
+
 	return(FootClass::Can_Fire(target, which));
+}
+
+
+/***********************************************************************************************
+ * TechnoClass::Fire_Coord -- Determine the coordinate where bullets appear.                   *
+ *                                                                                             *
+ *    This routine will determine the coordinate to use when this infantry fires. The          *
+ *    coordinate is the location where bullets appear (or fire effects appear) when the        *
+ *    object fires its weapon.                                                                 *
+ *                                                                                             *
+ * INPUT:   which -- Which weapon is the coordinate to be calculated for? 0 means primary      *
+ *                   weapon, 1 means secondary weapon.                                         *
+ *                                                                                             *
+ * OUTPUT:  Returns with the coordinate that any bullets fired from the specified weapon       *
+ *          should appear.                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   11/12/2019 SKY : Created.                                                                 *
+ *=============================================================================================*/
+COORDINATE InfantryClass::Fire_Coord(int which) const
+{
+	COORDINATE coord = FootClass::Fire_Coord(which);
+
+	/*
+	**  Since electric weapons draw a zap between start and end points, prone infantry that fire one
+	**  need to adjust their fire coordinate so the start point looks correct.
+	*/
+	if (IsProne) {
+		TechnoTypeClass const & tclass = *Techno_Type_Class();
+		WeaponTypeClass const * weapon = (which == 0) ? tclass.PrimaryWeapon : tclass.SecondaryWeapon;
+		if (weapon && weapon->IsElectric) {
+			coord = Coord_Add(coord, XY_Coord(0, 48));
+		}
+	}
+
+	return coord;
 }
 
 
@@ -1794,7 +1924,7 @@ bool InfantryClass::Random_Animate(void)
 				Mark(MARK_CHANGE_REDRAW);
 				PrimaryFacing.Set(Facing_Dir(Random_Pick(FACING_N, FACING_NW)));
 				Mark(MARK_CHANGE_REDRAW);
-				if (!IsSelected && IsOwnedByPlayer && *this == INFANTRY_TANYA && Sim_Random_Pick(0, 2) == 0) {
+				if (!Is_Selected_By_Player() && IsOwnedByPlayer && *this == INFANTRY_TANYA && Sim_Random_Pick(0, 2) == 0) {
 					Sound_Effect(VOC_TANYA_SHAKE, Coord);
 				}
 				break;
@@ -1901,7 +2031,8 @@ void InfantryClass::Scatter(COORDINATE threat, bool forced, bool nokidding)
 
 		CELL newcell = 0;
 		CELL altcell = 0;
-		for (FacingType face = FACING_N; face < FACING_COUNT; face++) {
+		FacingType face;
+		for (face = FACING_N; face < FACING_COUNT; face++) {
 			FacingType newface = toface + face;
 			newcell = Adjacent_Cell(Coord_Cell(Coord), newface);
 
@@ -1925,6 +2056,31 @@ void InfantryClass::Scatter(COORDINATE threat, bool forced, bool nokidding)
 			Assign_Destination(::As_Target(newcell));
 		}
 	}
+}
+
+
+/***********************************************************************************************
+ * InfantryClass::Look -- Performs a look around (map reveal) action.                          *
+ *                                                                                             *
+ *    This routine will reveal the map around this object.                                     *
+ *                                                                                             *
+ * INPUT:   incremental -- This parameter can enable a more efficient map reveal logic.        *
+ *                         If it is absolutely known that the object has only moved one        *
+ *                         cell from its previous location that it performed a Look() at,      *
+ *                         then set this parameter to TRUE. It will only perform the look      *
+ *                         check on the perimeter cells.                                       *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   This routine is slow, try to call it only when necessary.                       *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   03/14/1996 JLB : Created.                                                                 *
+ *=============================================================================================*/
+void InfantryClass::Look(bool incremental)
+{
+	LookCell = Coord_Cell(Coord);
+	FootClass::Look(incremental);
 }
 
 
@@ -1977,6 +2133,14 @@ bool InfantryClass::Do_Action(DoType todo, bool force)
 		*/
 		if (Strength == 0) {
 			Stop_Driver();
+		}
+
+		/*
+		**	Make sure dogs don't try to go somewhere while they're mauling
+		*/
+		if (todo == DO_DOG_MAUL) {
+			Stop_Driver();
+			Assign_Destination(TARGET_NONE);
 		}
 
 		/*
@@ -2036,6 +2200,10 @@ bool InfantryClass::Stop_Driver(void)
 	**	Set the occupation bit at the current location.
 	*/
 	Set_Occupy_Bit(Coord);
+
+	if (Doing != DO_STAND_READY) {
+		StopDriverFrame = Frame;
+	}
 
 	if (Class->IsDog) {
 		Do_Action(DO_STAND_READY);
@@ -2762,7 +2930,7 @@ ActionType InfantryClass::What_Action(ObjectClass const * object) const
 				return(ACTION_GREPAIR);
 			} else {
 
-				if (bldg->Class->IsCaptureable) {
+				if (bldg->Can_Capture()) {
 #ifdef FIXIT_ENGINEER	//	checked - ajw 9/28/98
 					if (bldg->Health_Ratio() <= EngineerCaptureLevel) {
 #else
@@ -2773,7 +2941,7 @@ ActionType InfantryClass::What_Action(ObjectClass const * object) const
 					return(ACTION_DAMAGE);
 				}
 
-//				if (bldg->Health_Ratio() <= Rule.ConditionRed && bldg->Class->IsCaptureable) {
+//				if (bldg->Health_Ratio() <= Rule.ConditionRed && bldg->Can_Capture()) {
 			}
 		}
 	}
@@ -2808,7 +2976,7 @@ ActionType InfantryClass::What_Action(ObjectClass const * object) const
 				if (action == ACTION_GUARD_AREA || action == ACTION_MOVE) {
 					return(action);
 				}
-				return(ACTION_SELECT);
+				return ((action == ACTION_TOGGLE_SELECT) ? ACTION_TOGGLE_SELECT : ACTION_SELECT);
 			}
 		} else {
 			return(ACTION_NOMOVE);
@@ -2894,7 +3062,7 @@ ActionType InfantryClass::What_Action(ObjectClass const * object) const
 	if (Class->IsCapture && action == ACTION_ATTACK) {
 		if (!House->Is_Ally(object) && (
 //Disable capturing of helicopters			 (object->What_Am_I() == RTTI_AIRCRAFT && ((AircraftClass *)object)->Pip_Count() == 0 && *((AircraftClass *)object) == AIRCRAFT_TRANSPORT) ||
-			 (object->What_Am_I() == RTTI_BUILDING && ((BuildingClass *)object)->Class->IsCaptureable) )
+			 (object->What_Am_I() == RTTI_BUILDING && object->Can_Capture()) )
 			) {
 
 				if (*this == INFANTRY_THIEF && (object->What_Am_I() == RTTI_BUILDING && ((BuildingClass *)object)->Class->Capacity == 0)) {
@@ -2917,7 +3085,9 @@ ActionType InfantryClass::What_Action(ObjectClass const * object) const
 						while (*list != REFRESH_EOL && !found) {
 							CELL newcell = cell + *list++;
 							for (FacingType i=FACING_N; i < FACING_COUNT; i++) {
-								if (Map[Adjacent_Cell(newcell, i)].Zones[Class->MZone] == targzone) {
+								CELL adjcell = Adjacent_Cell(newcell, i);
+								if ((unsigned)adjcell >= MAP_CELL_TOTAL) continue;
+								if (Map[adjcell].Zones[Class->MZone] == targzone) {
 									found = true;
 									break;
 								}
@@ -3126,7 +3296,7 @@ int InfantryClass::Mission_Attack(void)
 		return(1);
 	}
 
-	if (Class->IsCapture && As_Building(TarCom) != NULL) {
+	if (Class->IsCapture && As_Building(TarCom) != NULL && As_Building(TarCom)->Can_Capture()) {
 		Assign_Destination(TarCom);
 		Assign_Mission(MISSION_CAPTURE);
 		return(1);
@@ -3326,70 +3496,72 @@ void InfantryClass::Read_INI(CCINIClass & ini)
 
 			if (classid != INFANTRY_NONE) {
 
-				infantry = new InfantryClass(classid, inhouse);
-				if (infantry != NULL) {
-
-					/*
-					**	3rd token: strength.
-					*/
-					int strength = atoi(strtok(NULL, ",\n\r"));
-
-					/*
-					**	4th token: cell #.
-					*/
-					CELL cell = atoi(strtok(NULL, ",\n\r"));
-					COORDINATE coord = Cell_Coord(cell);
-
-					/*
-					**	5th token: cell sub-location.
-					*/
-					int sub = atoi(strtok(NULL, ","));
-					coord = Coord_Add(Coord_Whole(coord), StoppingCoordAbs[ sub ]);
-
-					/*
-					**	Fetch the mission and facing.
-					*/
-					MissionType mission = MissionClass::Mission_From_Name(strtok(NULL, ",\n\r"));
-					validation = strtok(NULL, ",\n\r");
-					if (validation) {
-						dir = (DirType)atoi(validation);
-						validation = strtok(NULL, ",\n\r");
-						if (validation) {
-							tp = TriggerTypeClass::From_Name(validation);
-						} else {
-							tp = NULL;
-						}
-					} else {
-						dir = (DirType)0;
-						tp = NULL;
-					}
-
-					infantry->Trigger = NULL;
-					if (tp != NULL) {
-						TriggerClass * tt = Find_Or_Make(tp);
-						if (tt != NULL) {
-							tt->AttachCount++;
-							infantry->Trigger = tt;
-						}
-					}
-
-					if (infantry->Unlimbo(coord, dir)) {
-						infantry->Strength = infantry->Class_Of().MaxStrength * fixed(strength, 256);
-						if (infantry->Strength > infantry->Class->MaxStrength-3) infantry->Strength = infantry->Class->MaxStrength;
-//						infantry->Strength = Fixed_To_Cardinal(infantry->Class_Of().MaxStrength, strength);
-						if (Session.Type == GAME_NORMAL || infantry->House->IsHuman) {
-							infantry->Assign_Mission(mission);
-							infantry->Commence();
-						} else {
-							infantry->Enter_Idle_Mode();
-						}
-					} else {
+				if (HouseClass::As_Pointer(inhouse) != NULL) {
+					infantry = new InfantryClass(classid, inhouse);
+					if (infantry != NULL) {
 
 						/*
-						**	If the infantry could not be unlimboed, then this is a big error.
-						**	Delete the infantry.
+						**	3rd token: strength.
 						*/
-						delete infantry;
+						int strength = atoi(strtok(NULL, ",\n\r"));
+
+						/*
+						**	4th token: cell #.
+						*/
+						CELL cell = atoi(strtok(NULL, ",\n\r"));
+						COORDINATE coord = Cell_Coord(cell);
+
+						/*
+						**	5th token: cell sub-location.
+						*/
+						int sub = atoi(strtok(NULL, ","));
+						coord = Coord_Add(Coord_Whole(coord), StoppingCoordAbs[ sub ]);
+
+						/*
+						**	Fetch the mission and facing.
+						*/
+						MissionType mission = MissionClass::Mission_From_Name(strtok(NULL, ",\n\r"));
+						validation = strtok(NULL, ",\n\r");
+						if (validation) {
+							dir = (DirType)atoi(validation);
+							validation = strtok(NULL, ",\n\r");
+							if (validation) {
+								tp = TriggerTypeClass::From_Name(validation);
+							} else {
+								tp = NULL;
+							}
+						} else {
+							dir = (DirType)0;
+							tp = NULL;
+						}
+
+						infantry->Trigger = NULL;
+						if (tp != NULL) {
+							TriggerClass * tt = Find_Or_Make(tp);
+							if (tt != NULL) {
+								tt->AttachCount++;
+								infantry->Trigger = tt;
+							}
+						}
+
+						if (infantry->Unlimbo(coord, dir)) {
+							infantry->Strength = (int)infantry->Class_Of().MaxStrength * fixed(strength, 256);
+							if (infantry->Strength > infantry->Class->MaxStrength-3) infantry->Strength = infantry->Class->MaxStrength;
+	//						infantry->Strength = Fixed_To_Cardinal(infantry->Class_Of().MaxStrength, strength);
+							if (Session.Type == GAME_NORMAL || infantry->House->IsHuman) {
+								infantry->Assign_Mission(mission);
+								infantry->Commence();
+							} else {
+								infantry->Enter_Idle_Mode();
+							}
+						} else {
+
+							/*
+							**	If the infantry could not be unlimboed, then this is a big error.
+							**	Delete the infantry.
+							*/
+							delete infantry;
+						}
 					}
 				}
 			}
@@ -3587,6 +3759,8 @@ void InfantryClass::Firing_AI(void)
 							Assign_Target(TARGET_NONE);
 						}
 #endif
+					} else if (Class->IsDog) {
+						Assign_Target(TARGET_NONE);
 					}
 					break;
 
@@ -3633,23 +3807,33 @@ void InfantryClass::Firing_AI(void)
 		if (IsProne) firestage = Class->ProneLaunch;
 
 		if (IsFiring && Fetch_Stage() == firestage) {
-			Fire_At(TarCom, primary);
 
 			/*
-			**	Run away from slowly approaching projectiles.
+			**	Target might have changed during the firing animation
 			*/
-			if (Class->PrimaryWeapon->MaxSpeed < Rule.Incoming) {
-				Map[::As_Cell(TarCom)].Incoming(Coord, true);
-			}
+			if (Can_Fire(TarCom, primary) == FIRE_OK) {
+				Fire_At(TarCom, primary);
 
-			/*
-			** If it's a dog, get rid of him (he'll be re-created when he hits)
-			*/
-			if (Class->IsDog) {
-				WasSelected = IsSelected;
-				ScenarioInit++;
-				Limbo();
-				ScenarioInit--;
+				/*
+				**	Run away from slowly approaching projectiles.
+				*/
+				if (Class->PrimaryWeapon->MaxSpeed < Rule.Incoming) {
+					Map[::As_Cell(TarCom)].Incoming(Coord, true);
+				}
+
+				/*
+				** If it's a dog, get rid of him (he'll be re-created when he hits)
+				*/
+				if (Class->IsDog) {
+					WasSelected = IsSelected;
+					ScenarioInit++;
+					Limbo();
+					ScenarioInit--;
+				}
+			} else {
+				Mark(MARK_OVERLAP_UP);
+				IsFiring = false;
+				Mark(MARK_OVERLAP_DOWN);
 			}
 		}
 	} else {
@@ -3725,17 +3909,24 @@ void InfantryClass::Doing_AI(void)
 			case DO_GRENADE_DEATH:
 			case DO_FIRE_DEATH:
 				if (Fetch_Stage() >= Class->DoControls[Doing].Count) {
-					if (Doing == DO_GUN_DEATH && !Class->IsDog && Height==0) {
-						new AnimClass(ANIM_CORPSE1, Coord_Add(Center_Coord(), XYP_Coord(-2, 4)));
+					AnimClass* anim = NULL;
+					LandType land = Map[Center_Coord()].Land_Type();
+					if (land != LAND_ROCK && land != LAND_WATER && land != LAND_RIVER) {
+						if (Doing == DO_GUN_DEATH && !Class->IsDog && Height==0) {
+							anim = new AnimClass(ANIM_CORPSE1, Coord_Add(Center_Coord(), XYP_Coord(-2, 4)));
+						}
+						if (Doing == DO_GRENADE_DEATH && !Class->IsDog && Height==0) {
+							anim = new AnimClass(ANIM_CORPSE1, Coord_Add(Center_Coord(), XYP_Coord(-10, 3)));
+						}
+						if (Doing == DO_EXPLOSION_DEATH && !Class->IsDog && Height==0) {
+							anim = new AnimClass(ANIM_CORPSE3, Coord_Add(Center_Coord(), XYP_Coord(-2, 4)));
+						}
+						if (Doing == DO_EXPLOSION2_DEATH && !Class->IsDog && Height==0) {
+							anim = new AnimClass(ANIM_CORPSE2, Center_Coord());
+						}
 					}
-					if (Doing == DO_GRENADE_DEATH && !Class->IsDog && Height==0) {
-						new AnimClass(ANIM_CORPSE1, Coord_Add(Center_Coord(), XYP_Coord(-10, 3)));
-					}
-					if (Doing == DO_EXPLOSION_DEATH && !Class->IsDog && Height==0) {
-						new AnimClass(ANIM_CORPSE3, Coord_Add(Center_Coord(), XYP_Coord(-2, 4)));
-					}
-					if (Doing == DO_EXPLOSION2_DEATH && !Class->IsDog && Height==0) {
-						new AnimClass(ANIM_CORPSE2, Center_Coord());
+					if (anim != NULL) {
+						anim->Set_Owner(House->Class->House);
 					}
 					delete this;
 					return;
@@ -3780,6 +3971,13 @@ void InfantryClass::Movement_AI(void)
 			if (Mission == MISSION_GUARD && MissionQueue == MISSION_NONE && Target_Legal(NavCom)) {
 				Assign_Destination(TARGET_NONE);
 //				if (IsTethered) Scatter(0, true);
+			}
+
+			/*
+			**	Scatter infantry off buildings in guard modes.
+			*/
+			if (!IsTethered && (Mission == MISSION_GUARD || Mission == MISSION_GUARD_AREA) && MissionQueue == MISSION_NONE && Map[Coord].Cell_Building() != NULL) {
+				Scatter(0, true, true);
 			}
 
 			/*
@@ -3867,6 +4065,15 @@ void InfantryClass::Movement_AI(void)
 									if (IsNewNavCom) Sound_Effect(VOC_SCOLD);
 									IsNewNavCom = false;
 
+									//If we're trying to enter a transport we need to fail so others can try to enter. - LLL 4/17/2020
+									if (Mission == MISSION_ENTER) {
+										Mission = MISSION_NONE;
+										Assign_Mission(MISSION_GUARD);
+										Commence();
+
+										Transmit_Message(RADIO_OVER_OUT);
+									}
+
 									/*
 									**	Abort the target and destination process since the path
 									**	could not be found. In such a case, processing should stop
@@ -3928,7 +4135,7 @@ void InfantryClass::Movement_AI(void)
 						if (!IsActive) return;
 						PrimaryFacing.Set(Direction8(Center_Coord(), Head_To_Coord()));
 						if (IsFormationMove) {
-							Set_Speed(Ground[Map[Coord].Land_Type()].Cost[FormationSpeed] * 256);
+							Set_Speed(Ground[Map[Coord].Land_Type()].Cost[FormationSpeed] * 255);
 						} else {
 							Set_Speed(0xFF);
 						}

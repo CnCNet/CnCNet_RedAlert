@@ -75,6 +75,7 @@ FactoryClass::FactoryClass(void) :
 	ID(Factories.ID(this)),
 	IsSuspended(false),
 	IsDifferent(false),
+	IsBlocked(false),
 	Balance(0),
 	OriginalBalance(0),
 	Object(0),
@@ -235,6 +236,36 @@ void FactoryClass::AI(void)
 				}
 			}
 		}
+	}
+}
+
+
+
+/***********************************************************************************************
+ * FactoryClass::Force_Complete -- Force the factory to finish what it's building              *
+ *                                                                                             *
+ *    For debugging/testing support                                                            *
+ *                                                                                             *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   8/23/2019 3:54PM ST : Created.                                                            *
+ *=============================================================================================*/
+void FactoryClass::Force_Complete(void)
+{
+	assert(Factories.ID(this) == ID);
+	
+	if (!IsSuspended && (Object != NULL || SpecialItem)) {
+		Set_Stage(STEP_COUNT);
+		IsSuspended = true;
+		Set_Rate(0);
+		Balance = 0;
+		IsDifferent = true;
 	}
 }
 
@@ -413,33 +444,17 @@ bool FactoryClass::Start(void)
 	assert(Factories.ID(this) == ID);
 
 	if ((Object || SpecialItem) && IsSuspended && !Has_Completed()) {
-		if (House->Available_Money() >= Cost_Per_Tick()) {
+		if (House->IsHuman || House->Available_Money() >= Cost_Per_Tick()) {
 			int time;
 
 			if (Object) {
-				time = Object->Time_To_Build();
-//			} else {
-//				time = TICKS_PER_MINUTE * 5;
+				time = Object->Class_Of().Time_To_Build(House->Class->House);
 			}
 
-			/*
-			**	Adjust time according to IQ setting of computer controlled house. The
-			**	build time will range from double normal time at the slowest to
-			**	just normal time at the fastest.
-			*/
-			if (!House->IsHuman && Rule.Diff[House->Difficulty].IsBuildSlowdown) {
-				time = time * Inverse(fixed(House->IQ+Rule.MaxIQ, Rule.MaxIQ*2));
-			}
+			time /= STEP_COUNT;
+			time = Bound(time, 1, 255);
 
-			int rate = time / Bound(House->Power_Fraction(), fixed(1, 16), fixed(1));
-//			int frac = House->Power_Fraction();
-//			frac = Bound(frac, 0x0010, 0x0100);
-//			int rate = (time*256) / frac;
-
-			rate /= STEP_COUNT;
-			rate = Bound(rate, 1, 255);
-
-			Set_Rate(rate);
+			Set_Rate(time);
 			IsSuspended = false;
 			return(true);
 		}
@@ -667,5 +682,3 @@ bool FactoryClass::Completed(void)
 	}
 	return(false);
 }
-
-

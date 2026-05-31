@@ -36,13 +36,16 @@
 ;*                                                                         *
 ;* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - *
 
-IDEAL
-P386
-MODEL USE32 FLAT
+;IDEAL
+;P386
+;MODEL USE32 FLAT
+.MODEL FLAT
 
-GLOBAL            C LCW_Uncompress          :NEAR
+;GLOBAL            C LCW_Uncompress          :NEAR
+externdef C LCW_Uncompress:NEAR
 
-CODESEG
+;CODESEG
+.code
 
 ; ----------------------------------------------------------------
 ;
@@ -54,24 +57,26 @@ CODESEG
 
 
 
-PROC	LCW_Uncompress C near
+LCW_Uncompress proc C source:DWORD, dest:DWORD, _length:DWORD
 
-	USES ebx,ecx,edx,edi,esi
+	;USES ebx,ecx,edx,edi,esi
 
-	ARG	source:DWORD
-	ARG	dest:DWORD
-	ARG	length:DWORD
+	;ARG	source:DWORD
+	;ARG	dest:DWORD
+	;ARG	length:DWORD
 ;LOCALS
 	LOCAL a1stdest:DWORD
 	LOCAL maxlen:DWORD
 	LOCAL lastbyte:DWORD
-	LOCAL lastcom:DWORD
-	LOCAL lastcom1:DWORD
+	;LOCAL lastcom:DWORD
+	;LOCAL lastcom1:DWORD
 
+
+	pushad
 
 	mov	edi,[dest]
 	mov	esi,[source]
-	mov	edx,[length]
+	mov	edx,[_length]
 
 ;
 ;
@@ -281,12 +286,12 @@ PROC	LCW_Uncompress C near
 	mov	ebx,[dest]
 	sub	eax,ebx
 
+	popad
 	ret
 
-ENDP	LCW_Uncompress
+LCW_Uncompress endp
 
 ;***********************************************************
 
 
 	END
-

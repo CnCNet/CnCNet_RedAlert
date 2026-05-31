@@ -41,6 +41,7 @@
 #include	"type.h"
 #include	"region.h"
 #include	"vector.h"
+#include "Credits.h"
 
 class TriggerClass;
 class FootClass;
@@ -161,6 +162,7 @@ class HouseClass {
 		**	computer controls all other active houses.
 		*/
 		unsigned IsHuman:1;
+		unsigned WasHuman:1;
 
 		/*
 		**	If the player can control units of this house even if the player doesn't
@@ -295,6 +297,11 @@ class HouseClass {
 		**	a look just in case their look radius intersects the shroud area.
 		*/
 		unsigned IsToLook:1;
+
+		/*
+		**	MBL 03.23.2020 - Support for queued movement mode (informed from the client)
+		*/
+		unsigned IsQueuedMovementToggle:1;
 
 		/*
 		**	This value indicates the degree of smartness to assign to this house.
@@ -478,6 +485,11 @@ class HouseClass {
 		int BuildingFactory;
 
 		/*
+		**	For human controlled houses, the current state of the radar map
+		*/
+		RadarEnum Radar;
+
+		/*
 		**	This target value specifies where the flag is located. It might be a cell
 		**	or it might be an object.
 		*/
@@ -503,6 +515,11 @@ class HouseClass {
 		** It's used for scoring multiplayer games.
 		*/
 		HousesType WhoLastHurtMe;
+
+		/*
+		** Start location (waypoint index) passed in from GlyphX
+		*/
+		int StartLocationOverride;
 
 		/*
 		**	This records information about the location and size of
@@ -550,6 +567,11 @@ class HouseClass {
 		**	special weapon.
 		*/
 		QuarryType PreferredTarget;
+
+		/*
+		**	Screen shake timer.
+		*/
+		CDTimerClass<FrameTimerClass> ScreenShakeTime;
 
 	private:
 		/*
@@ -665,6 +687,9 @@ class HouseClass {
 		BuildingClass * Find_Building(StructType type, ZoneType zone=ZONE_NONE) const;
 		char const * Name(void) const {return(Class->Name());}
 
+		// Added so the ally flags could be sent to client machines - 09 / 12 / 2019 JAS
+		unsigned Get_Ally_Flags();
+
 		bool Fire_Sale(void);
 		bool Is_Hack_Prevented(RTTIType rtti, int value) const;
 		bool Is_No_YakMig(void) const;
@@ -681,6 +706,7 @@ class HouseClass {
 		bool Is_Ally(HousesType house) const;
 		bool Is_Ally(HouseClass const * house) const;
 		bool Is_Ally(ObjectClass const * object) const;
+		unsigned int Get_Allies(void) const {return Allies;}
 		#ifdef CHEAT_KEYS
 		void Debug_Dump(MonoClass *mono) const;
 		#endif
@@ -706,7 +732,7 @@ class HouseClass {
 		long Available_Money(void) const;
 		void Spend_Money(unsigned money);
 		void Refund_Money(unsigned money);
-		void Attacked(void);
+		void Attacked(BuildingClass* source);
 		void Adjust_Power(int adjust);
 		void Adjust_Drain(int adjust);
 		void Update_Spied_Power_Plants(void);
@@ -753,6 +779,17 @@ class HouseClass {
 		static void Recalc_Attributes(void);
 
 		/*
+		** New default win mode to avoid griefing. ST - 1/31/2020 3:33PM
+		*/
+		void	Check_Pertinent_Structures(void);
+
+		void Init_Unit_Trackers(void);
+		void Free_Unit_Trackers(void);
+
+		// MBL 09.08.2020 Mod support stub
+		void Handle_Mod_Game_Command(CELL cell, int mod_command_index); // mod_command_index = 0-3
+
+		/*
 		**	File I/O.
 		*/
 		static void Read_INI(CCINIClass & ini);
@@ -780,6 +817,14 @@ class HouseClass {
 		** the Atomic Bomb state.
 		*/
 		CELL NukeDest;
+
+		/*
+		** Per-house credits class to track the visible credits state for each house. Redundant in the original game, but needed
+		** to preserve the exact credits count behavior in the GlyphX client. ST - 10/16/2019 2:31PM
+		*/
+		CreditClass VisibleCredits;
+		
+		bool DebugUnlockBuildables;
 
 		/*
 		** This routine completely removes this house & all its objects from the game.
@@ -909,7 +954,11 @@ class HouseClass {
 		int QuantityV(int index) {return(VQuantity[index]);}
 #endif
 
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[256];
+
 };
 
 #endif
-

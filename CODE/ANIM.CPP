@@ -34,6 +34,7 @@
  *   AnimClass::AI -- This is the low level anim processor.                                    *
  *   AnimClass::AnimClass -- The constructor for animation objects.                            *
  *   AnimClass::Attach_To -- Attaches animation to object specified.                           *
+ *   AnimClass::Sort_Above -- Sorts the animation above the target specified.                  *
  *   AnimClass::Center_Coord -- Determine center of animation.                                 *
  *   AnimClass::Detach -- Remove animation if attached to target.                              *
  *   AnimClass::Do_Atom_Damage -- Do atom bomb damage centered around the cell specified.      *
@@ -78,9 +79,9 @@ AnimType Anim_From_Name(char const * name)
   #ifdef VIC
 	if (name == NULL) return(ANIM_NONE);
 
-	for (AnimType anim = ANIM_FIRST; anim < ANIM_COUNT; anim++) {
-		if (stricmp(AnimTypeClass::As_Reference(anim).IniName, name) == 0) {
-			return(anim);
+	for (int anim = ANIM_FIRST; anim < ANIM_COUNT; anim++) {
+		if (stricmp(AnimTypeClass::As_Reference((AnimType)anim).IniName, name) == 0) {
+			return((AnimType)anim);
 		}
 	}
 #endif
@@ -145,6 +146,12 @@ COORDINATE AnimClass::Sort_Y(void) const
 
 	if (xObject != TARGET_NONE) {
 		return(Coord_Add(As_Object(xObject)->Sort_Y(), 0x00010000L));
+	}
+	if (Target_Legal(SortTarget)) {
+		ObjectClass * obj = As_Object(SortTarget);
+		if (obj && obj->IsActive) {
+			return(Coord_Add(obj->Sort_Y(), 0x00010000L));
+		}
 	}
 	if (*this == ANIM_MOVE_FLASH) {
 		return(Coord_Add(Center_Coord(), XYP_COORD(0, -24)));
@@ -212,7 +219,7 @@ bool AnimClass::Render(bool forced) const
 
 	if (Delay) return(false);
 	if (Map[Center_Coord()].IsVisible) {
-		IsToDisplay = true;
+		const_cast<AnimClass*>(this)->IsToDisplay = true;	// const_cast. ST - 5/8/2019
 	}
 #endif
 	return(ObjectClass::Render(forced));
@@ -243,7 +250,10 @@ void AnimClass::Draw_It(int x, int y, WindowNumberType window) const
 	assert(Anims.ID(this) == ID);
 	assert(IsActive);
 
-	if (!IsInvisible) {
+	bool render_legacy = !IsInvisible && (Class->VirtualAnim == ANIM_NONE || window != WINDOW_VIRTUAL);
+	bool render_virtual = Target_Legal(VirtualAnimTarget) && window == WINDOW_VIRTUAL;
+
+	if (render_legacy) {
 		BStart(BENCH_ANIMS);
 
 		IsTheaterShape = Class->IsTheater;
@@ -253,6 +263,32 @@ void AnimClass::Draw_It(int x, int y, WindowNumberType window) const
 			void const * transtable = NULL;
 			int shapenum = Class->Start + Fetch_Stage();
 			void const * remap = NULL;
+			ShapeFlags_Type flags = SHAPE_CENTER|SHAPE_WIN_REL;
+			bool alt = false;
+			int width = 0;
+			int height = 0;
+
+			/*
+			**	Some animations require special fixups.
+			*/
+			switch (Class->Type) {
+				case ANIM_ATOM_BLAST:
+					transtable = Map.UnitShadow;
+					break;
+
+				case ANIM_FLAG:
+					x += (ICON_PIXEL_W / 2) - 2;
+					y += (3 * ICON_PIXEL_H / 4) - Get_Build_Frame_Height(shapefile);
+					transtable = Map.UnitShadow;
+					alt = true;
+					break;
+
+				case ANIM_BEACON_VIRTUAL:
+					width = 29;
+					height = 39;
+					flags = flags | SHAPE_BOTTOM | SHAPE_COMPACT;
+					break;
+			}
 
 			/*
 			**	If the translucent table hasn't been determined yet, then check to see if it
@@ -260,22 +296,37 @@ void AnimClass::Draw_It(int x, int y, WindowNumberType window) const
 			*/
 			if (transtable == NULL && Class->IsWhiteTrans) transtable = DisplayClass::WhiteTranslucentTable;
 			if (transtable == NULL && Class->IsTranslucent) transtable = DisplayClass::TranslucentTable;
-			if (Class->Type == ANIM_ATOM_BLAST) transtable = Map.UnitShadow;
 
 			/*
 			**	Set the shape flags to properly take into account any fading or ghosting
 			**	table necessary.
 			*/
-			ShapeFlags_Type flags = SHAPE_CENTER|SHAPE_WIN_REL;
+			if (alt) {
+				flags = flags | SHAPE_FADING;
+				if (OwnerHouse != HOUSE_NONE) {
+					remap = HouseClass::As_Pointer(OwnerHouse)->Remap_Table(false);
+				} else {
+					remap = ColorRemaps[PCOLOR_GOLD].RemapTable;
+				}
+			}
 			if (transtable != NULL) flags = flags | SHAPE_GHOST;
 
 			/*
-			**	Draw the animation shape.
+			**	Draw the animation shape, but ignore legacy if beyond normal stage count.
 			*/
-			CC_Draw_Shape(shapefile, shapenum, x, y, window, flags, remap, transtable);
+			if ((window == WINDOW_VIRTUAL) || (Fetch_Stage() < Class->Stages)) {
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shapefile, shapenum, x, y, window, flags, remap, transtable, DIR_N, Class->VirtualScale, width, height);
+			}
 		}
 		IsTheaterShape = false;
 		BEnd(BENCH_ANIMS);
+	}
+	if (render_virtual) {
+		AnimClass* virtual_anim = As_Animation(VirtualAnimTarget);
+		virtual_anim->Make_Visible();
+		virtual_anim->Draw_It(x, y, window);
+		virtual_anim->Make_Invisible();
 	}
 #endif
 }
@@ -341,6 +392,7 @@ short const * AnimClass::Overlap_List(void) const
 		( MAP_CELL_W * 2) - 1, ( MAP_CELL_W * 2), ( MAP_CELL_W * 2) + 1,
  		REFRESH_EOL
 	};
+	static short const OverlapFlag[] = { 0, 1, -MAP_CELL_W, -(MAP_CELL_W-1), MAP_CELL_W, MAP_CELL_W+1, REFRESH_EOL };
 
 	if (IsToDelete) {
 		static short const _list[] = {REFRESH_EOL};
@@ -349,6 +401,10 @@ short const * AnimClass::Overlap_List(void) const
 
 	if (Class->Type == ANIM_ATOM_BLAST) {
 		return(OverlapAtom);
+	}
+
+	if (Class->Type == ANIM_FLAG) {
+		return(OverlapFlag);
 	}
 
 #ifdef PARTIAL
@@ -442,7 +498,9 @@ void * AnimClass::operator new(size_t)
 {
 	void * ptr = Anims.Allocate();
 	if (ptr != NULL) {
-		((AnimClass *)ptr)->IsActive = true;
+		((AnimClass *)ptr)->Set_Active();
+	} else {
+		GlyphX_Debug_Print("AnimClass::operator new FAILED");
 	}
 	return(ptr);
 }
@@ -494,17 +552,20 @@ void AnimClass::operator delete(void * ptr)
  *   05/31/1994 JLB : Created.                                                                 *
  *   08/03/1994 JLB : Added a delayed affect parameter.                                        *
  *=============================================================================================*/
-AnimClass::AnimClass(AnimType animnum, COORDINATE coord, unsigned char timedelay, unsigned char loop) :
+AnimClass::AnimClass(AnimType animnum, COORDINATE coord, unsigned char timedelay, char loop) :
 	ObjectClass(RTTI_ANIM, Anims.ID(this)),
 	Class(AnimTypes.Ptr((int)animnum)),
 	xObject(TARGET_NONE),
+	SortTarget(TARGET_NONE),
 	OwnerHouse(HOUSE_NONE),
 	Loops(1),
 	IsToDelete(false),
 	IsBrandNew(true),
 	IsInvisible(false),
 	Delay(timedelay),
-	Accum(0)
+	Accum(0),
+	AttachLayer(LAYER_NONE),
+	KillTime(0ULL)
 {
 #ifdef VIC
 	if (Class->Stages == -1) {
@@ -529,21 +590,43 @@ IsTheaterShape = false;
 
 	AnimClass::Unlimbo(coord);
 
+	VisibleFlags = static_cast<unsigned int>(-1);
+
 	/*
 	**	Drop zone smoke always reveals the map around itself.
 	*/
 	if (*this == ANIM_LZ_SMOKE) {
+		// Added PlayerPtr here as Sight_From now needs to know who to perform the action for. This should be OK as long as it's not used in MP. ST - 8/2/2019 2:34PM
 		Map.Sight_From(Coord_Cell(coord), Rule.DropZoneRadius / CELL_LEPTON_W, PlayerPtr, false);
 	}
 
-	Loops = (unsigned char)(max(loop, 1) * Class->Loops);
-	Loops = (unsigned char)max(Loops, 1);
+	if (Class->Loops >= 0) {
+		Loops = (char)(max(loop, 1) * Class->Loops);
+		Loops = (char)max(Loops, 1);
+	} else {
+		Loops = Class->Loops;
+	}
 
 	/*
 	**	If the animation starts immediately, then play the associated sound effect now.
 	*/
 	if (!Delay) {
 		Start();
+	}
+
+	/*
+	**	Check for a virtual animation
+	*/
+	if (Class->VirtualAnim != ANIM_NONE) {
+		AnimClass* virtual_anim = new AnimClass(Class->VirtualAnim, Coord, timedelay, loop);
+		if (virtual_anim != NULL) {
+			virtual_anim->Make_Invisible();
+			VirtualAnimTarget = virtual_anim->As_Target();
+		} else {
+			VirtualAnimTarget = TARGET_NONE;
+		}
+	} else {
+		VirtualAnimTarget = TARGET_NONE;
 	}
 #endif
 }
@@ -590,7 +673,8 @@ AnimClass::~AnimClass(void)
 			**	this animation is attached to. If there are no others, then inform the
 			**	attached object of this fact.
 			*/
-			for (int index = 0; index < Anims.Count(); index++) {
+			int index;
+			for (index = 0; index < Anims.Count(); index++) {
 				if (Anims.Ptr(index) != this && Anims.Ptr(index)->xObject == xObject) break;
 			}
 
@@ -599,9 +683,9 @@ AnimClass::~AnimClass(void)
 			*/
 			if (index == Anims.Count()) {
 				to->Fire_Out();
-				to->Mark(MARK_OVERLAP_UP);
+				if (to->In_Which_Layer() == LAYER_GROUND) to->Mark(MARK_OVERLAP_UP);
 				to->IsAnimAttached = false;
-				to->Mark(MARK_OVERLAP_DOWN);
+				if (to->In_Which_Layer() == LAYER_GROUND) to->Mark(MARK_OVERLAP_DOWN);
 			}
 			Coord = Coord_Add(to->Center_Coord(), Coord);
 			xObject = TARGET_NONE;
@@ -657,6 +741,29 @@ void AnimClass::AI(void)
 	*/
 	if (Class->Type == ANIM_LZ_SMOKE && Map[Center_Coord()].Cell_Building()) {
 		IsToDelete = true;
+	}
+
+	/*
+	**	Don't allow corpses on rocks, rivers, and water (looks really weird).
+	*/
+	if (Class->Type >= ANIM_CORPSE1 && Class->Type <= ANIM_CORPSE3) {
+		LandType land = Map[Center_Coord()].Land_Type();
+		if (land == LAND_ROCK || land == LAND_WATER || land == LAND_RIVER) {
+			IsToDelete = true;
+		}
+	}
+
+	/*
+	**	Check the kill time.
+	*/
+	if (KillTime > 0ULL) {
+		FILETIME ft;
+		GetSystemTimeAsFileTime(&ft);
+
+		unsigned long long now = (unsigned long long)ft.dwLowDateTime + ((unsigned long long)ft.dwHighDateTime << 32ULL);
+		if (now >= KillTime) {
+			IsToDelete = true;
+		}
 	}
 
 	/*
@@ -723,7 +830,7 @@ void AnimClass::AI(void)
 			**	damaging kind of animation, then do the damage to the other
 			**	object.
 			*/
-			if (xObject != TARGET_NONE && Class->Damage > 0) {
+			if (xObject != TARGET_NONE && Class->Damage > 0 && stage < Class->Stages) {
 				Accum += Class->Damage;
 
 				if (Accum >= 1) {
@@ -735,6 +842,9 @@ void AnimClass::AI(void)
 					int damage = Accum;
 					Accum -= damage;
 					if (As_Object(xObject)->Take_Damage(damage, 0, WARHEAD_FIRE) == RESULT_DESTROYED) {
+						if (Target_Legal(VirtualAnimTarget)) {
+							delete As_Animation(VirtualAnimTarget);
+						}
 						delete this;
 						return;
 					}
@@ -760,42 +870,31 @@ void AnimClass::AI(void)
 				**	Determine if this animation should loop another time. If so, then start the loop
 				**	but if not, then proceed into the animation termination handler.
 				*/
-				if (Loops) Loops--;
-				if (Loops) {
+				if (Loops > 0) Loops--;
+				if (Loops != 0) {
 					Set_Stage(Class->LoopStart);
 				} else {
 
-					/*
-					**	The animation should end now, but first check to see if
-					**	it needs to chain into another animation. If so, then the
-					**	animation isn't technically over. It metamorphoses into the
-					**	new form.
-					*/
-					if (Class->ChainTo != ANIM_NONE) {
-
-						Class = (AnimTypeClass *)&AnimTypeClass::As_Reference(Class->ChainTo);
-
-						if (Class->Stages == -1) {
-IsTheaterShape = Class->IsTheater;
-							((int&)Class->Stages) = Get_Build_Frame_Count(Class->Get_Image_Data());
-IsTheaterShape = false;
+					if (Class->VirtualAnim != ANIM_NONE) {
+						Make_Invisible();
+						if (!Target_Legal(VirtualAnimTarget)) {
+							if (Class->ChainTo != ANIM_NONE) {
+								Chain();
+							}
+							else {
+								delete this;
+							}
 						}
-						if (Class->LoopEnd == -1) {
-							((int&)Class->LoopEnd) = Class->Stages;
+					}
+					else {
+						if ((Class->VirtualStages < 0) || (stage >= Class->VirtualStages)) {
+							if (Class->ChainTo != ANIM_NONE) {
+								Chain();
+							}
+							else {
+								delete this;
+							}
 						}
-
-						IsToDelete = false;
-						Loops = Class->Loops;
-						Accum = 0;
-						if (Class->IsNormalized) {
-							Set_Rate(Options.Normalize_Delay(Class->Delay));
-						} else {
-							Set_Rate(Class->Delay);
-						}
-						Set_Stage(Class->Start);
-						Start();
-					} else {
-						delete this;
 					}
 				}
 			}
@@ -830,13 +929,38 @@ void AnimClass::Attach_To(ObjectClass * obj)
 	if (obj == NULL) return;
 	assert(obj->IsActive);
 
-	obj->Mark(MARK_OVERLAP_UP);
+	if (obj->In_Which_Layer() == LAYER_GROUND) obj->Mark(MARK_OVERLAP_UP);
 	obj->IsAnimAttached = true;
-	obj->Mark(MARK_OVERLAP_DOWN);
-	Map.Remove(this, In_Which_Layer());
+	if (obj->In_Which_Layer() == LAYER_GROUND) obj->Mark(MARK_OVERLAP_DOWN);
+	Limbo();
 	xObject = obj->As_Target();
-	Map.Submit(this, In_Which_Layer());
+	Unlimbo(Coord);
+	AttachLayer = In_Which_Layer();
+	Height = (AttachLayer == LAYER_GROUND) ? FLIGHT_LEVEL : 0;
 	Coord = Coord_Sub(Coord, obj->Target_Coord());
+#endif
+}
+
+
+/***********************************************************************************************
+ * AnimClass::Sort_Above -- Sorts the animation right above the specified target.              *
+ *                                                                                             *
+ *    Allows an animation to always be sorted above a particular target. Typically used        *
+ *    for explosions and other effects that look weird beneath those objects.                  *
+ *                                                                                             *
+ * INPUT:   target   -- Target to sort above.                                                  *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   08/14/2019 SKY : Created.                                                                 *
+ *=============================================================================================*/
+void AnimClass::Sort_Above(TARGET target)
+{
+#ifdef VIC
+	SortTarget = target;
 #endif
 }
 
@@ -863,11 +987,19 @@ LayerType AnimClass::In_Which_Layer(void) const
 	assert(Anims.ID(this) == ID);
 	assert(IsActive);
 
+	if (AttachLayer != LAYER_NONE) {
+		return AttachLayer;
+	}
+
 	if (Class->Type >= ANIM_CORPSE1 && Class->Type <= ANIM_CORPSE3) {
 		return(LAYER_SURFACE);
 	}
 
-	if (Target_Legal(xObject) || Class->IsGroundLayer) {
+	if (Target_Legal(xObject)) {
+		return As_Object(xObject)->In_Which_Layer();
+	}
+
+	if (Class->IsGroundLayer) {
 		return(LAYER_GROUND);
 	}
 #endif
@@ -1007,6 +1139,41 @@ void AnimClass::Middle(void)
 }
 
 
+void AnimClass::Chain(void)
+{
+	/*
+	**	The animation should end now, but first check to see if
+	**	it needs to chain into another animation. If so, then the
+	**	animation isn't technically over. It metamorphoses into the
+	**	new form.
+	*/
+	if (Class->ChainTo != ANIM_NONE) {
+
+		Class = (AnimTypeClass *)&AnimTypeClass::As_Reference(Class->ChainTo);
+
+		if (Class->Stages == -1) {
+			IsTheaterShape = Class->IsTheater;
+			((int&)Class->Stages) = Get_Build_Frame_Count(Class->Get_Image_Data());
+			IsTheaterShape = false;
+		}
+		if (Class->LoopEnd == -1) {
+			((int&)Class->LoopEnd) = Class->Stages;
+		}
+
+		IsToDelete = false;
+		Loops = Class->Loops;
+		Accum = 0;
+		if (Class->IsNormalized) {
+			Set_Rate(Options.Normalize_Delay(Class->Delay));
+		} else {
+			Set_Rate(Class->Delay);
+		}
+		Set_Stage(Class->Start);
+		Start();
+	}
+}
+
+
 /***********************************************************************************************
  * AnimClass::Detach -- Remove animation if attached to target.                                *
  *                                                                                             *
@@ -1034,11 +1201,21 @@ void AnimClass::Detach(TARGET target, bool all)
 	assert(Anims.ID(this) == ID);
 	assert(IsActive);
 
-	if (xObject == target && all) {
-		Map.Remove(this, In_Which_Layer());
-		xObject = TARGET_NONE;
-		IsToDelete = true;
-		Mark(MARK_UP);
+	if (all) {
+		if (Target_Legal(VirtualAnimTarget) && VirtualAnimTarget == target) {
+			VirtualAnimTarget = TARGET_NONE;
+			if (IsInvisible) {
+				IsToDelete = true;
+				Mark(MARK_UP);
+			}
+		}
+		if (xObject == target) {
+			Map.Remove(this, In_Which_Layer());
+			xObject = TARGET_NONE;
+			AttachLayer = LAYER_NONE;
+			IsToDelete = true;
+			Mark(MARK_UP);
+		}
 	}
 #endif
 }
@@ -1091,7 +1268,7 @@ void AnimClass::Do_Atom_Damage(HousesType ownerhouse, CELL cell)
 	if (Session.Type == GAME_NORMAL) {
 		radius = 4;
 		rawdamage = Rule.AtomDamage;
-		WhitePalette.Set(FADE_PALETTE_SLOW, Call_Back);
+		//WhitePalette.Set(FADE_PALETTE_SLOW, Call_Back);		//TO_FIX. ST 5/8/2019
 	} else {
 		radius = 3;
 		rawdamage = Rule.AtomDamage/5;
@@ -1100,9 +1277,23 @@ void AnimClass::Do_Atom_Damage(HousesType ownerhouse, CELL cell)
 	Wide_Area_Damage(Cell_Coord(cell), radius * CELL_LEPTON_W, rawdamage, building, WARHEAD_FIRE);
 	Shake_The_Screen(3);
 	if (Session.Type == GAME_NORMAL) {
-		GamePalette.Set(FADE_PALETTE_SLOW, Call_Back);
+		//GamePalette.Set(FADE_PALETTE_SLOW, Call_Back);	//TO_FIX. ST 5/8/2019
 	}
 #endif
 }
 
+void AnimClass::Set_Owner(HousesType owner)
+{
+	OwnerHouse = owner;
+	if (Target_Legal(VirtualAnimTarget)) {
+		As_Animation(VirtualAnimTarget)->Set_Owner(owner);
+	}
+}
 
+void AnimClass::Set_Visible_Flags(unsigned flags)
+{
+	VisibleFlags = flags;
+	if (Target_Legal(VirtualAnimTarget)) {
+		As_Animation(VirtualAnimTarget)->Set_Visible_Flags(flags);
+	}
+}

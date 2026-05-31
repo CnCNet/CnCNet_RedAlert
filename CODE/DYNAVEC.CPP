@@ -40,15 +40,18 @@
  *   DynamicVectorClass<T>::ID -- Find matching value in dynamic vector.   *
  *   DynamicVectorClass<T>::Resize -- Changes size of a dynamic vector.    *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+#if (0)
 #include	"function.h"
 #include "vector.h"
 #ifdef WINSOCK_IPX
 #include	"WSProto.h"
 #include	"WSPUDP.h"
 #endif	//WINSOCK_IPX
-#include	<mem.h>
+//#include	<mem.h>
 #include	<stdio.h>
+
+
+
 
 /***********************************************************************************************
  * DynamicVectorClass<T>::DynamicVectorClass -- Constructor for dynamic vector.                *
@@ -102,7 +105,7 @@ template<class T>
 int DynamicVectorClass<T>::Resize(unsigned newsize, T const * array)
 {
 	if (VectorClass<T>::Resize(newsize, array)) {
-		if (Length() < ActiveCount) ActiveCount = Length();
+		if (Length() < (unsigned)ActiveCount) ActiveCount = Length();
 		return(true);
 	}
 	return(false);
@@ -297,3 +300,4 @@ int DynamicVectorClass<T>::Delete(int index)
 }
 
 /************************** end of dynavec.cpp *****************************/
+#endif

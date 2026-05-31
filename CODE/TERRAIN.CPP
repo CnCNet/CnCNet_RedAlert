@@ -170,7 +170,7 @@ void * TerrainClass::operator new(size_t)
 {
 	void * ptr = Terrains.Allocate();
 	if (ptr) {
-		((TerrainClass *)ptr)->IsActive = true;
+		((TerrainClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -323,13 +323,14 @@ void TerrainClass::Draw_It(int x, int y, WindowNumberType window) const
 		}
 
 		ShapeFlags_Type flags = SHAPE_NORMAL;
-		if (IsSelected && Debug_Map) flags = flags | SHAPE_FADING;
+		if (Is_Selected_By_Player() && Debug_Map) flags = flags | SHAPE_FADING;
 
 		/*
 		**Terrain is always theater specific so flag it as such for Build_Frame
 		*/
 		IsTheaterShape = true;
-		CC_Draw_Shape(shapedata, shapenum, x, y, window, flags|SHAPE_WIN_REL|SHAPE_GHOST, Map.FadingLight, Map.UnitShadow);
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, shapedata, shapenum, x, y, window, flags|SHAPE_WIN_REL|SHAPE_GHOST, Map.FadingLight, Map.UnitShadow);
 		IsTheaterShape = false;
 	}
 }
@@ -789,4 +790,3 @@ void TerrainClass::Write_INI(CCINIClass & ini)
 		}
 	}
 }
-

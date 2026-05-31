@@ -91,7 +91,7 @@
 
 RemapControlType SidebarScheme;
 
-#include "WolDebug.h"
+//#include "WolDebug.h"
 
 #ifdef CHEAT_KEYS
 extern bool bNoMovies;
@@ -165,7 +165,7 @@ static void Load_Prolog_Page(void)
 {
 	Hide_Mouse();
 #ifdef WIN32
-	Load_Title_Screen("PROLOG.PCX", &HidPage, CCPalette);
+	Load_Title_Screen("PROLOG.PCX", &HidPage, (unsigned char*)CCPalette.Get_Data());
 	HidPage.Blit(SeenPage);
 #else
 	Load_Picture("PROLOG.CPS", HidPage, HidPage, CCPalette, BM_DEFAULT);
@@ -218,17 +218,23 @@ bool Init_Game(int , char * [])
 	*/
 	Bootstrap();
 
-	/*
-	**	Check for an initialize a working mouse pointer. Display error and bail if
-	**	no mouse driver is installed.
-	*/
-	Init_Mouse();
-
+	////////////////////////////////////////
+	// The editor needs to not start the mouse up. - 7/22/2019 JAS 
+	if (!RunningFromEditor)
+	{
+		/*
+		**	Check for an initialize a working mouse pointer. Display error and bail if
+		**	no mouse driver is installed.
+		*/
+		Init_Mouse();
+	}
 	/*
 	**	Initialize access to the CD-ROM and ensure that the CD is inserted. This can, and
 	**	most likely will, result in a visible prompt.
 	*/
+#if (0) //PG
 	Init_CDROM_Access();
+#endif
 
 	if (Special.IsFromInstall) {
 		Load_Prolog_Page();
@@ -270,6 +276,36 @@ bool Init_Game(int , char * [])
 	TerrainTypeClass::Init_Heap();
 	OverlayTypeClass::Init_Heap();
 	SmudgeTypeClass::Init_Heap();
+
+		// Heap init moved here from globals.cpp. ST - 5/20/2019
+	CCPtr<AircraftClass>::Set_Heap(&Aircraft);
+	CCPtr<AnimClass>::Set_Heap(&Anims);
+	CCPtr<BuildingClass>::Set_Heap(&Buildings);
+	CCPtr<BulletClass>::Set_Heap(&Bullets);
+	CCPtr<FactoryClass>::Set_Heap(&Factories);
+	CCPtr<HouseClass>::Set_Heap(&Houses);
+	CCPtr<InfantryClass>::Set_Heap(&Infantry);
+	CCPtr<OverlayClass>::Set_Heap(&Overlays);
+	CCPtr<SmudgeClass>::Set_Heap(&Smudges);
+	CCPtr<TeamClass>::Set_Heap(&Teams);
+	CCPtr<TeamTypeClass>::Set_Heap(&TeamTypes);
+	CCPtr<TemplateClass>::Set_Heap(&Templates);
+	CCPtr<TerrainClass>::Set_Heap(&Terrains);
+	CCPtr<TriggerClass>::Set_Heap(&Triggers);
+	CCPtr<TriggerTypeClass>::Set_Heap(&TriggerTypes);
+
+	CCPtr<HouseTypeClass>::Set_Heap(&HouseTypes);
+	CCPtr<BuildingTypeClass>::Set_Heap(&BuildingTypes);
+	CCPtr<AircraftTypeClass>::Set_Heap(&AircraftTypes);
+	CCPtr<InfantryTypeClass>::Set_Heap(&InfantryTypes);
+	CCPtr<BulletTypeClass>::Set_Heap(&BulletTypes);
+	CCPtr<AnimTypeClass>::Set_Heap(&AnimTypes);
+	CCPtr<UnitTypeClass>::Set_Heap(&UnitTypes);
+	CCPtr<VesselTypeClass>::Set_Heap(&VesselTypes);
+	CCPtr<TemplateTypeClass>::Set_Heap(&TemplateTypes);
+	CCPtr<TerrainTypeClass>::Set_Heap(&TerrainTypes);
+	CCPtr<OverlayTypeClass>::Set_Heap(&OverlayTypes);
+	CCPtr<SmudgeTypeClass>::Set_Heap(&SmudgeTypes);
 
 	/*
 	**	Find and process any rules for this game.
@@ -394,6 +430,22 @@ bool Init_Game(int , char * [])
 	** dialogs are invoked.  (GameSpeed must be synchronized between systems.)
 	*/
 	Options.Load_Settings();
+
+	/*
+	** Initialise the color lookup tables for the chronal vortex
+	*/
+	ChronalVortex.Stop();
+	ChronalVortex.Setup_Remap_Tables(Scen.Theater);
+
+	/*
+	**	Clear out name overrides array
+	*/
+#ifdef FIXIT_NAME_OVERRIDE
+	for (int index = 0; index < ARRAY_SIZE(NameOverride); index++) {
+		NameOverride[index] = NULL;
+		NameIDOverride[index] = 0;
+	}
+#endif //FIXIT_NAME_OVERRIDE
 
 	return(true);
 }
@@ -630,6 +682,11 @@ bool Select_Game(bool fade)
 				Set_Logic_Page(SeenBuff);
 				display = false;
 				Show_Mouse();
+			}
+			else {
+				if (RunningAsDLL) {	//PG
+					return true;;
+				}
 			}
 
 			/*
@@ -949,6 +1006,7 @@ bool Select_Game(bool fade)
 							break;
 
 						case GAME_SKIRMISH:
+#if (0)//PG
 							if ( !Com_Scenario_Dialog(true) ) {
 								Session.Type = Select_MPlayer_Game();
 								if (Session.Type == GAME_NORMAL) {		// user hit Cancel
@@ -966,10 +1024,12 @@ bool Select_Game(bool fade)
 								Session.ScenarioIsOfficial = Session.Scenarios[Session.Options.ScenarioIndex]->Get_Official();
 #endif
 							}
+#endif//PG
 							break;
 
 						case GAME_NULL_MODEM:
 						case GAME_MODEM:
+#if (0)
 							if ( Session.Type != GAME_SKIRMISH && NullModem.Num_Connections() ) {
 								NullModem.Init_Send_Queue();
 
@@ -1001,6 +1061,7 @@ bool Select_Game(bool fade)
 									selection = SEL_NONE;
 								}
 							}
+#endif
 							break;
 
 #ifndef WOLAPI_INTEGRATION
@@ -1436,6 +1497,7 @@ bool Select_Game(bool fade)
 //			debugprint( "Non Internet game: NewUnitsEnabled = %i\n", NewUnitsEnabled );
 			break;
 		case GAME_INTERNET:
+#if (0)
 			if( !pWolapi )
 			{
 //				debugprint( "pWolapi is null on internet game!" );
@@ -1447,6 +1509,7 @@ bool Select_Game(bool fade)
 			else
 				NewUnitsEnabled = SecretUnitsEnabled = false;
 //			debugprint( "Internet game: NewUnitsEnabled = %i\n", NewUnitsEnabled );
+#endif
 			break;
 		default:
 			break;
@@ -1644,14 +1707,15 @@ static void Play_Intro(bool sequenced)
  * HISTORY:                                                                                    *
  *   12/20/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
+
 #ifdef WIN32
 #ifdef MOVIE640
-GraphicBufferClass VQ640(640, 400, (void *)NULL);
+//GraphicBufferClass VQ640(711, 400, (void *)NULL);
 #endif
 #endif
 void Anim_Init(void)
 {
-
+#if (0)
 #ifdef WIN32
 
 	/* Configure player with INI file */
@@ -1670,7 +1734,7 @@ void Anim_Init(void)
 	AnimControl.ImageBuf = (unsigned char *)SysMemPage.Get_Offset();
 #ifdef MOVIE640
 	if(IsVQ640) {
-		AnimControl.ImageWidth = 640;
+		AnimControl.ImageWidth = 711;
 		AnimControl.ImageHeight = 400;
 		AnimControl.ImageBuf = (unsigned char *)VQ640.Get_Offset();
 	}
@@ -1717,6 +1781,7 @@ void Anim_Init(void)
 	}
 
 #endif	//WIN32
+#endif
 }
 
 
@@ -1754,7 +1819,22 @@ bool Parse_Command_Line(int argc, char * argv[])
 		char * string;		// Pointer to argument.
 		long code = 0;
 
-		string = strupr(argv[index]);
+		char arg_string[512];
+		int str_len = strlen(argv[index]);
+		char *src = argv[index];
+		char *dest = arg_string; 
+		for (int i=0 ; i<str_len ; i++) {
+			if (*src == '\"') {
+				src++;
+			} else {
+				*dest++ = *src++;
+			}
+		}
+		*dest++ = 0;
+		string = arg_string;
+		strupr(string);
+
+		//string = strupr(argv[index]);
 
 		/*
 		**	Print usage text only if requested.
@@ -1775,7 +1855,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 		/*
 		**	Check to see if the parameter is a cheat enabling one.
 		*/
-		long const * optr = &CheatCodes[0];
+		long const * optr = (const long*)&CheatCodes[0];
 		while (*optr) {
 			if (*optr++ == ob) {
 				Debug_Playtest = true;
@@ -1787,7 +1867,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 		/*
 		**	Check to see if the parameter is a cheat enabling one.
 		*/
-		optr = &PlayCodes[0];
+		optr = (const long*)&PlayCodes[0];
 		while (*optr) {
 			if (*optr++ == ob) {
 				Debug_Playtest = true;
@@ -1800,7 +1880,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 		**	Check to see if the parameter is a scenario editor
 		**	enabling one.
 		*/
-		optr = &EditorCodes[0];
+		optr = (const long*)&EditorCodes[0];
 		while (*optr) {
 			if (*optr++ == ob) {
 				Debug_Map = true;
@@ -2197,7 +2277,7 @@ bool Parse_Command_Line(int argc, char * argv[])
  *=============================================================================================*/
 long Obfuscate(char const * string)
 {
-	char buffer[128];
+	char buffer[1024];
 
 	if (!string) return(0);
 	memset(buffer, '\xA5', sizeof(buffer));
@@ -2219,7 +2299,8 @@ long Obfuscate(char const * string)
 	**	Ensure that only visible ASCII characters compose the key phrase. This
 	**	discourages the direct forced illegal character input method of attack.
 	*/
-	for (int index = 0; index < length; index++) {
+	int index;
+	for (index = 0; index < length; index++) {
 		if (!isgraph(buffer[index])) {
 			buffer[index] = 'A' + (index%26);
 		}
@@ -2511,7 +2592,7 @@ void Init_Random(void)
 void Load_Title_Page(bool visible)
 {
 #ifdef WIN32
-	Load_Title_Screen("TITLE.PCX", &HidPage, CCPalette);
+	Load_Title_Screen("TITLE.PCX", &HidPage, (unsigned char*)CCPalette.Get_Data());
 	if (visible) {
 		HidPage.Blit(SeenPage);
 	}
@@ -2539,6 +2620,7 @@ void Load_Title_Page(bool visible)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   06/03/1996 JLB : Created.                                                                 *
+ *   09/11/2019 ST : The default resolution doesn't have to match the size of the palette image*
  *=============================================================================================*/
 static void Init_Color_Remaps(void)
 {
@@ -2550,10 +2632,10 @@ static void Init_Color_Remaps(void)
 	*/
 
 #ifdef WIN32
-
-	SysMemPage.Clear();
-	Load_Picture("PALETTE.CPS", SysMemPage, SysMemPage, NULL, BM_DEFAULT);
-	SysMemPage.Blit(HidPage);
+	GraphicBufferClass temp_page(320, 200, (void*)NULL);
+	temp_page.Clear();
+	Load_Picture("PALETTE.CPS", temp_page, temp_page, NULL, BM_DEFAULT);
+	temp_page.Blit(HidPage);
 #else
 	Load_Picture("PALETTE.CPS", HidPage, HidPage, NULL, BM_DEFAULT);
 #endif
@@ -2564,8 +2646,9 @@ static void Init_Color_Remaps(void)
 		for (int color = 0; color < 256; color++) {
 			ptr[color] = color;
 		}
-
-		for (int index = 0; index < 16; index++) {
+		
+		int index;
+		for (index = 0; index < 16; index++) {
 			ptr[HidPage.Get_Pixel(index, 0)] = HidPage.Get_Pixel(index, pcolor);
 		}
 		for (index = 0; index < 6; index++) {
@@ -2588,6 +2671,14 @@ static void Init_Color_Remaps(void)
 		**	on this to be true.
 		*/
 		ColorRemaps[pcolor].Box = HidPage.Get_Pixel(4, pcolor);
+	}
+
+	/* 12/9/2019 SKY - Swap Blue and Grey color remaps */
+	{
+		RemapControlType temp;
+		memcpy(&temp, &ColorRemaps[PCOLOR_BLUE], sizeof(RemapControlType));
+		memcpy(&ColorRemaps[PCOLOR_BLUE], &ColorRemaps[PCOLOR_GREY], sizeof(RemapControlType));
+		memcpy(&ColorRemaps[PCOLOR_GREY], &temp, sizeof(RemapControlType));
 	}
 
 	/*
@@ -2723,7 +2814,58 @@ static void Init_Heaps(void)
  *=============================================================================================*/
 static void Init_Expansion_Files(void)
 {
+	/*
+	** Need to search the search paths. ST - 3/15/2019 2:18PM
+	*/
+	const char *path = ".\\";
+	char search_path[_MAX_PATH];
+	char scan_path[_MAX_PATH];
 
+	for (int p = 0; p < 100; p++) {
+
+		strcpy(search_path, path);
+		if (search_path[strlen(search_path) - 1] != '\\') {
+			strcat(search_path, "\\");
+		}
+
+		strcpy(scan_path, search_path);
+		strcat(scan_path, "SC*.MIX");
+
+		WIN32_FIND_DATA find_data;
+		memset(&find_data, 0, sizeof(find_data));
+		HANDLE file_handle = FindFirstFile(scan_path, &find_data);
+		if (file_handle != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				char *ptr = strdup(find_data.cFileName);
+				new MFCD(ptr, &FastKey);
+			} while (FindNextFile(file_handle, &find_data));
+			FindClose(file_handle);
+		}
+
+		memset(&find_data, 0, sizeof(find_data));
+		strcpy(scan_path, search_path);
+		strcat(scan_path, "Ss*.MIX");
+		file_handle = FindFirstFile(scan_path, &find_data);
+		if (file_handle != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				char *ptr = strdup(find_data.cFileName);
+				new MFCD(ptr, &FastKey);
+			} while (FindNextFile(file_handle, &find_data));
+			FindClose(file_handle);
+		}
+
+		path = CDFileClass::Get_Search_Path(p);
+
+		if (path == NULL) {
+			break;
+		}
+	}
+
+#if (0)
 	/*
 	**	Before all else, cache any additional mixfiles.
 	*/
@@ -2743,6 +2885,7 @@ static void Init_Expansion_Files(void)
 			new MFCD(ptr, &FastKey);
 		} while (!_dos_findnext(&ff));
 	}
+#endif
 }
 
 
@@ -2879,7 +3022,7 @@ static void Init_CDROM_Access(void)
 					GamePalette.Set();
 					Show_Mouse();
 					WWMessageBox().Process(TXT_CD_ERROR1, TXT_OK);
-					//Prog_End();
+					Prog_End("Init_CDROM_Access - CD_ERROR1", true);
 					Emergency_Exit(EXIT_FAILURE);
 
 				case 2:
@@ -2887,7 +3030,7 @@ static void Init_CDROM_Access(void)
 					GamePalette.Set();
 					Show_Mouse();
 					if (WWMessageBox().Process(TXT_CD_DIALOG_1, TXT_OK, TXT_CANCEL) == 1) {
-						//Prog_End();
+						Prog_End("Init_CDROM_Access - CD_ERROR2", true);
 						Emergency_Exit(EXIT_FAILURE);
 					}
 					Hide_Mouse();
@@ -2897,7 +3040,7 @@ static void Init_CDROM_Access(void)
 					VisiblePage.Clear();
 					Show_Mouse();
 					if (!Force_CD_Available(RequiredCD)) {
-						//Prog_End();
+						Prog_End("Init_CDROM_Access - Force_CD_Available failed", true);
 						Emergency_Exit(EXIT_FAILURE);
 					}
 					Hide_Mouse();
@@ -2958,7 +3101,7 @@ static void Init_Bootstrap_Mixfiles(void)
 
 #ifdef FIXIT_CSII	//	Ok. ajw
 	bool ok1;
- #ifdef WIN32
+ #if 0
 	new MFCD("HIRES1.MIX", &FastKey);
 	ok1 = MFCD::Cache("HIRES1.MIX");
 	assert(ok1);
@@ -2988,7 +3131,7 @@ static void Init_Bootstrap_Mixfiles(void)
 	bool ok = MFCD::Cache("LOCAL.MIX");
 	assert(ok);
 
-#ifdef WIN32
+#if 0
 	new MFCD("HIRES.MIX", &FastKey);
 	ok = MFCD::Cache("HIRES.MIX");
 	assert(ok);
@@ -3125,6 +3268,7 @@ static void Bootstrap(void)
 	** Process the message loop until we are in focus. We need to be in focus to read pixels from
 	** the screen.
 	*/
+#if (0) //PG
 	#ifdef WIN32
 	do {
 		Keyboard->Check();
@@ -3137,7 +3281,7 @@ static void Bootstrap(void)
 	**	monochrome screen.
 	*/
 	Mono_Clear_Screen();
-
+#endif
 	/*
 	**	Register and make resident all local mixfiles with particular emphasis
 	**	on the mixfiles that are necessary to display and error messages and
@@ -3203,8 +3347,9 @@ static void Bootstrap(void)
 	/*
 	**	Default palette initialization.
 	*/
-	memmove((unsigned char *)&GamePalette[0], (void *)MFCD::Retrieve("TEMPERAT.PAL"), 768L);
-	WhitePalette[0] = BlackPalette[0];
+	// PG_TO_FIX. This doesn't seem right. ST - 5/9/2019
+	//memmove((unsigned char *)&GamePalette[0], (void *)MFCD::Retrieve("TEMPERAT.PAL"), 768L);
+	//WhitePalette[0] = BlackPalette[0];
 //	GamePalette.Set();
 
 	/*
@@ -3262,7 +3407,7 @@ static void Init_Mouse(void)
 		sprintf(buffer, TEXT_NO_MOUSE);
 		VisiblePage.Clear();
 		WWMessageBox().Process(buffer, TXT_OK);
-		//Prog_End();
+		Prog_End("Init_Mouse", true);
 		Emergency_Exit(1);
 	}
 
@@ -3615,3 +3760,117 @@ bool Using_DVD()
 }
 
 #endif
+
+
+
+
+/***********************************************************************************************
+ * Free_Heaps -- Clear out the heaps before exit                                               *
+ *                                                                                             *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   12/18/2019 11:59AM ST : Created.                                                                 *
+ *=============================================================================================*/
+void Free_Heaps(void)
+{
+	HouseTypes.Clear();
+	BuildingTypes.Clear();
+	AircraftTypes.Clear();
+	InfantryTypes.Clear();
+	BulletTypes.Clear();
+	AnimTypes.Clear();
+	UnitTypes.Clear();
+	VesselTypes.Clear();
+	TemplateTypes.Clear();
+	TerrainTypes.Clear();
+	OverlayTypes.Clear();
+	SmudgeTypes.Clear();
+#if (0)
+	HouseTypeClass::Init_Heap();
+	BuildingTypeClass::Init_Heap();
+	AircraftTypeClass::Init_Heap();
+	InfantryTypeClass::Init_Heap();
+	BulletTypeClass::Init_Heap();
+	AnimTypeClass::Init_Heap();
+	UnitTypeClass::Init_Heap();
+	VesselTypeClass::Init_Heap();
+	TemplateTypeClass::Init_Heap();
+	TerrainTypeClass::Init_Heap();
+	OverlayTypeClass::Init_Heap();
+	SmudgeTypeClass::Init_Heap();
+
+		// Heap init moved here from globals.cpp. ST - 5/20/2019
+	CCPtr<AircraftClass>::Set_Heap(&Aircraft);
+	CCPtr<AnimClass>::Set_Heap(&Anims);
+	CCPtr<BuildingClass>::Set_Heap(&Buildings);
+	CCPtr<BulletClass>::Set_Heap(&Bullets);
+	CCPtr<FactoryClass>::Set_Heap(&Factories);
+	CCPtr<HouseClass>::Set_Heap(&Houses);
+	CCPtr<InfantryClass>::Set_Heap(&Infantry);
+	CCPtr<OverlayClass>::Set_Heap(&Overlays);
+	CCPtr<SmudgeClass>::Set_Heap(&Smudges);
+	CCPtr<TeamClass>::Set_Heap(&Teams);
+	CCPtr<TeamTypeClass>::Set_Heap(&TeamTypes);
+	CCPtr<TemplateClass>::Set_Heap(&Templates);
+	CCPtr<TerrainClass>::Set_Heap(&Terrains);
+	CCPtr<TriggerClass>::Set_Heap(&Triggers);
+	CCPtr<TriggerTypeClass>::Set_Heap(&TriggerTypes);
+
+	CCPtr<HouseTypeClass>::Set_Heap(&HouseTypes);
+	CCPtr<BuildingTypeClass>::Set_Heap(&BuildingTypes);
+	CCPtr<AircraftTypeClass>::Set_Heap(&AircraftTypes);
+	CCPtr<InfantryTypeClass>::Set_Heap(&InfantryTypes);
+	CCPtr<BulletTypeClass>::Set_Heap(&BulletTypes);
+	CCPtr<AnimTypeClass>::Set_Heap(&AnimTypes);
+	CCPtr<UnitTypeClass>::Set_Heap(&UnitTypes);
+	CCPtr<VesselTypeClass>::Set_Heap(&VesselTypes);
+	CCPtr<TemplateTypeClass>::Set_Heap(&TemplateTypes);
+	CCPtr<TerrainTypeClass>::Set_Heap(&TerrainTypes);
+	CCPtr<OverlayTypeClass>::Set_Heap(&OverlayTypes);
+	CCPtr<SmudgeTypeClass>::Set_Heap(&SmudgeTypes);
+#endif
+
+	Vessels.Clear();
+	Units.Clear();
+	Factories.Clear();
+	Terrains.Clear();
+	Templates.Clear();
+	Smudges.Clear();
+	Overlays.Clear();
+	Infantry.Clear();
+	Bullets.Clear();
+	Buildings.Clear();
+	Anims.Clear();
+	Aircraft.Clear();
+	Triggers.Clear();
+	TeamTypes.Clear();
+	Teams.Clear();
+	Houses.Clear();
+	TriggerTypes.Clear();
+
+	/*
+	**	Speech holding tank buffer. Since speech does not mix, it can be placed
+	**	into a custom holding tank only as large as the largest speech file to
+	**	be played.
+	*/
+	for (int index = 0; index < ARRAY_SIZE(SpeechBuffer); index++) {
+		if (SpeechBuffer[index]) {
+			delete [] SpeechBuffer[index];
+			SpeechBuffer[index] = NULL;
+		}
+	}
+
+	/*
+	**	Allocate the theater buffer block.
+	*/
+	if (TheaterBuffer) {
+		delete TheaterBuffer;
+		TheaterBuffer = NULL;
+	}
+}

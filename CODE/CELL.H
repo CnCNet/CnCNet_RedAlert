@@ -180,6 +180,18 @@ class CellClass
 		ObjectClass * Overlapper[6];
 #endif
 
+
+		/*
+		**	Per-player view of whether a cell is mapped. One bit for each house type. ST - 8/2/2019 3:00PM
+		*/
+		unsigned int IsMappedByPlayerMask;
+
+		/*
+		**	Per-player view of whether a cell is visible. One bit for each house type. ST - 8/2/2019 3:00PM
+		*/
+		unsigned int IsVisibleByPlayerMask;
+
+
 		/*
 		**	This array of bit flags is used to indicate which sub positions
 		**	within the cell are either occupied or are soon going to be
@@ -222,10 +234,10 @@ class CellClass
 		COORDINATE Cell_Coord(void) const;
 		COORDINATE Closest_Free_Spot(COORDINATE coord, bool any=false) const;
 		COORDINATE Free_Spot(void) const {return Closest_Free_Spot(Cell_Coord());}
-		CellClass & Adjacent_Cell(FacingType face) {return (CellClass &)((*((CellClass const *)this)).Adjacent_Cell(face));}
-		CellClass const & Adjacent_Cell(FacingType face) const;
+		CellClass * Adjacent_Cell(FacingType face) {return (CellClass *)((*((CellClass const *)this)).Adjacent_Cell(face));}
+		CellClass const * Adjacent_Cell(FacingType face) const;
 		InfantryClass * Cell_Infantry(void) const;
-		LandType Land_Type(void) const {return(Land);}
+		LandType Land_Type(void) const {return((OverrideLand != LAND_NONE) ? OverrideLand : Land);}
 		ObjectClass * Cell_Find_Object(RTTIType rtti) const;
 		ObjectClass * Cell_Object(int x=0, int y=0) const;
 		ObjectClass * Cell_Occupier(void) const {return(OccupierPtr);}
@@ -242,6 +254,8 @@ class CellClass
 		int Cell_Color(bool override=false) const;
 		int Clear_Icon(void) const;
 		static int Spot_Index(COORDINATE coord);
+		bool Get_Template_Info(char *template_name, int &icon, void *&image_data);
+
 
 		/*
 		**	Object placement and removal flag operations.
@@ -252,6 +266,9 @@ class CellClass
 		void Overlap_Up(ObjectClass * object);
 		bool Flag_Place(HousesType house);
 		bool Flag_Remove(void);
+		void Flag_Update(void);
+		void Flag_Create(void);
+		void Flag_Destroy(void);
 
 		/*
 		**	File I/O.
@@ -285,11 +302,42 @@ class CellClass
 
 		int operator != (CellClass const &) const {return 0;}
 
+		
+		/*
+		**	Additional per-player functionality is needed for multiplayer. ST - 8/2/2019 3:01PM 
+		*/
+		void Set_Mapped(HousesType house, bool set = true);
+		void Set_Mapped(HouseClass *player, bool set = true);
+		bool Is_Mapped(HousesType house) const;
+		bool Is_Mapped(HouseClass *player) const;
+		void Set_Visible(HousesType house, bool set = true);
+		void Set_Visible(HouseClass *player, bool set = true);
+		bool Is_Visible(HousesType house) const;
+		bool Is_Visible(HouseClass *player) const;
+		bool Is_Jamming(HousesType house) const;
+		bool Is_Jamming(HouseClass *player) const;
+
+		/*
+		**	Override land type to fix passability issues on some maps
+		*/
+		void Override_Land_Type(LandType type);
+
 	private:
 		CellClass (CellClass const &) ;
 
-		LandType Land;		// The land type of this cell.
+		LandType Land;			// The land type of this cell.
+
+		LandType OverrideLand;	// The overriden land type of this cell.
+
+		/*
+		**	Points to the flag animation on this cell in CTF games.
+		*/
+		AnimClass* CTFFlag;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[28];
 };
 
 #endif
-

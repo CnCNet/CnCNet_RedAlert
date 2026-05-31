@@ -113,6 +113,7 @@ FootClass::FootClass(RTTIType rtti, int id, HousesType house) :
 	IsFormationMove(false),
 	IsNavQueueLoop(false),
 	IsScattering(false),
+	IsMovingOntoBridge(false),
 	Speed(0),
 	SpeedBias(1),
 	XFormOffset(0x80000000),
@@ -590,6 +591,17 @@ int FootClass::Mission_Guard(void)
 {
 	assert(IsActive);
 
+	/*
+	**	If this unit is on an impassable cell for any reason, it needs to scatter immediately
+	*/
+	if (What_Am_I() == RTTI_INFANTRY || What_Am_I() == RTTI_UNIT) {
+		LandType land = Map[Coord].Land_Type();
+		if (!Target_Legal(NavCom) && (land == LAND_ROCK || land == LAND_WATER || land == LAND_RIVER)) {
+			Scatter(0, true, true);
+			Shorten_Mission_Timer();
+		}
+	}
+
 	if (!Target_Something_Nearby(THREAT_RANGE)) {
 		Random_Animate();
 	}
@@ -727,6 +739,7 @@ bool FootClass::Stop_Driver(void)
 		HeadToCoord = NULL;
 		Set_Speed(0);
 		IsDriving = false;
+		IsMovingOntoBridge = false;
 		return(true);
 	}
 	return(false);
@@ -758,6 +771,10 @@ bool FootClass::Start_Driver(COORDINATE &headto)
 	if (headto) {
 		HeadToCoord = headto;
 		IsDriving = true;
+
+		CellClass * cellptr = &Map[headto];
+		TemplateType ttype = cellptr->TType;
+		IsMovingOntoBridge = (ttype >= TEMPLATE_BRIDGE1 && ttype <= TEMPLATE_BRIDGE2D) || (ttype >= TEMPLATE_BRIDGE_1A && ttype <= TEMPLATE_BRIDGE_3F);
 
 		/*
 		**	Check for crate goodie finder here.
@@ -932,8 +949,12 @@ void FootClass::Approach_Target(void)
 			/*
 			**	If a suitable intermediate location was found, then head toward it.
 			**	Otherwise, head toward the enemy unit directly.
+			**	Infantry always head towards the target since they can enter a cell
+			**	in range, but still not be able to hit the target if the spot is out of range.
 			*/
-			if (found) {
+			if (What_Am_I() == RTTI_INFANTRY) {
+				Assign_Destination(TarCom);
+			} else if (found) {
 				Assign_Destination(::As_Target(trycell));
 			} else {
 
@@ -968,6 +989,17 @@ int FootClass::Mission_Guard_Area(void)
 {
 	assert(IsActive);
 
+	/*
+	**	If this unit is on an impassable cell for any reason, it needs to scatter immediately
+	*/
+	if (What_Am_I() == RTTI_INFANTRY || What_Am_I() == RTTI_UNIT) {
+		LandType land = Map[Coord].Land_Type();
+		if (!Target_Legal(NavCom) && (land == LAND_ROCK || land == LAND_WATER || land == LAND_RIVER)) {
+			Scatter(0, true, true);
+			Shorten_Mission_Timer();
+		}
+	}
+
 	if (What_Am_I() == RTTI_UNIT && ((UnitClass *)this)->Class->IsToHarvest) {
 		Assign_Mission(MISSION_HARVEST);
 		return(1+Random_Pick(1, 10));
@@ -978,6 +1010,20 @@ int FootClass::Mission_Guard_Area(void)
 	*/
 	if (!Target_Legal(ArchiveTarget)) {
 		ArchiveTarget = ::As_Target(Coord);
+	}
+
+	/*
+	**	Ensure units aren't trying to guard cells off the map.
+	*/
+	if (Target_Legal(NavCom) && Is_Target_Cell(NavCom)) {
+		CELL cell = As_Cell(NavCom);
+		int x = Cell_X(cell);
+		int y = Cell_Y(cell);
+		if (x < Map.MapCellX || y < Map.MapCellY || x >= (Map.MapCellX + Map.MapCellWidth) || y >= (Map.MapCellY + Map.MapCellHeight)) {
+			Assign_Target(TARGET_NONE);
+			Assign_Destination(TARGET_NONE);
+			ArchiveTarget = ::As_Target(Coord);
+		}
 	}
 
 	/*
@@ -1086,7 +1132,7 @@ bool FootClass::Unlimbo(COORDINATE coord, DirType dir)
  * HISTORY:                                                                                    *
  *   12/30/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-ResultType FootClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType FootClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(IsActive);
 
@@ -1246,6 +1292,10 @@ void FootClass::Active_Click_With(ActionType action, ObjectClass * object)
 			}
 			break;
 
+		case ACTION_NO_DEPLOY:
+			Speak(VOX_DEPLOY);
+			break;
+
 		default:
 			break;
 	}
@@ -1282,12 +1332,13 @@ void FootClass::Active_Click_With(ActionType action, CELL cell)
 		case ACTION_MOVE:
 			if (AllowVoice) {
 				COORDINATE coord = Map.Pixel_To_Coord(Get_Mouse_X(), Get_Mouse_Y());
-				OutList.Add(EventClass(ANIM_MOVE_FLASH, PlayerPtr->Class->House, coord));
+				OutList.Add(EventClass(ANIM_MOVE_FLASH, PlayerPtr->Class->House, coord, 1 << PlayerPtr->Class->House));
 			}
 			// Fall into next case.
 
 		case ACTION_NOMOVE:
-			if (What_Am_I() != RTTI_AIRCRAFT || Map[cell].IsVisible) {
+			//using function for IsVisible so we have different results for different players - JAS 2019/09/30
+			if (What_Am_I() != RTTI_AIRCRAFT || Map[cell].Is_Visible(PlayerPtr)) {
 
 				/*
 				** Find the closest same-zoned cell to where the unit currently is.
@@ -1330,6 +1381,14 @@ void FootClass::Active_Click_With(ActionType action, CELL cell)
 		case ACTION_SABOTAGE:
 			Player_Assign_Mission(MISSION_SABOTAGE, TARGET_NONE, ::As_Target(cell) );
 			break;
+
+		// MBL 05.15.2020 - Adding support for CTRL+ALT clicking the ground to have units move to an area and guard it
+		case ACTION_GUARD_AREA:
+			if (Can_Player_Fire() && Can_Player_Move()) {
+				Player_Assign_Mission(MISSION_GUARD_AREA, ::As_Target(cell));
+			}
+			break;
+		// END MBL 05.15.2020 
 	}
 }
 
@@ -1387,14 +1446,18 @@ void FootClass::Per_Cell_Process(PCPType why)
 
 		/*
 		**	Shorten the path if the target is now within weapon range of this
-		**	unit and this unit is on an attack type mission.
+		**	unit and this unit is on an attack type mission. But only if the target
+		**	is slow enough for leading to make sense.
 		*/
 		if (Target_Legal(TarCom) && (What_Am_I() != RTTI_INFANTRY || !((InfantryClass *)this)->Class->IsDog)) {
 			int primary = What_Weapon_Should_I_Use(TarCom);
 			bool inrange = In_Range(TarCom, primary);
 			TechnoClass const * techno = As_Techno(TarCom);
 			if (techno != NULL && techno->Is_Foot()) {
-				inrange = In_Range(((FootClass const *)techno)->Likely_Coord(), primary);
+				FootClass const * foot = (FootClass const *)techno;
+				MPHType speed = ((TechnoTypeClass const &)techno->Class_Of()).MaxSpeed;
+				COORDINATE rangecoord = (speed > MPH_SLOW) ? foot->Likely_Coord() : foot->Target_Coord();
+				inrange = In_Range(rangecoord, primary);
 			}
 
 			if ((Mission == MISSION_RESCUE || Mission == MISSION_GUARD_AREA || Mission == MISSION_ATTACK || Mission == MISSION_HUNT) && inrange) {
@@ -1418,7 +1481,8 @@ void FootClass::Per_Cell_Process(PCPType why)
 			*/
 			int x = Cell_X(Coord_Cell(Coord));
 			int y = Cell_Y(Coord_Cell(Coord));
-			for (int index = 0; index < Map.MapCellWidth; index++) {
+			int index;
+			for (index = 0; index < Map.MapCellWidth; index++) {
 				trigger = Map[XY_Cell(index+Map.MapCellX, y)].Trigger;
 				if (trigger != NULL) {
 					if (trigger->Class->Event1.Event == TEVENT_CROSS_HORIZONTAL || (trigger->Class->EventControl != MULTI_ONLY && trigger->Class->Event2.Event == TEVENT_CROSS_HORIZONTAL)) {
@@ -1698,7 +1762,19 @@ int FootClass::Mission_Enter(void)
 		**	Since there is no potential object to enter, then abort this
 		**	mission with some default standby mission.
 		*/
-		Enter_Idle_Mode();
+		if (MissionQueue == MISSION_NONE) {
+			/*
+			**	If this is a harvester, then return to harvesting.
+			**	Set a hacky target so we know to skip to the proper state.
+			*/
+			if (What_Am_I() == RTTI_UNIT && ((UnitClass*)this)->Class->IsToHarvest) {
+				Assign_Mission(MISSION_HARVEST);
+				Assign_Target(As_Target());
+				Assign_Destination(TARGET_NONE);
+			} else {
+				Enter_Idle_Mode();
+			}
+		}
 	}
 
 	return(MissionControl[Mission].Normal_Delay() + Random_Pick(0, 2));
@@ -1866,11 +1942,14 @@ void FootClass::Death_Announcement(TechnoClass const * ) const
 {
 	assert(IsActive);
 
-	if (IsOwnedByPlayer) {
+	//if (IsOwnedByPlayer) {
+	if ((Session.Type == GAME_GLYPHX_MULTIPLAYER && House->IsHuman) || (Session.Type != GAME_GLYPHX_MULTIPLAYER && IsOwnedByPlayer)) {
 		if (What_Am_I() == RTTI_VESSEL) {
-			Speak(VOX_SHIP_LOST);
+			// Speak(VOX_SHIP_LOST); // MBL 02.06.2020
+			Speak(VOX_SHIP_LOST, House, Center_Coord());
 		} else {
-			Speak(VOX_UNIT_LOST);
+			// Speak(VOX_UNIT_LOST); // MBL 02.06.2020
+			Speak(VOX_UNIT_LOST, House, Center_Coord());
 		}
 	}
 }
@@ -1931,7 +2010,7 @@ TARGET FootClass::Greatest_Threat(ThreatType method) const
 	**	restrictions, then this restriction must be lifted now.
 	*/
 	if (IsScanLimited && target == TARGET_NONE) {
-		IsScanLimited = false;
+		const_cast<FootClass*>(this)->IsScanLimited = false;		// const_cast ST - 5/8/2019
 	}
 
 	/*
@@ -1990,13 +2069,22 @@ void FootClass::Detach(TARGET target, bool all)
 	/*
 	**	Remove the target from the NavQueue list as well.
 	*/
+	int loop_count = 0;
 	for (int index = 0; index < ARRAY_SIZE(NavQueue); index++) {
 		if (NavQueue[index] == target) {
 			NavQueue[index] = TARGET_NONE;
 			if (index < ARRAY_SIZE(NavQueue)-1) {
 				memmove(&NavQueue[index], &NavQueue[index+1], ((ARRAY_SIZE(NavQueue)-index)-1) * sizeof(NavQueue[0]));
+				NavQueue[ARRAY_SIZE(NavQueue)-1] = TARGET_NONE;
 				index--;
 			}
+		}
+		/*
+		** Extra safety check
+		*/
+		loop_count++;
+		if (loop_count > ARRAY_SIZE(NavQueue)) {
+			break;
 		}
 	}
 
@@ -2084,21 +2172,24 @@ bool FootClass::Can_Demolish(void) const
 {
 	assert(IsActive);
 
+	StructType sell_struct = STRUCT_NONE;
 	switch (What_Am_I()) {
 		case RTTI_UNIT:
-		case RTTI_VESSEL:
-		case RTTI_AIRCRAFT:
-			if (In_Radio_Contact() &&
-				Contact_With_Whom()->What_Am_I() == RTTI_BUILDING &&
-				*((BuildingClass *)Contact_With_Whom()) == STRUCT_REPAIR &&
-				Distance(Contact_With_Whom()) < 0x0080) {
-
-				return(true);
-			}
+			sell_struct = STRUCT_REPAIR;
 			break;
-
+		case RTTI_AIRCRAFT:
+			sell_struct = STRUCT_AIRSTRIP;
+			break;
 		default:
 			break;
+	}
+	if (sell_struct != STRUCT_NONE) {
+		if (In_Radio_Contact() &&
+			Contact_With_Whom()->What_Am_I() == RTTI_BUILDING &&
+			*((BuildingClass *)Contact_With_Whom()) == sell_struct &&
+			Distance(Contact_With_Whom()) < 0x0080) {
+			return(true);
+		}
 	}
 	return(TechnoClass::Can_Demolish());
 }
@@ -2546,4 +2637,3 @@ int FootClass::Mission_Retreat(void)
 
 	return(MissionControl[Mission].Normal_Delay() + Random_Pick(0, 2));
 }
-

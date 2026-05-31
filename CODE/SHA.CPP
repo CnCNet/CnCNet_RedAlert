@@ -40,7 +40,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	<stdlib.h>
-#include	<iostream.h>
+//#include	<iostream.h>
 #include	"sha.h"
 
 
@@ -197,7 +197,7 @@ int SHAEngine::Result(void * result) const
 	/*
 	**	Cap the end of the source data stream with a 1 bit.
 	*/
-	partial[partialcount] = 0x80;
+	partial[partialcount] = (char)0x80;
 
 	/*
 	**	Determine if there is insufficient room to append the
@@ -241,7 +241,7 @@ int SHAEngine::Result(void * result) const
 **	_rotl() function is called but will NOT give the warning when the _lrotl() function
 **	is called even though they both have the same parameters and declaration attributes.
 */
-#pragma warn -sig
+//#pragma warn -sig
 template<class T>
 T _rotl(T X, int n)
 {

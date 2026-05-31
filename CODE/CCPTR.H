@@ -54,16 +54,16 @@ class CCPtr
 
 		operator T * (void) const {
 			if (ID == -1) return(NULL);
-			assert(Heap != NULL && (unsigned)ID < Heap->Length());
+			assert(Heap != NULL && ID < Heap->Length());
 			return((T*) (*Heap)[ID]);
 		}
 		T & operator * (void) const {
-			assert(Heap != NULL && (unsigned)ID < Heap->Length());
+			assert(Heap != NULL && ID < Heap->Length());
 			return(*(T*)(*Heap)[ID]);
 		}
 		T * operator -> (void) const {
 			if (ID == -1) return(NULL);
-			assert(Heap != NULL && (unsigned)ID < Heap->Length());
+			assert(Heap != NULL && ID < Heap->Length());
 			return((T*) (*Heap)[ID]);
 		}
 
@@ -78,6 +78,8 @@ class CCPtr
 
 		long Raw(void) const {return(ID);}
 		void Set_Raw(long value) {ID = value;}
+
+		static void Set_Heap(FixedIHeapClass *heap) {Heap = heap;}
 
 	private:
 

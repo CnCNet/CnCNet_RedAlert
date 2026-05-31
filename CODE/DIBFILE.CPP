@@ -45,6 +45,7 @@
 //   Sample Application Files which are modified.
 //
 //*******************************************************************
+#if (0) // ST - 5/8/2019
 
 #include <windows.h>
 #include <string.h>
@@ -701,3 +702,4 @@ OKExit:
 	GlobalUnlock(hDIB);
 	return hDIB;
 }
+#endif

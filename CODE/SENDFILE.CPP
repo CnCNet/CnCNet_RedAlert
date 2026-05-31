@@ -42,7 +42,7 @@
  *                                                                         				*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-
+#if (0)//PG
 #include "function.h"
 
 //#include "WolDebug.h"
@@ -877,3 +877,4 @@ bool Send_Remote_File ( char *file_name, int gametype )
 
 	return (return_code);
 }
+#endif

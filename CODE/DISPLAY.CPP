@@ -128,10 +128,21 @@ BooleanVectorClass DisplayClass::CellRedraw;
 */
 DisplayClass::TacticalClass DisplayClass::TacButton;
 
+//
+// We need a way to bypass visible view checks when we are running in the context of GlyphX without using the
+// internal C&C renderer. We shouldn't know or care what the user is actually looking at
+// ST - 4/17/2019 9:01AM
+//
+bool DisplayClass::IgnoreViewConstraints = false;
+
 
 static int const TEX_X = 0;
 static int const TEX_Y = 6;
 static int const TEX_W = 14;
+
+//Added for getting the input for special character keys from the client 
+// - 6/26/2019 JAS 
+extern bool DLL_Export_Get_Input_Key_State(KeyNumType key);
 
 
 /***********************************************************************************************
@@ -232,7 +243,8 @@ void DisplayClass::One_Time(void)
 		ShadowShapes = MFCD::Retrieve("SHADOW.SHP");
 	#endif
 
-	Set_View_Dimensions(0, 8 * RESFACTOR);
+	//PG Set_View_Dimensions(0, 8 * RESFACTOR);
+	Set_View_Dimensions(0, 0);
 }
 
 
@@ -401,15 +413,16 @@ LastTheater = THEATER_NONE;
 	*/
 	sprintf(fullname, "%s.PAL", Theaters[theater].Root);
 	PaletteClass const * ptr = (PaletteClass *)MFCD::Retrieve(fullname);
+
 	GamePalette = * ptr;
 
 	OriginalPalette = GamePalette;
 
-	Build_Fading_Table(GamePalette, FadingGreen, GREEN, 110);
+	Build_Fading_Table(GamePalette.Get_Data(), FadingGreen, GREEN, 110);
 
-	Build_Fading_Table(GamePalette, FadingYellow, YELLOW, 140);
+	Build_Fading_Table(GamePalette.Get_Data(), FadingYellow, YELLOW, 140);
 
-	Build_Fading_Table(GamePalette, FadingRed, RED, 140);
+	Build_Fading_Table(GamePalette.Get_Data(), FadingRed, RED, 140);
 
 	Build_Translucent_Table(GamePalette, &MouseCols[0], 4, MouseTranslucentTable);
 
@@ -558,17 +571,24 @@ void DisplayClass::Set_View_Dimensions(int x, int y, int width, int height)
 		TacLeptonWidth = width * CELL_LEPTON_W;
 	}
 
+	// ST - 3/1/2019 12:05PM
+	// Made the below code more consistent with the width calculation. This is needed if we aren't going to draw the tabs at the top of the screen
+	//
 	if (height == -1) {
-		height = (SeenBuff.Get_Height()-y) / CELL_PIXEL_H;
+		TacLeptonHeight = Pixel_To_Lepton(SeenBuff.Get_Height() - y);
+		//height = (SeenBuff.Get_Height()-y) / CELL_PIXEL_H;
 	}
-	TacLeptonHeight = height * CELL_LEPTON_H;
+	else {
+		TacLeptonHeight = height * CELL_LEPTON_H;
+	}
+	//TacLeptonHeight = height * CELL_LEPTON_H;
 
 	/*
 	**	Adjust the tactical cell if it is now in an invalid position
 	**	because of the changed dimensions.
 	*/
-	int xx = Coord_X(TacticalCoord) - (MapCellX * CELL_LEPTON_W);
-	int yy = Coord_Y(TacticalCoord) - (MapCellY * CELL_LEPTON_H);
+	int xx = 0;// Coord_X(TacticalCoord) - (MapCellX * CELL_LEPTON_W);
+	int yy = 0;// Coord_Y(TacticalCoord) - (MapCellY * CELL_LEPTON_H);
 
 	Confine_Rect(&xx, &yy, TacLeptonWidth, TacLeptonHeight, MapCellWidth * CELL_LEPTON_W, MapCellHeight * CELL_LEPTON_H);
 
@@ -668,7 +688,7 @@ bool DisplayClass::Passes_Proximity_Check(ObjectTypeClass const * object, Houses
 	short const * ptr;
 	int retval = -1;
 	bool noradar = false;
-	bool nomapped = false;
+	//bool nomapped = false;			    // Not used. ST - 8/6/2019 10:51AM
 	bool shipyard = false;
 
 	if (house == PlayerPtr->Class->House) {
@@ -717,10 +737,11 @@ bool DisplayClass::Passes_Proximity_Check(ObjectTypeClass const * object, Houses
 
 				if (!In_Radar(newcell)) continue;
 
-				if (!(*this)[newcell].IsMapped) {
-					nomapped = true;
-				}
-				TechnoClass * base = (*this)[newcell].Cell_Techno();
+				// Code has no effect. ST - 8/6/2019 10:51AM
+				//if (!(*this)[newcell].IsMapped) {
+				//	nomapped = true;
+				//}
+				BuildingClass * base = (*this)[newcell].Cell_Building();
 
 				/*
 				**	The special cell ownership flag allows building adjacent
@@ -739,7 +760,7 @@ bool DisplayClass::Passes_Proximity_Check(ObjectTypeClass const * object, Houses
 				}
 
 				// we've found a building...
-				if (base != NULL && base->What_Am_I() == RTTI_BUILDING && base->House->Class->House == house && ((BuildingClass *)base)->Class->IsBase) {
+				if (base != NULL && base->House->Class->House == house && base->Class->IsBase) {
 					retval = true;
 					break;
 				}
@@ -978,7 +999,7 @@ void DisplayClass::Cursor_Mark(CELL pos, bool on)
 	CELL const * ptr;
 	CellClass * cellptr;
 
-	if (pos == -1) return;
+	if ((unsigned)pos >= MAP_CELL_TOTAL) return;
 
 	/*
 	**	For every cell in the CursorSize list, invoke its Redraw_Objects and
@@ -1002,7 +1023,7 @@ void DisplayClass::Cursor_Mark(CELL pos, bool on)
 	**	For every cell in the PendingObjectPtr's Overlap_List, invoke its
 	**	Redraw_Objects routine.
 	*/
-	if (PendingObjectPtr) {
+	if (PendingObjectPtr && PendingObjectPtr->IsActive) {
 		ptr = PendingObjectPtr->Overlap_List();
 		while (*ptr != REFRESH_EOL) {
 			CELL cell = pos + *ptr++;
@@ -1138,7 +1159,8 @@ CELL DisplayClass::Click_Cell_Calc(int x, int y) const
 	y -= TacPixelY;
 	y = Pixel_To_Lepton(y);
 
-	if ((unsigned)x < TacLeptonWidth && (unsigned)y < TacLeptonHeight) {
+	// Possibly ignore the view constraints if we aren't using the internal renderer. ST - 8/5/2019 11:56AM
+	if (IgnoreViewConstraints || (unsigned)x < TacLeptonWidth && (unsigned)y < TacLeptonHeight) {
 		COORDINATE tcoord = XY_Coord(Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(TacticalCoord))), Pixel_To_Lepton(Lepton_To_Pixel(Coord_Y(TacticalCoord))));
 		return(Coord_Cell(Coord_Add(tcoord, XY_Coord(x, y))));
 	}
@@ -1242,7 +1264,8 @@ bool DisplayClass::Scroll_Map(DirType facing, int & distance, bool really)
 		/*
 		**	Scrolled map REQUIRES all top layer units to be redrawn.
 		*/
-		for (int index = 0; index < Layer[LAYER_TOP].Count(); index++) {
+		int index;
+		for (index = 0; index < Layer[LAYER_TOP].Count(); index++) {
 			Layer[LAYER_TOP][index]->Mark(MARK_CHANGE);
 		}
 		for (index = 0; index < Layer[LAYER_AIR].Count(); index++) {
@@ -1284,15 +1307,132 @@ void DisplayClass::Refresh_Cells(CELL cell, short const * list)
 
 	List_Copy(list, ARRAY_SIZE(tlist), tlist);
 	short * tt = tlist;
+	int count = 0;
 	while (*tt != REFRESH_EOL) {
+		if (count >= ARRAY_SIZE(tlist)) {  // Added overrun check. ST - 8/14/2019 3:14PM		
+			break;
+		}
 		CELL newcell = cell + *tt++;
 		if (In_Radar(newcell)) {
 			(*this)[newcell].Redraw_Objects();
 		}
+		count++;
 	}
 }
 
 
+/***********************************************************************************************
+ * DisplayClass::Cell_Shadow   -- Determine what shadow icon to use for the cell.              *
+ *                                                                                             *
+ *    This routine will examine the specified cell and adjacent cells to                       *
+ *    determine what shadow icon to use.                                                       *
+ *                                                                                             *
+ * INPUT:   cell     -- The cell to examine.                                                   *
+ *                                                                                             *
+ * OUTPUT:  Returns with the shadow icon to use. -2= all black.                                *
+ *                                                -1= map cell.                                *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   03/01/1994 JLB : Created.                                                                 *
+ *   04/04/1994 JLB : Revamped for new shadow icon method.                                     *
+ *   04/30/1994 JLB : Converted to member function.                                            *
+ *   08/05/2019  ST : Added house parameter so we can do this per player                       ** 
+ *=============================================================================================*/
+int DisplayClass::Cell_Shadow(CELL cell, HouseClass *house) const
+{
+	static char const _shadow[256]={
+		-1,33, 2, 2,34,37, 2, 2,
+		 4,26, 6, 6, 4,26, 6, 6,
+		35,45,17,17,38,41,17,17,
+		 4,26, 6, 6, 4,26, 6, 6,
+		 8,21,10,10,27,31,10,10,
+		12,23,14,14,12,23,14,14,
+		 8,21,10,10,27,31,10,10,
+		12,23,14,14,12,23,14,14,
+
+		32,36,25,25,44,40,25,25,
+		19,30,20,20,19,30,20,20,
+		39,43,29,29,42,46,29,29,
+		19,30,20,20,19,30,20,20,
+		 8,21,10,10,27,31,10,10,
+		12,23,14,14,12,23,14,14,
+		 8,21,10,10,27,31,10,10,
+		12,23,14,14,12,23,14,14,
+
+		 1, 1, 3, 3,16,16, 3, 3,
+		 5, 5, 7, 7, 5, 5, 7, 7,
+		24,24,18,18,28,28,18,18,
+		 5, 5, 7, 7, 5, 5, 7, 7,
+		 9, 9,11,11,22,22,11,11,
+		13,13,-2,-2,13,13,-2,-2,
+		 9, 9,11,11,22,22,11,11,
+		13,13,-2,-2,13,13,-2,-2,
+
+		 1, 1, 3, 3,16,16, 3, 3,
+		 5, 5, 7, 7, 5, 5, 7, 7,
+		24,24,18,18,28,28,18,18,
+		 5, 5, 7, 7, 5, 5, 7, 7,
+		 9, 9,11,11,22,22,11,11,
+		13,13,-2,-2,13,13,-2,-2,
+		 9, 9,11,11,22,22,11,11,
+		13,13,-2,-2,13,13,-2,-2
+	};
+
+	int index = 0, value = -1;
+
+	/*
+	**	Don't map cells that are at the edges. This solves
+	**	problem of accessing cells off the bounds of map and into
+	**	who-knows-what memory.
+	*/
+#ifdef FIXIT_CSII	//	checked - ajw 9/28/98
+	if ((unsigned)(Cell_X(cell)-1) >= MAP_CELL_W-2) return(-1);
+	if ((unsigned)(Cell_Y(cell)-1) >= MAP_CELL_H-2) return(-1);
+#else
+	if ((unsigned)(Cell_Y(cell)-1) > MAP_CELL_H-2) return(-1);
+#endif
+	//if ((unsigned)(Cell_Y(cell)-1) > MAP_CELL_H-2) return(-2);
+
+	CellClass const * cellptr = &(*this)[cell];
+
+	/*
+	**	Presume solid black if that is what is here already.
+	*/
+	if (!cellptr->Is_Visible(house) && !cellptr->Is_Mapped(house)) value = -2;
+
+	if (cellptr->Is_Mapped(house) /*&& !cellptr->IsVisible*/) {
+		/*
+		** Build an index into the lookup table using all 8 surrounding cells.
+		** We're mapping a revealed cell and we only care about the existence
+		** of black cells.  Bit numbering starts at the upper-right corner and
+		** goes around the cell clockwise, so 0x80 = directly north.
+		*/
+		cell -= MAP_CELL_W + 1; cellptr -= MAP_CELL_W + 1;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x40;
+		cell++; cellptr++;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x80;
+		cell++; cellptr++;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x01;
+		cell += MAP_CELL_W - 2; cellptr += MAP_CELL_W - 2;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x20;
+		cell += 2; cellptr += 2;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x02;
+		cell += MAP_CELL_W - 2; cellptr += MAP_CELL_W - 2;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x10;
+		cell++; cellptr++;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x08;
+		cell++; cellptr++;
+		if (!cellptr->Is_Mapped(house) && In_Radar(cell)) index |= 0x04;
+
+		value = _shadow[index];
+	}
+	return(value);
+}
+
+
+#if (0)		                            // Old code for reference. ST - 8/15/2019 10:25AM
 /***********************************************************************************************
  * DisplayClass::Cell_Shadow   -- Determine what shadow icon to use for the cell.              *
  *                                                                                             *
@@ -1400,7 +1540,7 @@ int DisplayClass::Cell_Shadow(CELL cell) const
 	}
 	return(value);
 }
-
+#endif
 
 /***********************************************************************************************
  * DisplayClass::Map_Cell -- Mark specified cell as having been mapped.                        *
@@ -1422,41 +1562,90 @@ int DisplayClass::Cell_Shadow(CELL cell) const
  *   04/30/1994 JLB : Converted to member function.                                            *
  *   05/24/1994 JLB : Takes pointer to HouseClass.                                             *
  *   02/20/1996 JLB : Allied units reveal the map for the player.                              *
+ *   08/05/2019  ST : Use per-player mapping so we can track the shroud for all players        *
  *=============================================================================================*/
-bool DisplayClass::Map_Cell(CELL cell, HouseClass * house)
+bool DisplayClass::Map_Cell(CELL cell, HouseClass * house, bool check_radar_spied, bool and_for_allies)
 {
+	// OK for house not to be PlayerPtr. ST - 8/6/2019 10:05AM
+	//if (house != PlayerPtr || !In_Radar(cell)) return(false);
+	if (house == NULL || !In_Radar(cell)) return(false);
+	
+	if (!house->IsHuman) {
+		if (!ShareAllyVisibility || !and_for_allies && !check_radar_spied) {
+			return false;
+		}
+	}
+	
 	/*
 	** First check for the condition where we're spying on a house's radar
 	** facility, to see if his mapping is applicable to us.
 	*/
-	if (house && house != PlayerPtr) {
-		if (house->RadarSpied & (1<<(PlayerPtr->Class->House))) house = PlayerPtr;
-		if (Session.Type == GAME_NORMAL && house->Is_Ally(PlayerPtr)) house = PlayerPtr;
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+		// Original code. ST - 8/15/2019 10:26AM
+		if (house && house != PlayerPtr) {
+			if (house->RadarSpied & (1<<(PlayerPtr->Class->House))) house = PlayerPtr;
+			if (Session.Type == GAME_NORMAL && house->Is_Ally(PlayerPtr)) house = PlayerPtr;
+		}
+	} else {
+		// Version to work with any human player, not just PlayerPtr
+		if (house && check_radar_spied) {
+			
+			for (int i=0 ; i<Session.Players.Count() ; i++) {
+				HouseClass *player_ptr = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+				if (player_ptr->IsHuman) {
+					if (house->RadarSpied & (1<<(player_ptr->Class->House))) {
+						Map_Cell(cell, player_ptr, false, false);
+					}
+				}
+			}
+		}
 	}
 
-	if (house != PlayerPtr || !In_Radar(cell)) return(false);
+	/*
+	** Maybe also recurse to map for allies
+	*/
+	if (ShareAllyVisibility && and_for_allies && Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		
+		for (int i=0 ; i<Session.Players.Count() ; i++) {
+			HouseClass *player_ptr = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+			if (player_ptr && player_ptr->IsActive && player_ptr->IsHuman) {
+				if (player_ptr != house && house->Is_Ally(player_ptr)) {
+					Map_Cell(cell, player_ptr, check_radar_spied, false);
+				}
+			}
+		}
+	}
 
 	CellClass * cellptr = &(*this)[cell];
 
 	/*
 	**	Don't bother remapping this cell if it is already mapped.
 	*/
+#if (1)	
+	if (cellptr->Is_Mapped(house)) {
+		if (!cellptr->Is_Visible(house)) {
+			cellptr->Redraw_Objects();
+		}
+		return(false);
+	}
+#else
 	if (cellptr->IsMapped) {
 		if (!cellptr->IsVisible) {
 			cellptr->Redraw_Objects();
 		}
 		return(false);
 	}
-
+#endif
 	/*
 	** Mark the cell as being mapped. This must be done first because
 	**	if the IsVisible flag must be set, then it might affect the
 	**	adjacent cell processing.
 	*/
-	cellptr->IsMapped = true;
+	// Set per player. ST - 8/6/2019 10:18AM
+	cellptr->Set_Mapped(house);
 	cellptr->Redraw_Objects();
-	if (Cell_Shadow(cell) == -1) {
-		cellptr->IsVisible = true;
+	if (Cell_Shadow(cell, house) == -1) {
+		cellptr->Set_Visible(house);
 	}
 
 	/*
@@ -1466,14 +1655,45 @@ bool DisplayClass::Map_Cell(CELL cell, HouseClass * house)
 	**	are not allowed, and to fix this, just map the cells until
 	**	all is ok.
 	*/
+	int xx = Cell_X(cell);
 	for (FacingType dir = FACING_FIRST; dir < FACING_COUNT; dir++) {
 		int	shadow;
 		CELL	c;
+		int xdiff;
 
 		c = Adjacent_Cell(cell, dir);
+
+		/*
+		**	Determine if the map edge has been wrapped. If so,
+		**	then don't process the cell.
+		*/
+		if ((unsigned)c >= MAP_CELL_TOTAL) continue;
+		xdiff = Cell_X(c) - xx;
+		xdiff = ABS(xdiff);
+		if (xdiff > 1) continue;
+
 		CellClass * cptr = &(*this)[c];
 		cptr->Redraw_Objects();
 
+#if (1)
+		// New client/server friendly code
+		if (c != cell && !cptr->Is_Visible(house)) {
+			shadow = Cell_Shadow(c, house);
+
+			if (shadow == -1) {
+				if (!cptr->Is_Mapped(house)) {
+					Map_Cell(c, house, check_radar_spied, false);
+				} else {
+					cptr->Set_Visible(house);
+				}
+			} else {
+				if (shadow != -2 && !cptr->Is_Mapped(house)) {
+					Map_Cell(c, house, check_radar_spied, false);
+				}
+			}
+		}
+#else
+		// Old peer/peer code
 		if (c != cell && !cptr->IsVisible) {
 			shadow = Cell_Shadow(c);
 
@@ -1489,6 +1709,7 @@ bool DisplayClass::Map_Cell(CELL cell, HouseClass * house)
 				}
 			}
 		}
+#endif
 	}
 
 	TechnoClass * tech = (*this)[cell].Cell_Techno();
@@ -1527,6 +1748,24 @@ bool DisplayClass::Map_Cell(CELL cell, HouseClass * house)
 #define	EDGE_ZONE	(CELL_LEPTON_W*2)
 bool DisplayClass::Coord_To_Pixel(COORDINATE coord, int &x, int &y) const
 {
+	int xtac = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(TacticalCoord)));
+	int xoff = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(coord)));
+	xoff = (xoff + EDGE_ZONE) - xtac;
+
+	int ytac = Pixel_To_Lepton(Lepton_To_Pixel(Coord_Y(TacticalCoord)));
+	int yoff = Pixel_To_Lepton(Lepton_To_Pixel(Coord_Y(coord)));
+	yoff = (yoff + EDGE_ZONE) - ytac;
+
+	x = Lepton_To_Pixel(xoff) - CELL_PIXEL_W * 2;
+	y = Lepton_To_Pixel(yoff) - CELL_PIXEL_H * 2;
+
+	// Possibly ignore the view constraints if we aren't using the internal renderer. ST - 4/17/2019 9:06AM
+	return(coord && (IgnoreViewConstraints || ((xoff <= TacLeptonWidth + EDGE_ZONE * 2) && (yoff <= TacLeptonHeight + EDGE_ZONE * 2))));
+}
+
+#if (0) //reference. ST - 5/8/2019
+bool DisplayClass::Coord_To_Pixel(COORDINATE coord, int &x, int &y) const
+{
 	if (coord) {
 		int xtac = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(TacticalCoord)));
 		int xoff = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(coord)));
@@ -1546,7 +1785,7 @@ bool DisplayClass::Coord_To_Pixel(COORDINATE coord, int &x, int &y) const
 	}
 	return(false);
 }
-
+#endif
 
 /***********************************************************************************************
  * DisplayClass::Push_Onto_TacMap -- Moves x & y coords to being on tactical map               *
@@ -1685,7 +1924,8 @@ ObjectClass * DisplayClass::Cell_Object(CELL cell, int x, int y) const
 		*/
 		int num = Session.Messages.Num_Messages();
 		if (num > 0) {
-			for (CELL cell = Coord_Cell(TacticalCoord); cell < Coord_Cell(TacticalCoord) + Lepton_To_Cell(TacLeptonWidth)+1; cell++) {
+			CELL cell;
+			for (cell = Coord_Cell(TacticalCoord); cell < Coord_Cell(TacticalCoord) + Lepton_To_Cell(TacLeptonWidth)+1; cell++) {
 				(*this)[cell].Redraw_Objects();
 			}
 			for (cell = Coord_Cell(TacticalCoord) + MAP_CELL_W;
@@ -1993,6 +2233,11 @@ ObjectClass * DisplayClass::Cell_Object(CELL cell, int x, int y) const
 //			}
 
 #ifdef SORTDRAW
+			/*
+			** Draw the vortex effect over the terrain
+			*/
+			ChronalVortex.Render();
+
 			Redraw_OIcons();
 #endif
 
@@ -2010,10 +2255,12 @@ ObjectClass * DisplayClass::Cell_Object(CELL cell, int x, int y) const
 
 		if (HidPage.Lock()) {
 
+#ifndef SORTDRAW
 			/*
 			** Draw the vortex effect over the terrain
 			*/
 			ChronalVortex.Render();
+#endif
 
 			/*
 			**	Redraw the game objects layer by layer. The layer drawing occurs on the ground layer
@@ -2131,7 +2378,8 @@ void DisplayClass::Redraw_Icons(void)
 					**	If there is a portion of the underlying icon that could be visible,
 					**	then draw it.  Also draw the cell if the shroud is off.
 					*/
-					if (cellptr->IsMapped || Debug_Unshroud) {
+					//if (cellptr->IsMapped || Debug_Unshroud) {
+					if (cellptr->Is_Mapped(PlayerPtr) || Debug_Unshroud) {		// Use PlayerPtr since we won't be rendering in MP. ST - 3/6/2019 2:49PM
 						cellptr->Draw_It(xpixel, ypixel);
 					}
 
@@ -2139,7 +2387,8 @@ void DisplayClass::Redraw_Icons(void)
 					**	If any cell is not fully mapped, then flag it so that the shadow drawing
 					**	process will occur.  Only draw the shadow if Debug_Unshroud is false.
 					*/
-					if (!cellptr->IsVisible && !Debug_Unshroud) {
+					//if (!cellptr->IsVisible && !Debug_Unshroud) {
+					if (!cellptr->Is_Visible(PlayerPtr) && !Debug_Unshroud) {	// Use PlayerPtr since we won't be rendering in MP. ST - 3/6/2019 2:49PM
 						IsShadowPresent = true;
 					}
 				}
@@ -2172,7 +2421,8 @@ void DisplayClass::Redraw_OIcons(void)
 					**	If there is a portion of the underlying icon that could be visible,
 					**	then draw it.  Also draw the cell if the shroud is off.
 					*/
-					if (cellptr->IsMapped || Debug_Unshroud) {
+					//if (cellptr->IsMapped || Debug_Unshroud) {
+					if (cellptr->Is_Mapped(PlayerPtr) || Debug_Unshroud) {		// Use PlayerPtr since we won't be rendering in MP. ST - 3/6/2019 2:49PM
 						cellptr->Draw_It(xpixel, ypixel, true);
 					}
 				}
@@ -2217,10 +2467,12 @@ void DisplayClass::Redraw_Shadow(void)
 
 					if (Coord_To_Pixel(coord, xpixel, ypixel)) {
 						CellClass * cellptr = &(*this)[coord];
-						if (cellptr->IsVisible) continue;
+						//if (cellptr->IsVisible) continue;
+						if (cellptr->Is_Visible(PlayerPtr)) continue;		// Use PlayerPtr since we won't be rendering in MP. ST - 8/6/2019 10:44AM
 						int shadow = -2;
-						if (cellptr->IsMapped) {
-							shadow = Cell_Shadow(cell);
+						//if (cellptr->IsMapped) {
+						if (cellptr->Is_Mapped(PlayerPtr)) {					// Use PlayerPtr since we won't be rendering in MP. ST - 8/6/2019 10:44AM
+							shadow = Cell_Shadow(cell, PlayerPtr);				// Use PlayerPtr since we won't be rendering in MP. ST - 8/6/2019 10:44AM
 						}
 						if (shadow >= 0) {
 							CC_Draw_Shape(ShadowShapes, shadow, xpixel, ypixel, WINDOW_TACTICAL, SHAPE_GHOST, NULL, ShadowTrans);
@@ -2266,7 +2518,7 @@ ObjectClass * DisplayClass::Next_Object(ObjectClass * object) const
 	if (object == NULL) {
 		foundmatch = true;
 	}
-	for (unsigned uindex = 0; uindex < Layer[LAYER_GROUND].Count(); uindex++) {
+	for (unsigned uindex = 0; uindex < (unsigned)Layer[LAYER_GROUND].Count(); uindex++) {
 		ObjectClass * obj = Layer[LAYER_GROUND][uindex];
 
 		/*
@@ -2355,7 +2607,9 @@ COORDINATE DisplayClass::Pixel_To_Coord(int x, int y) const
 	**	If pixel coordinate is over the tactical map, then translate it into a coordinate
 	**	value. If not, then just return with NULL.
 	*/
-	if ((unsigned)x < TacLeptonWidth && (unsigned)y < TacLeptonHeight) {
+	// Possibly ignore the view constraints if we aren't using the internal renderer. ST - 8/6/2019 10:47AM
+	//if ((unsigned)x < TacLeptonWidth && (unsigned)y < TacLeptonHeight) {
+	if (IgnoreViewConstraints || ((unsigned)x < TacLeptonWidth && (unsigned)y < TacLeptonHeight)) {
 		return(Coord_Add(TacticalCoord, XY_Coord(x, y)));
 	}
 	return(0);
@@ -2601,6 +2855,8 @@ bool DisplayClass::Good_Reinforcement_Cell(CELL outcell, CELL incell, SpeedType 
  *                                                                                             *
  *          coord2   -- The opposite corner of the selection region.                           *
  *                                                                                             *
+ *          additive -- Does this add to the existing selection or replace it.                 *
+ *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
  * WARNINGS:   none                                                                            *
@@ -2610,7 +2866,14 @@ bool DisplayClass::Good_Reinforcement_Cell(CELL outcell, CELL incell, SpeedType 
  *   04/25/1995 JLB : Limited to non-building type.                                            *
  *   03/06/1996 JLB : Allows selection of aircraft with bounding box.                          *
  *=============================================================================================*/
-void DisplayClass::Select_These(COORDINATE coord1, COORDINATE coord2)
+static bool should_exclude_from_selection(ObjectClass* obj)
+{
+	return (obj->What_Am_I() == RTTI_UNIT) &&
+		(((UnitClass *)obj)->Class->IsToHarvest ||
+		*((UnitClass *)obj) == UNIT_MCV);
+}
+
+void DisplayClass::Select_These(COORDINATE coord1, COORDINATE coord2, bool additive)
 {
 	COORDINATE tcoord = TacticalCoord;	//Cell_Coord(TacticalCell) & 0xFF00FF00L;
 
@@ -2640,7 +2903,9 @@ void DisplayClass::Select_These(COORDINATE coord1, COORDINATE coord2)
 	**	Sweep through all ground layer objects and select the ones within the
 	**	bounding box.
 	*/
-	Unselect_All();
+	if (!additive) {
+		Unselect_All();
+	}
 	AllowVoice = true;
 	for (int index = 0; index < Layer[LAYER_GROUND].Count(); index++) {
 		ObjectClass * obj = Layer[LAYER_GROUND][index];
@@ -2649,17 +2914,22 @@ void DisplayClass::Select_These(COORDINATE coord1, COORDINATE coord2)
 		int y = Coord_Y(ocoord);
 
 		/*
-		**	Only try to select objects that are owned by the player, are allowed to be
-		**	selected, and are within the bounding box.
+		**	Only try to select objects that are allowed to be selected, and are within the bounding box.
 		*/
 		HouseClass * hptr = HouseClass::As_Pointer(obj->Owner());
-		if (	(hptr != NULL && hptr->IsPlayerControl) &&
-				obj->Class_Of().IsSelectable &&
+		if (	obj->Class_Of().IsSelectable &&
 				obj->What_Am_I() != RTTI_BUILDING &&
+				(!obj->Is_Techno() || !((TechnoClass*)obj)->Is_Cloaked(PlayerPtr)) &&
 				x >= x1 && x <= x2 && y >= y1 && y <= y2) {
-			if (obj->Select()) {
-				AllowVoice = false;
+			bool old_allow_voice = AllowVoice;
+			bool is_player_controlled = (hptr != NULL) && hptr->IsPlayerControl;
+			AllowVoice &= is_player_controlled;
+			if (obj->Select(true)) {
+				if (is_player_controlled) {
+					old_allow_voice = false;
+				}
 			}
+			AllowVoice = old_allow_voice;
 		}
 	}
 
@@ -2673,16 +2943,73 @@ void DisplayClass::Select_These(COORDINATE coord1, COORDINATE coord2)
 		int y = Coord_Y(ocoord);
 
 		/*
-		**	Only try to select objects that are owned by the player, are allowed to be
-		**	selected, and are within the bounding box.
+		**	Only try to select objects that are allowed to be selected, and are within the bounding box.
 		*/
-		if (	aircraft->House->IsPlayerControl &&
-				aircraft->Class->IsSelectable &&
-				!aircraft->IsSelected &&
+		if (	aircraft->Class->IsSelectable &&
+				!aircraft->Is_Cloaked(PlayerPtr) &&
+				!aircraft->Is_Selected_By_Player() &&
 				x >= x1 && x <= x2 && y >= y1 && y <= y2) {
+			bool old_allow_voice = AllowVoice;
+			bool is_player_controlled = aircraft->House->IsPlayerControl;
+			AllowVoice &= is_player_controlled;
+			if (aircraft->Select(true)) {
+				if (is_player_controlled) {
+					old_allow_voice = false;
+				}
+			}
+			AllowVoice = old_allow_voice;
+		}
+	}
 
-			if (aircraft->Select()) {
-				AllowVoice = false;
+	/*
+	** If a mix of player and non-player controlled units were selected, make sure non-player controlled units are de-selected
+	*/
+	bool player_controlled_units = false, non_player_controlled_units = false;
+	for (int i = 0; (i < CurrentObject.Count()) && (!player_controlled_units || !non_player_controlled_units); ++i) {
+		HouseClass * hptr = HouseClass::As_Pointer(CurrentObject[i]->Owner());
+		if (hptr->IsPlayerControl) {
+			player_controlled_units = true;
+		}
+		else {
+			non_player_controlled_units = true;
+		}
+	}
+	if (player_controlled_units && non_player_controlled_units) {
+		for (int i = 0; i < CurrentObject.Count(); ++i) {
+			HouseClass * hptr = HouseClass::As_Pointer(CurrentObject[i]->Owner());
+			if (!hptr->IsPlayerControl) {
+				int count_before = CurrentObject.Count();
+				CurrentObject[i]->Unselect();
+				if (count_before <= CurrentObject.Count()) {
+					GlyphX_Debug_Print("Select_These failed to remove an object");
+					CurrentObject.Delete(CurrentObject[i]);
+				}
+				--i;
+			}
+		}
+	}
+
+	/*
+	** If player-controlled units are non-additively selected, remove harvesters and MCVs if they aren't the only types of units selected
+	*/
+	if (!additive && player_controlled_units) {
+		bool any_to_exclude = false, all_to_exclude = true;
+		for (int i = 0; i < CurrentObject.Count(); ++i) {
+			bool exclude = should_exclude_from_selection(CurrentObject[i]);
+			any_to_exclude |= exclude;
+			all_to_exclude &= exclude;
+		}
+		if (any_to_exclude && !all_to_exclude) {
+			for (int i = 0; i < CurrentObject.Count(); ++i) {
+				if (should_exclude_from_selection(CurrentObject[i])) {
+					int count_before = CurrentObject.Count();
+					CurrentObject[i]->Unselect();
+					if (count_before <= CurrentObject.Count()) {
+						GlyphX_Debug_Print("Select_These failed to remove an object");
+						CurrentObject.Delete(CurrentObject[i]);
+					}
+					--i;
+				}
 			}
 		}
 	}
@@ -2751,7 +3078,8 @@ void DisplayClass::Refresh_Band(void)
 		/*
 		**	Stretching the rubber band requires all objects to be redrawn.
 		*/
-		for (int index = 0; index < Layer[LAYER_TOP].Count(); index++) {
+		int index;
+		for (index = 0; index < Layer[LAYER_TOP].Count(); index++) {
 			Layer[LAYER_TOP][index]->Mark(MARK_CHANGE);
 		}
 		for (index = 0; index < Layer[LAYER_AIR].Count(); index++) {
@@ -2804,7 +3132,8 @@ int DisplayClass::TacticalClass::Action(unsigned flags, KeyNumType & key)
 	CELL cell = Coord_Cell(coord);
 	if (coord) {
 
-		shadow = (!Map[cell].IsMapped && !Debug_Unshroud);
+		//shadow = (!Map[cell].IsMapped && !Debug_Unshroud);
+		shadow = (!Map[cell].Is_Mapped(PlayerPtr) && !Debug_Unshroud);		// Use PlayerPtr since we won't be rendering in MP. ST - 8/6/2019 10:49AM
 		x -= Map.TacPixelX;
 		y -= Map.TacPixelY;
 
@@ -2822,9 +3151,9 @@ int DisplayClass::TacticalClass::Action(unsigned flags, KeyNumType & key)
 			object = Map.Close_Object(coord);
 
 			/*
-			**	Special case check to ignore cloaked object if not owned by the player.
+			**	Special case check to ignore cloaked object if not allied with the player.
 			*/
-			if (object != NULL && object->Is_Techno() && !((TechnoClass *)object)->IsOwnedByPlayer && (((TechnoClass *)object)->Cloak == CLOAKED || ((TechnoClass *)object)->Techno_Type_Class()->IsInvisible)) {
+			if (object != NULL && object->Is_Techno() && ((TechnoClass *)object)->Is_Cloaked(PlayerPtr, true)) {
 				object = NULL;
 			}
 		}
@@ -2835,9 +3164,9 @@ int DisplayClass::TacticalClass::Action(unsigned flags, KeyNumType & key)
 		*/
 		if (CurrentObject.Count()) {
 			if (object != NULL) {
-				action = CurrentObject[0]->What_Action(object);
+				action = Best_Object_Action(object);
 			} else {
-				action = CurrentObject[0]->What_Action(cell);
+				action = Best_Object_Action(cell);
 			}
 
 		} else {
@@ -2996,6 +3325,159 @@ int DisplayClass::TacticalClass::Action(unsigned flags, KeyNumType & key)
 
 
 /***********************************************************************************************
+ * DisplayClass::TacticalClass::Selection_At_Mouse --  Object selection								  *
+ *																															  *
+ *     Selects any objects at the current mouse position.		                                *
+ *																													        *
+ *                                                                                             *
+ * INPUT:   flags -- The gadget event flags that triggered the call to this function.          *
+ *                                                                                             *
+ *          key   -- A reference to the keyboard event (if any).                               *
+ *                                                                                             *
+ * OUTPUT:  bool; Should processing be aborted on any succeeding buttons in the chain?         *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   2019/09/17  JAS					                                                              *
+ *=============================================================================================*/
+int DisplayClass::TacticalClass::Selection_At_Mouse(unsigned flags, KeyNumType & key)
+{
+	int		x, y;					// Sub cell pixel coordinates.
+	bool edge = false;
+	if (flags & (LEFTPRESS | LEFTRELEASE | RIGHTPRESS | RIGHTRELEASE)) {
+		x = Keyboard->MouseQX;
+		y = Keyboard->MouseQY;
+	}
+	else {
+		x = Get_Mouse_X();
+		y = Get_Mouse_Y();
+
+		if (x == 0 || y == 199 || x == 319) edge = true;
+	}
+	COORDINATE coord = Map.Pixel_To_Coord(x, y);
+	CELL cell = Coord_Cell(coord);
+
+	if (coord) {
+		bool shadow = (!Map[cell].Is_Visible(PlayerPtr) && !Debug_Unshroud);					// Use PlayerPtr since we won't be rendering in MP. ST - 3/6/2019 2:49PM
+		x -= Map.TacPixelX;
+		y -= Map.TacPixelY;
+
+		/*
+		** Cause any displayed cursor to move along with the mouse cursor.
+		*/
+		if (cell != Map.ZoneCell) {
+			Map.Set_Cursor_Pos(cell);
+		}
+
+		ObjectClass* object = nullptr;
+
+		/*
+		**	Determine the object that the mouse is currently over.
+		*/
+		if (!shadow) {
+			object = Map.Close_Object(coord);
+		}
+
+		if (object != nullptr)
+		{
+			bool shiftdown = DLL_Export_Get_Input_Key_State(KN_LSHIFT);
+
+			if (shiftdown)
+			{
+				Map.Mouse_Left_Release(cell, x, y, object, ACTION_TOGGLE_SELECT);
+			}
+			else
+			{
+				Map.Mouse_Left_Release(cell, x, y, object, ACTION_SELECT);
+			}
+
+		}
+		else
+		{
+			Unselect_All();
+		}
+	}
+
+	return 0;
+}
+
+/***********************************************************************************************
+ * DisplayClass::TacticalClass::Command_Object --  Commanding Units								     *
+ *																															  *
+ *     Issues a command to the currently selected unit.			                                *
+ *																													        *
+ *                                                                                             *
+ * INPUT:   flags -- The gadget event flags that triggered the call to this function.          *
+ *                                                                                             *
+ *          key   -- A reference to the keyboard event (if any).                               *
+ *                                                                                             *
+ * OUTPUT:  bool; Should processing be aborted on any succeeding buttons in the chain?         *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   2019/09/17  JAS					                                                              *
+ *=============================================================================================*/
+int DisplayClass::TacticalClass::Command_Object(unsigned flags, KeyNumType & key)
+{
+	int		x, y;					// Sub cell pixel coordinates.
+	bool edge = false;
+	if (flags & (LEFTPRESS | LEFTRELEASE | RIGHTPRESS | RIGHTRELEASE)) {
+		x = Keyboard->MouseQX;
+		y = Keyboard->MouseQY;
+	}
+	else {
+		x = Get_Mouse_X();
+		y = Get_Mouse_Y();
+
+		if (x == 0 || y == 199 || x == 319) edge = true;
+	}
+	COORDINATE coord = Map.Pixel_To_Coord(x, y);
+	CELL cell = Coord_Cell(coord);
+
+	ActionType action = ACTION_NONE;
+
+	if (coord) {
+		bool shadow = (!Map[cell].Is_Mapped(PlayerPtr) && !Debug_Unshroud);					// Use PlayerPtr since we won't be rendering in MP. ST - 3/6/2019 2:49PM
+		x -= Map.TacPixelX;
+		y -= Map.TacPixelY;
+
+		/*
+		** Cause any displayed cursor to move along with the mouse cursor.
+		*/
+		if (cell != Map.ZoneCell) {
+			Map.Set_Cursor_Pos(cell);
+		}
+
+		ObjectClass* object = nullptr;
+
+		/*
+		**	Determine the object that the mouse is currently over.
+		*/
+		if (!shadow) {
+			object = Map.Close_Object(coord);
+		}
+
+		if (CurrentObject.Count()) {
+			if (object) {
+				action = Best_Object_Action(object);
+			}
+			else {
+				action = Best_Object_Action(cell);
+			}
+		}
+
+		if (action != ACTION_SELECT)
+		{
+			Map.Mouse_Left_Release(cell, x, y, object, action);
+		}
+	}
+	return 0;
+}
+
+
+/***********************************************************************************************
  * DisplayClass::Mouse_Right_Press -- Handles the right mouse button press.                    *
  *                                                                                             *
  *    This routine is called when the right mouse button is pressed. This action is supposed   *
@@ -3146,8 +3628,15 @@ void DisplayClass::Mouse_Left_Up(CELL cell, bool shadow, ObjectClass * object, A
 				break;
 
 			case ACTION_NOMOVE:
-				if (CurrentObject.Count() && CurrentObject[0]->What_Am_I() == RTTI_AIRCRAFT) {
-					Set_Default_Mouse(MOUSE_NO_MOVE, wsmall);
+				if (CurrentObject.Count()) {
+					MouseType mouse_type = MOUSE_NO_MOVE;
+					for (int i = 0; i < CurrentObject.Count(); ++i) {
+						if (CurrentObject[i]->What_Am_I() != RTTI_AIRCRAFT) {
+							mouse_type = MOUSE_CAN_MOVE;
+							break;
+						}
+					}
+					Set_Default_Mouse(mouse_type, wsmall);
 					break;
 				}
 				// Fall into next case for non aircraft object types.
@@ -3269,12 +3758,16 @@ void DisplayClass::Mouse_Left_Up(CELL cell, bool shadow, ObjectClass * object, A
 				Set_Default_Mouse(MOUSE_HEAL, wsmall);
 				break;
 
+			case ACTION_TOGGLE_PRIMARY:
+				Set_Default_Mouse(MOUSE_DEPLOY, wsmall);
+				break;
+
 			default:
 				Set_Default_Mouse(MOUSE_NORMAL, wsmall);
 				break;
 		}
 	}
-
+#if 0
 	/*
 	**	Never display help text if the mouse is held over the radar map.
 	*/
@@ -3353,6 +3846,7 @@ void DisplayClass::Mouse_Left_Up(CELL cell, bool shadow, ObjectClass * object, A
 			}
 		}
 	}
+#endif
 }
 
 
@@ -3410,10 +3904,10 @@ void DisplayClass::Mouse_Left_Release(CELL cell, int x, int y, ObjectClass * obj
 			**	Toggle the select state of the object.
 			*/
 			if (action == ACTION_TOGGLE_SELECT) {
-				if (!object || !CurrentObject.Count() || CurrentObject[0]->Owner() != PlayerPtr->Class->House) {
+				if (!object || !CurrentObject.Count()) {
 					action = ACTION_SELECT;
 				} else {
-					if (object->IsSelected) {
+					if (object->Is_Selected_By_Player()) {
 						object->Unselect();
 					} else {
 						object->Select();
@@ -3424,17 +3918,21 @@ void DisplayClass::Mouse_Left_Release(CELL cell, int x, int y, ObjectClass * obj
 			/*
 			**	Selection of other object action.
 			*/
-			if (action == ACTION_SELECT || (action == ACTION_NONE && object && object->Class_Of().IsSelectable && !object->IsSelected)) {
-				Unselect_All();
-				object->Select();
-				Set_Default_Mouse(MOUSE_NORMAL, wsmall);
+			if (action == ACTION_SELECT || (action == ACTION_NONE && object && object->Class_Of().IsSelectable && !object->Is_Selected_By_Player())) {
+				if (object->Is_Selected_By_Player()) {
+					object->Unselect();
+				}
+				if (object->Select()) {
+					Unselect_All_Except(object);
+					Set_Default_Mouse(MOUSE_NORMAL, wsmall);
+				}
 			}
 
 			/*
 			**	If an action was detected as possible, then pass this action event
 			**	to all selected objects.
 			*/
-			if (action != ACTION_NONE && action != ACTION_SELECT) {
+			if (action != ACTION_NONE && action != ACTION_SELECT && action != ACTION_TOGGLE_SELECT) {
 
 				/*
 				**	Pass the action to all the selected objects. But first, redetermine
@@ -3498,8 +3996,11 @@ void DisplayClass::Mouse_Left_Release(CELL cell, int x, int y, ObjectClass * obj
 						**	Determine the formation speed on the presumption that this
 						**	will turn out to be a formation move.
 						*/
-						FormMaxSpeed = foot->Techno_Type_Class()->MaxSpeed;
-						FormSpeed = foot->Techno_Type_Class()->Speed;
+						MPHType maxspeed = foot->Techno_Type_Class()->MaxSpeed;
+						if (maxspeed < FormMaxSpeed) {
+							FormMaxSpeed = maxspeed;
+							FormSpeed = foot->Techno_Type_Class()->Speed;
+						}
 					}
 
 					/*
@@ -3509,14 +4010,14 @@ void DisplayClass::Mouse_Left_Release(CELL cell, int x, int y, ObjectClass * obj
 					**	to NOT be a formation move.
 					*/
 					if (FormMove) {
-						for (index = 0; index < ::Logic.Count(); index++) {
+						for (int index = 0; index < ::Logic.Count(); index++) {
 							ObjectClass const * obj = ::Logic[index];
 
 							/*
 							**	If the object is selected, then it has already been scanned
 							**	by the previous loop.
 							*/
-							if (obj->IsSelected) continue;
+							if (obj->Is_Selected_By_Player()) continue;
 
 							/*
 							**	Only consider footclass objects.
@@ -3528,7 +4029,7 @@ void DisplayClass::Mouse_Left_Release(CELL cell, int x, int y, ObjectClass * obj
 							/*
 							**	Only consider objects that are owned by the player.
 							*/
-							if (!foot->IsOwnedByPlayer) continue;
+							if (!foot->Is_Owned_By_Player()) continue;
 
 							/*
 							**	If another member of this team has been discovered and
@@ -3710,7 +4211,8 @@ void DisplayClass::Mouse_Left_Held(int x, int y)
 				/*
 				**	Stretching the rubber band requires all objects to be redrawn.
 				*/
-				for (int index = 0; index < Layer[LAYER_TOP].Count(); index++) {
+				int index;
+				for (index = 0; index < Layer[LAYER_TOP].Count(); index++) {
 					Layer[LAYER_TOP][index]->Mark(MARK_CHANGE);
 				}
 				for (index = 0; index < Layer[LAYER_AIR].Count(); index++) {
@@ -3722,6 +4224,9 @@ void DisplayClass::Mouse_Left_Held(int x, int y)
 	}
 }
 
+
+// Needed to accomodate Glyphx client sidebar. ST - 4/12/2019 5:29PM
+extern int GlyphXClientSidebarWidthInLeptons;
 
 /***********************************************************************************************
  * DisplayClass::Set_Tactical_Position -- Sets the tactical view position.                     *
@@ -3743,10 +4248,11 @@ void DisplayClass::Set_Tactical_Position(COORDINATE coord)
 	/*
 	**	Bound the desired location to fit the legal map edges.
 	*/
-	int xx = (int)Coord_X(coord) - (int)Cell_To_Lepton(MapCellX);
-	int yy = (int)Coord_Y(coord) - (int)Cell_To_Lepton(MapCellY);
+	int xx = 0;// (int)Coord_X(coord) - (int)Cell_To_Lepton(MapCellX);
+	int yy = 0;// (int)Coord_Y(coord) - (int)Cell_To_Lepton(MapCellY);
 
-	Confine_Rect(&xx, &yy, TacLeptonWidth, TacLeptonHeight, Cell_To_Lepton(MapCellWidth), Cell_To_Lepton(MapCellHeight));
+	Confine_Rect(&xx, &yy, TacLeptonWidth, TacLeptonHeight, Cell_To_Lepton(MapCellWidth) + GlyphXClientSidebarWidthInLeptons, Cell_To_Lepton(MapCellHeight));		// Needed to accomodate Glyphx client sidebar. ST - 4/12/2019 5:29PM
+//	Confine_Rect(&xx, &yy, TacLeptonWidth, TacLeptonHeight, Cell_To_Lepton(MapCellWidth), Cell_To_Lepton(MapCellHeight));
 	coord = XY_Coord(xx + Cell_To_Lepton(MapCellX), yy + Cell_To_Lepton(MapCellY));
 
 	if (ScenarioInit) {
@@ -3766,7 +4272,7 @@ void DisplayClass::Set_Tactical_Position(COORDINATE coord)
  *                                                                                             *
  * INPUT:   none                                                                               *
  *                                                                                             *
- * OUTPUT:  none                                                                               *
+ * OUTPUT:  x, y -- Player starting location                                                   *
  *                                                                                             *
  * WARNINGS:   none                                                                            *
  *                                                                                             *
@@ -3775,19 +4281,20 @@ void DisplayClass::Set_Tactical_Position(COORDINATE coord)
  *   06/26/1995 JLB : Fixed building loop.                                                     *
  *   10/20/1996 JLB : Doesn't wrap.                                                            *
  *=============================================================================================*/
-void DisplayClass::Compute_Start_Pos(void)
+void DisplayClass::Compute_Start_Pos(long& x, long& y)
 {
 	/*
 	**	Find the summation cell-x & cell-y for all the player's units, infantry,
 	**	and buildings.  Buildings are weighted so that they count 16 times more
 	**	than units or infantry.
 	*/
-	long x = 0;
-	long y = 0;
+	x = 0;
+	y = 0;
 	long num = 0;
-	for (int i = 0; i < Infantry.Count(); i++) {
+	int i;
+	for (i = 0; i < Infantry.Count(); i++) {
 		InfantryClass * infp = Infantry.Ptr(i);
-		if (!infp->IsInLimbo && infp->IsOwnedByPlayer) {
+		if (!infp->IsInLimbo && infp->Is_Owned_By_Player()) {
 			x += (long)Coord_XCell(infp->Coord);
 			y += (long)Coord_YCell(infp->Coord);
 			num++;
@@ -3796,7 +4303,7 @@ void DisplayClass::Compute_Start_Pos(void)
 
 	for (i = 0; i < Units.Count(); i++) {
 		UnitClass * unitp = Units.Ptr(i);
-		if (!unitp->IsInLimbo && unitp->IsOwnedByPlayer) {
+		if (!unitp->IsInLimbo && unitp->Is_Owned_By_Player()) {
 			x += (long)Coord_XCell(unitp->Coord);
 			y += (long)Coord_YCell(unitp->Coord);
 			num++;
@@ -3805,7 +4312,7 @@ void DisplayClass::Compute_Start_Pos(void)
 
 	for (i = 0; i < Buildings.Count(); i++) {
 		BuildingClass * bldgp = Buildings.Ptr(i);
-		if (!bldgp->IsInLimbo && bldgp->IsOwnedByPlayer) {
+		if (!bldgp->IsInLimbo && bldgp->Is_Owned_By_Player()) {
 			x += (((long)Coord_XCell(bldgp->Coord)) * 16);
 			y += (((long)Coord_YCell(bldgp->Coord)) * 16);
 			num += 16;
@@ -3814,7 +4321,7 @@ void DisplayClass::Compute_Start_Pos(void)
 
 	for (i = 0; i < Vessels.Count(); i++) {
 		VesselClass * bldgp = Vessels.Ptr(i);
-		if (!bldgp->IsInLimbo && bldgp->IsOwnedByPlayer) {
+		if (!bldgp->IsInLimbo && bldgp->Is_Owned_By_Player()) {
 			x += (((long)Coord_XCell(bldgp->Coord)));
 			y += (((long)Coord_YCell(bldgp->Coord)));
 			num++;
@@ -3835,22 +4342,6 @@ void DisplayClass::Compute_Start_Pos(void)
 	} else {
 		y = 0;
 	}
-
-	/*
-	**	Tactical position is based on the cell of the upper left corner. Make adjustments
-	**	and bound the calculated location to the map dimensions.
-	*/
-//	x -= 5 * RESFACTOR;
-//	y -= 4 * RESFACTOR;
-	if (x < MapCellX + 5*RESFACTOR) x = MapCellX + 5*RESFACTOR;
-	if (y < MapCellY + 4*RESFACTOR) y = MapCellY + 4*RESFACTOR;
-	if (x > MapCellX+MapCellWidth - 5*RESFACTOR) x = MapCellX+MapCellWidth - 5*RESFACTOR;
-	if (y > MapCellY+MapCellHeight - 4*RESFACTOR) y = MapCellY+MapCellHeight - 4*RESFACTOR;
-
-	Scen.Waypoint[WAYPT_HOME] = Scen.Views[0] = Scen.Views[1] = Scen.Views[2] = Scen.Views[3] = XY_Cell(x, y);
-
-	Map.Set_Tactical_Position(Coord_Whole(Cell_Coord((Scen.Views[0] - (MAP_CELL_W * 4 * RESFACTOR)) - (5*RESFACTOR))));
-//	Set_Tactical_Position(Cell_Coord(XY_Cell(x, y)));
 }
 
 
@@ -3972,8 +4463,8 @@ bool DisplayClass::In_View(register CELL cell) const
 	COORDINATE coord = Coord_Whole(Cell_Coord(cell));
 	COORDINATE tcoord = Coord_Whole(TacticalCoord);
 
-	if ((unsigned)(Coord_X(coord) - Coord_X(tcoord)) > TacLeptonWidth+CELL_LEPTON_W-1) return(false);
-	if ((unsigned)(Coord_Y(coord) - Coord_Y(tcoord)) > TacLeptonHeight+CELL_LEPTON_H-1) return(false);
+	if ((Coord_X(coord) - Coord_X(tcoord)) > TacLeptonWidth+CELL_LEPTON_W-1) return(false);
+	if ((Coord_Y(coord) - Coord_Y(tcoord)) > TacLeptonHeight+CELL_LEPTON_H-1) return(false);
 	return(true);
 }
 
@@ -4023,9 +4514,10 @@ COORDINATE DisplayClass::Closest_Free_Spot(COORDINATE coord, bool any) const
  *=============================================================================================*/
 bool DisplayClass::Is_Spot_Free(COORDINATE coord) const
 {
-	if (coord & HIGH_COORD_MASK) {
-		return(0x00800080);
-	}
+	// This can't be right. Copy/paste error, maybe? ST - 5/8/2019
+	//if (coord & HIGH_COORD_MASK) {
+	//	return(0x00800080);
+	//}
 	return Map[coord].Is_Spot_Free(CellClass::Spot_Index(coord));
 }
 
@@ -4040,7 +4532,7 @@ bool DisplayClass::Is_Spot_Free(COORDINATE coord) const
  *                      then the map will be centered about that coordinate. Otherwise it      *
  *                      will center about the average location of all selected objects.        *
  *                                                                                             *
- * OUTPUT:  none                                                                               *
+ * OUTPUT:  The center coordinate.                                                             *
  *                                                                                             *
  * WARNINGS:   The map position changes by this routine.                                       *
  *                                                                                             *
@@ -4048,7 +4540,7 @@ bool DisplayClass::Is_Spot_Free(COORDINATE coord) const
  *   08/22/1995 JLB : Created.                                                                 *
  *   09/16/1996 JLB : Takes coordinate to center about (as override).                          *
  *=============================================================================================*/
-void DisplayClass::Center_Map(COORDINATE center)
+COORDINATE DisplayClass::Center_Map(COORDINATE center)
 {
  	int x = 0;
 //	unsigned x = 0;
@@ -4077,6 +4569,8 @@ void DisplayClass::Center_Map(COORDINATE center)
 	}
 
 	if (centerit) {
+		center = XY_Coord(x, y);
+
 		x = x - (int)TacLeptonWidth/2;
 		if (x < Cell_To_Lepton(MapCellX)) x = Cell_To_Lepton(MapCellX);
 
@@ -4084,7 +4578,11 @@ void DisplayClass::Center_Map(COORDINATE center)
 		if (y < Cell_To_Lepton(MapCellY)) y = Cell_To_Lepton(MapCellY);
 
 		Set_Tactical_Position(XY_Coord(x, y));
+
+		return center;
 	}
+
+	return 0;
 }
 
 
@@ -4096,6 +4594,7 @@ void DisplayClass::Center_Map(COORDINATE center)
  *    range of player controlled units will keep the shadow pushed back.                       *
  *                                                                                             *
  * INPUT:   none                                                                               *
+ *          house -- Player to apply shroud to                                                 *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -4103,16 +4602,18 @@ void DisplayClass::Center_Map(COORDINATE center)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   10/16/1995 JLB : Created.                                                                 *
+ *   08/06/2019  ST: Added house parameter for multiplayer                                     *
  *=============================================================================================*/
-void DisplayClass::Encroach_Shadow(void)
+void DisplayClass::Encroach_Shadow(HouseClass * house)
 {
-	for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
+	CELL cell;
+	for (cell = 0; cell < MAP_CELL_TOTAL; cell++) {
 		if (!In_Radar(cell)) continue;
 
 		CellClass * cellptr = &(*this)[cell];
-		if (cellptr->IsVisible || !cellptr->IsMapped) continue;
+		if (cellptr->Is_Visible(house) || !cellptr->Is_Mapped(house)) continue;
 
-		cellptr->IsToShroud = true;
+		cellptr->IsToShroud = true;		// IsToShroud isn't used outside this function. ST - 8/6/2019 2:28PM
 	}
 
 	/*
@@ -4124,11 +4625,11 @@ void DisplayClass::Encroach_Shadow(void)
 
 		if ((*this)[cell].IsToShroud) {
 			(*this)[cell].IsToShroud = false;
-			Shroud_Cell(cell);
+			Shroud_Cell(cell, house);
 		}
 	}
 
-	All_To_Look();
+	All_To_Look(house);
 
 	Flag_To_Redraw(true);
 }
@@ -4141,6 +4642,7 @@ void DisplayClass::Encroach_Shadow(void)
  *    would be when the shroud is to regenerate.                                               *
  *                                                                                             *
  * INPUT:   cell  -- The cell that the shroud is to be regenerated upon.                       *
+ *          house -- Player to apply shroud to                                                 *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -4151,21 +4653,22 @@ void DisplayClass::Encroach_Shadow(void)
  * HISTORY:                                                                                    *
  *   10/17/1995 JLB : Created.                                                                 *
  *   06/17/1996 JLB : Modified to handle the new shadow pieces.                                *
+ *   08/06/2019  ST: Added house parameter for multiplayer                                     *
  *=============================================================================================*/
-void DisplayClass::Shroud_Cell(CELL cell/*KO, bool shadeit*/)
+void DisplayClass::Shroud_Cell(CELL cell, HouseClass * house)
 {
-	if (PlayerPtr->IsGPSActive) {
-		if ( (*this)[cell].Jammed & (1 << PlayerPtr->Class->House)  ) {
+	if (house->IsGPSActive) {
+		if ( (*this)[cell].Is_Jamming(house)  ) {
 			return;
 		}
 	}
 	if (!In_Radar(cell)) return;
 
 	CellClass * cellptr = &(*this)[cell];
-	if (cellptr->IsMapped) {
+	if (cellptr->Is_Mapped(house)) {
 
-		cellptr->IsMapped = false;
-		cellptr->IsVisible = false;
+		cellptr->Set_Mapped(house, false);
+		cellptr->Set_Visible(house, false);
 		cellptr->Redraw_Objects();
 
 		/*
@@ -4183,7 +4686,7 @@ void DisplayClass::Shroud_Cell(CELL cell/*KO, bool shadeit*/)
 			**	shroud that cell.
 			*/
 			if (c != cell) {
-				cptr->IsVisible = false;
+				cptr->Set_Visible(house, false);
 			}
 
 			/*
@@ -4257,6 +4760,9 @@ void DisplayClass::Read_INI(CCINIClass & ini)
 	**	at this point.
 	*/
 	Scen.Theater = ini.Get_TheaterType(name, "Theater", THEATER_TEMPERATE);
+	if (Scen.Theater == THEATER_NONE) {
+		Scen.Theater = THEATER_TEMPERATE;
+	}
 
 	/*
 	** Remove any old theater specific uncompressed shapes
@@ -4438,8 +4944,9 @@ void DisplayClass::Write_INI(CCINIClass & ini)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   09/23/1996 JLB : Created.                                                                 *
+ *   08/06/2019  ST : Added house parameter so it can work for multiple players                *
  *=============================================================================================*/
-void DisplayClass::All_To_Look(bool units_only)
+void DisplayClass::All_To_Look(HouseClass *house, bool units_only)
 {
 	for (int index = 0; index < Layer[LAYER_GROUND].Count(); index++) {
 		ObjectClass * object = Layer[LAYER_GROUND][index];
@@ -4448,12 +4955,13 @@ void DisplayClass::All_To_Look(bool units_only)
 
 			if (tech->What_Am_I() == RTTI_BUILDING && units_only) continue;
 
-			if (tech->House->IsPlayerControl) {
-				if (tech->IsDiscoveredByPlayer) {
+			if (tech->House == house) {
+				if (tech->Is_Discovered_By_Player(house)) {
 					object->Look();
 				}
 			} else {
-				if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(PlayerPtr)) {
+				//if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(PlayerPtr)) {
+				if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(house)) {
 					tech->Look();
 				}
 			}
@@ -4462,7 +4970,12 @@ void DisplayClass::All_To_Look(bool units_only)
 }
 
 
-void DisplayClass::Constrained_Look(COORDINATE center, LEPTON distance)
+/*
+** Added house parameter for client/server multiplayer. ST - 8/12/2019 11:48AM
+** 
+** 
+*/
+void DisplayClass::Constrained_Look(COORDINATE center, LEPTON distance, HouseClass *house)
 {
 	for (int index = 0; index < Layer[LAYER_GROUND].Count(); index++) {
 		ObjectClass * object = Layer[LAYER_GROUND][index];
@@ -4471,15 +4984,33 @@ void DisplayClass::Constrained_Look(COORDINATE center, LEPTON distance)
 
 //			if (tech->What_Am_I() == RTTI_BUILDING && units_only) continue;
 
-			if (tech->House->IsPlayerControl) {
-				if (tech->IsDiscoveredByPlayer && Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
-					object->Look();
+			if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+				if (tech->House->IsPlayerControl) {
+					if (tech->IsDiscoveredByPlayer && Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
+						object->Look();
+					}
+				} else {
+					
+					if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(PlayerPtr) &&
+						Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
+
+						tech->Look();
+					}
 				}
 			} else {
-				if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(PlayerPtr) &&
-					Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
+				
+				if (tech->House->IsHuman) {
 
-					tech->Look();
+					if (tech->House == house) {
+						if (tech->Is_Discovered_By_Player(house) && Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
+							object->Look();
+						}
+					} else {
+						if (tech->What_Am_I() == RTTI_BUILDING && Rule.IsAllyReveal && tech->House->Is_Ally(house) && 
+							Distance(tech->Center_Coord(), center) <= (tech->Techno_Type_Class()->SightRange * CELL_LEPTON_W) + distance) {
+							tech->Look();
+						}
+					}
 				}
 			}
 		}
@@ -4506,4 +5037,107 @@ void DisplayClass::Flag_Cell(CELL cell)
 	Flag_To_Redraw(false);
 	IsToRedraw = true;
 	CellRedraw[cell] = true;
+}
+
+static ActionType _priority_actions[] = {
+	ACTION_ATTACK,
+	ACTION_ENTER,
+	ACTION_HEAL,
+	ACTION_REPAIR,
+	ACTION_SABOTAGE,
+	ACTION_CAPTURE,
+	ACTION_MOVE
+};
+
+static int get_action_priority(ActionType action)
+{
+	for (int i = 0; i < ARRAY_LENGTH(_priority_actions); ++i) {
+		if (_priority_actions[i] == action) {
+			return i;
+		}
+	}
+	return INT_MAX;
+}
+
+template <typename T>
+static int index_of(const DynamicVectorClass<T*>& list, T* object)
+{
+	for (int i = 0; i < list.Count(); i++) {
+		if (list[i] == object) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+template <typename T>
+static ObjectClass* Best_Object_With_ActionT(DynamicVectorClass<ObjectClass*>& objects, T subject)
+{
+	DynamicVectorClass<const ObjectTypeClass*> checked_types;
+
+	if (objects.Count()) {
+		int best_priority = INT_MAX;
+		ObjectClass* best_object = objects[0];
+		for (int i = 0; i < objects.Count(); ++i) {
+			ObjectClass* object = objects[i];
+			const ObjectTypeClass* type = &object->Class_Of();
+			if (index_of(checked_types, type) != -1) {
+				continue;
+			}
+			checked_types.Add(type);
+			ActionType action = object->What_Action(subject);
+			int priority = get_action_priority(action);
+			if (priority < best_priority) {
+				best_priority = priority;
+				best_object = object;
+				if (best_priority == 0) {
+					break;
+				}
+			}
+		}
+		return best_object;
+	}
+	return NULL;
+}
+
+ObjectClass* Best_Object_With_Action(DynamicVectorClass<ObjectClass*>& objects, const ObjectClass* object)
+{
+	return Best_Object_With_ActionT(objects, object);
+}
+
+ObjectClass* Best_Object_With_Action(DynamicVectorClass<ObjectClass*>& objects, CELL cell)
+{
+	return Best_Object_With_ActionT(objects, cell);
+}
+
+ActionType Best_Object_Action(DynamicVectorClass<ObjectClass*>& objects, const ObjectClass* object)
+{
+	ObjectClass* obj = Best_Object_With_Action(objects, object);
+	return (obj != NULL) ? obj->What_Action(object) : ACTION_NONE;
+}
+
+ActionType Best_Object_Action(DynamicVectorClass<ObjectClass*>& objects, CELL cell)
+{
+	ObjectClass* obj = Best_Object_With_Action(objects, cell);
+	return (obj != NULL) ? obj->What_Action(cell) : ACTION_NONE;
+}
+
+ObjectClass* Best_Object_With_Action(const ObjectClass* object)
+{
+	return Best_Object_With_Action(CurrentObject.Raw(), object);
+}
+
+ObjectClass* Best_Object_With_Action(CELL cell)
+{
+	return Best_Object_With_Action(CurrentObject.Raw(), cell);
+}
+
+ActionType Best_Object_Action(const ObjectClass* object)
+{
+	return Best_Object_Action(CurrentObject.Raw(), object);
+}
+
+ActionType Best_Object_Action(CELL cell)
+{
+	return Best_Object_Action(CurrentObject.Raw(), cell);
 }

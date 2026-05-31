@@ -58,11 +58,7 @@
 */
 //#define	INTERNAL_VERSION
 //#define	PLAYTEST_VERSION
-//#define	RELEASE_VERSION
-//	- Version define is now passed in from the makefile. -
-#if !defined(RELEASE_VERSION) && !defined(PLAYTEST_VERSION) && !defined(INTERNAL_VERSION)
-#error "Build version not specified!"
-#endif
+#define	RELEASE_VERSION
 
 /**********************************************************************
 ** ColinM
@@ -139,13 +135,13 @@
 // Define DVD to turn on RADVD additions/changes - Denzil
 #ifdef DVD
 //#define INTERNET_OFF
-#define MPEGMOVIE
+//#define MPEGMOVIE	//PG
 //#define MCIMPEG
 #endif
 
 // Test to see if partial object drawing is any faster.
-#define	PARTIAL
-//#define	SORTDRAW
+//#define	PARTIAL
+#define	SORTDRAW
 
 /**********************************************************************
 **	If the scenario editor to to be active in this build then uncomment
@@ -392,6 +388,32 @@ typedef enum VQType {
 	VQ_ANTEND,
 	VQ_ANTINTRO,
 
+	//2019/11/12 JAS - Added for Retaliation movies
+	VQ_RETALIATION_ALLIED1,
+	VQ_RETALIATION_ALLIED2,
+	VQ_RETALIATION_ALLIED3,
+	VQ_RETALIATION_ALLIED4,
+	VQ_RETALIATION_ALLIED5,
+	VQ_RETALIATION_ALLIED6,
+	VQ_RETALIATION_ALLIED7,
+	VQ_RETALIATION_ALLIED8,
+	VQ_RETALIATION_ALLIED9,
+	VQ_RETALIATION_ALLIED10,
+
+	VQ_RETALIATION_SOVIET1,
+	VQ_RETALIATION_SOVIET2,
+	VQ_RETALIATION_SOVIET3,
+	VQ_RETALIATION_SOVIET4,
+	VQ_RETALIATION_SOVIET5,
+	VQ_RETALIATION_SOVIET6,
+	VQ_RETALIATION_SOVIET7,
+	VQ_RETALIATION_SOVIET8,
+	VQ_RETALIATION_SOVIET9,
+	VQ_RETALIATION_SOVIET10,
+	VQ_RETALIATION_WINA,
+	VQ_RETALIATION_WINS,
+	VQ_RETALIATION_ANTS,
+
 	VQ_COUNT,
 	VQ_FIRST=0
 } VQType;
@@ -402,7 +424,7 @@ typedef enum VQType {
 **	uses these and thus there can be no more RTTI types than can fit
 **	in the exponent of a target value.
 */
-typedef enum RTTIType {
+typedef enum RTTIType : unsigned char {
 	RTTI_NONE=0,
 	RTTI_AIRCRAFT,
 	RTTI_AIRCRAFTTYPE,
@@ -443,7 +465,7 @@ typedef enum RTTIType {
 /**********************************************************************
 **	These are the difficulty settings of the game.
 */
-typedef enum DiffType {
+typedef enum DiffType : unsigned char {
 	DIFF_EASY,
 	DIFF_NORMAL,
 	DIFF_HARD,
@@ -476,7 +498,7 @@ typedef enum DiffType {
 **	changed, be sure to update the makefile and rebuild all of the shape
 **	data files.
 */
-#define SHAPE_BUFFER_SIZE		65000L
+#define SHAPE_BUFFER_SIZE		131072L
 
 
 /**********************************************************************
@@ -614,7 +636,7 @@ inline TARGET Build_Target(RTTIType kind, int value)
 **	This enumerates the various known fear states for infantry units.
 **	At these stages, certain events or recovery actions are performed.
 */
-typedef enum FearType {
+typedef enum FearType : unsigned char {
 	FEAR_NONE=0,			// No fear at all (default state).
 	FEAR_ANXIOUS=10,		// Something makes them scared.
 	FEAR_SCARED=100,		// Scared enough to take cover.
@@ -630,7 +652,7 @@ typedef enum FearType {
 **	different conditions under which the Per_Cell_Process function is
 **	called.
 */
-typedef enum PCPType {
+typedef enum PCPType : unsigned char {
 	PCP_ROTATION,			// When sitting in place and performing rotations.
 	PCP_DURING,				// While moving between two cells.
 	PCP_END,					// When the 'center' of a cell is reached during movement.
@@ -641,7 +663,7 @@ typedef enum PCPType {
 **	A base is broken up into several zones. This type enumerates the
 **	various zones.
 */
-typedef enum ZoneType {
+typedef enum ZoneType : char {
 	ZONE_CORE,			// Center of base.
 	ZONE_NORTH,			// North section.
 	ZONE_EAST,			// East section.
@@ -659,7 +681,7 @@ typedef enum ZoneType {
 **	movement characteristics. This enum specifies those characteristics
 **	and movement zones kept track of.
 */
-typedef enum MZoneType {
+typedef enum MZoneType : unsigned char {
 	MZONE_NORMAL,				// Normal terrestrial objects (can't crush walls).
 	MZONE_CRUSHER,				// Can crush crushable wall types.
 	MZONE_DESTROYER,			// Can destroy walls.
@@ -681,7 +703,7 @@ typedef enum MZoneType {
 **	AI will respond according to this state in order to control
 **	production and unit orders.
 */
-typedef enum StateType {
+typedef enum StateType : unsigned char {
 	STATE_BUILDUP,			// Base is building up (defensive buildup stage).
 	STATE_BROKE,			// Low on money, need cash or income source.
 	STATE_THREATENED,		// Enemy units are designated to move close by.
@@ -696,7 +718,7 @@ typedef enum StateType {
 **	These values are assigned to each potential desired action the house
 **	is to perform.
 */
-typedef enum UrgencyType {
+typedef enum UrgencyType : unsigned char {
 	URGENCY_NONE,				// No action on this matter is needed or desired.
 	URGENCY_LOW,				// Minimal attention requested.
 	URGENCY_MEDIUM,			//	Normal attention requested.
@@ -713,7 +735,7 @@ typedef enum UrgencyType {
 **	to global events that encompass selling and production. Low level house
 **	specific actions of choosing targets is handled elsewhere.
 */
-typedef enum StrategyType {
+typedef enum StrategyType : unsigned char {
 	STRATEGY_BUILD_POWER,			// Power is low, build more.
 	STRATEGY_BUILD_DEFENSE,			// Defense needs boosting.
 	STRATEGY_BUILD_INCOME,			// Income is low or in jeopardy, raise it.
@@ -734,7 +756,7 @@ typedef enum StrategyType {
 **	These are the various return conditions that production may
 **	produce.
 */
-typedef enum ProdFailType {
+typedef enum ProdFailType : unsigned char {
 	PROD_OK,						// Production request successful.
 	PROD_LIMIT,					// Failed with production capacity limit reached.
 	PROD_ILLEGAL,				// Failed because of illegal request.
@@ -746,7 +768,7 @@ typedef enum ProdFailType {
 **	When performing a landing operation, the aircraft must pass through
 **	navigation checkpoints. These enumerations specify the check points.
 */
-typedef enum CheckPointType {
+typedef enum CheckPointType : unsigned char {
 	CHECK_STACK,				// Holding area far away from airfield.
 	CHECK_DOWNWIND,			// Downwind leg of approach.
 	CHECK_CROSSWIND			// Crosswind leg of approach.
@@ -756,7 +778,7 @@ typedef enum CheckPointType {
 /**********************************************************************
 **	These enumerate the various crate powerups that are available.
 */
-typedef enum CrateType {
+typedef enum CrateType : unsigned char {
 	CRATE_MONEY,
 	CRATE_UNIT,
 	CRATE_PARA_BOMB,
@@ -786,7 +808,7 @@ typedef enum CrateType {
 **	with these weapons is that they are controlled through the sidebar
 **	mechanism.
 */
-typedef enum SpecialWeaponType {
+typedef enum SpecialWeaponType : char {
 	SPC_NONE=-1,
 	SPC_SONAR_PULSE,			// Momentarily reveals submarines.
 	SPC_NUCLEAR_BOMB,			//	Tactical nuclear weapon.
@@ -825,7 +847,7 @@ typedef enum SpecialWeaponType {
 **	return value, appropriate action may be chosen.
 **	NOTE: If this changes, update the static array in Find_Path module.
 */
-typedef enum MoveType {
+typedef enum MoveType : unsigned char {
 	MOVE_OK, 				// No blockage.
 	MOVE_CLOAK,				// A cloaked blocking enemy object.
 	MOVE_MOVING_BLOCK,	// Blocked, but only temporarily.
@@ -842,7 +864,7 @@ typedef enum MoveType {
 **	same order as specified in the CONQUER.TXT file as well as the filename
 **	list located in the ThemeClass.
 */
-typedef enum ThemeType {
+typedef enum ThemeType : char {
 	THEME_QUIET=-3,
 	THEME_PICK_ANOTHER=-2,
 	THEME_NONE=-1,
@@ -896,14 +918,14 @@ typedef enum ThemeType {
 	THEME_FIRST=0
 } ThemeType;
 
-inline ThemeType operator++(ThemeType &, int);
+//PG inline ThemeType operator++(ThemeType &, int);
 
 
 /**********************************************************************
 **	This is the various threat scan methods that can be used when looking
 **	for targets.
 */
-typedef enum ThreatType {
+typedef enum ThreatType : unsigned short {
 	THREAT_NORMAL=0x0000,		// Any distance threat scan?
 	THREAT_RANGE=0x0001,			// Limit scan to weapon range?
 	THREAT_AREA=0x0002,			// Limit scan to general area (twice weapon range)?
@@ -918,11 +940,22 @@ typedef enum ThreatType {
 	THREAT_FAKES=0x0400,			// Consider fake buildings a greater target?
 	THREAT_POWER=0x0800,			// Consider power generating facilities a greater target?
 	THREAT_FACTORIES=0x1000,	// Consider factories a greater target?
-	THREAT_BASE_DEFENSE=0x2000	// Consider base defense buildings a greater target?
+	THREAT_BASE_DEFENSE=0x2000,	// Consider base defense buildings a greater target?
 } ThreatType;
-inline ThreatType operator |(ThreatType, ThreatType);
-inline ThreatType operator &(ThreatType, ThreatType);
-inline ThreatType operator ~(ThreatType);
+//PG
+//inline ThreatType operator |(ThreatType, ThreatType);
+//inline ThreatType operator &(ThreatType, ThreatType);
+//inline ThreatType operator ~(ThreatType);
+
+inline ThreatType operator|(ThreatType a, ThreatType b)
+{return static_cast<ThreatType>(static_cast<int>(a) | static_cast<int>(b));}
+
+inline ThreatType operator&(ThreatType a, ThreatType b)
+{return static_cast<ThreatType>(static_cast<int>(a) & static_cast<int>(b));}
+
+inline ThreatType operator~(ThreatType a)
+{return static_cast<ThreatType>(~static_cast<int>(a));}
+
 
 #define THREAT_GROUND	(THREAT_VEHICLES|THREAT_BUILDINGS|THREAT_INFANTRY)
 
@@ -932,7 +965,7 @@ inline ThreatType operator ~(ThreatType);
 **	By examining this value it can be determined what should be done
 **	to fix the reason why firing wasn't allowed.
 */
-typedef enum FireErrorType {
+typedef enum FireErrorType : unsigned char{
 	FIRE_OK,				// Weapon is allowed to fire.
 	FIRE_AMMO,			// No ammo available to fire?
 	FIRE_FACING,		// Not correctly facing target?
@@ -953,7 +986,7 @@ typedef enum FireErrorType {
 **	UNCLOAKED state. This state controls how the object transitions between
 **	cloaked and uncloaked conditions.
 */
-typedef enum CloakType {
+typedef enum CloakType : unsigned char {
 	UNCLOAKED,			// Completely visible (normal state).
 	CLOAKING,			// In process of cloaking.
 	CLOAKED,				// Completely cloaked (invisible).
@@ -965,7 +998,7 @@ typedef enum CloakType {
 **	For units that are cloaking, these value specify the visual character
 **	of the object.
 */
-typedef enum VisualType {
+typedef enum VisualType : unsigned char{
 	VISUAL_NORMAL,				// Completely visible -- normal.
 	VISUAL_INDISTINCT,		// The edges shimmer and become indistinct.
 	VISUAL_DARKEN,				// Color and texture is muted along with shimmering.
@@ -980,7 +1013,7 @@ typedef enum VisualType {
 **	a game object. Only one of these state machines is active at any one
 **	time.
 */
-typedef enum MissionType {
+typedef enum MissionType : char {
 	MISSION_NONE=-1,
 
 	MISSION_SLEEP,				// Do nothing whatsoever.
@@ -1017,7 +1050,7 @@ typedef enum MissionType {
 **	be processing. These serve to control the way that a building
 **	appears.
 */
-typedef enum BStateType {
+typedef enum BStateType : char {
 	BSTATE_NONE=-1,
 	BSTATE_CONSTRUCTION,		// Construction animation.
 	BSTATE_IDLE,				// Idle animation.
@@ -1037,7 +1070,7 @@ typedef enum BStateType {
 **	mouse cursor looks when "hovering" over the spot that clicking would
 **	occur at.
 */
-typedef enum ActionType {
+typedef enum ActionType : unsigned char {
 	ACTION_NONE,			// Either undefined action or "do nothing".
 	ACTION_MOVE,			// Can move there or at least try to.
 	ACTION_NOMOVE,			// Special case for movable object, but illegal mouse position.
@@ -1070,6 +1103,7 @@ typedef enum ActionType {
 	ACTION_NO_DEPLOY,
 	ACTION_NO_ENTER,
 	ACTION_NO_GREPAIR,
+	ACTION_TOGGLE_PRIMARY,	// Toggle the primary status of the factory.
 
 	ACTION_COUNT
 } ActionType;
@@ -1079,7 +1113,7 @@ typedef enum ActionType {
 **	When a unit gets damaged, the result of the damage is returned as
 **	this type. It can range from no damage taken to complete destruction.
 */
-typedef enum ResultType {
+typedef enum ResultType : unsigned char {
 	RESULT_NONE,				// No damage was taken by the target.
 	RESULT_LIGHT,				// Some damage was taken, but no state change occurred.
 	RESULT_HALF,				// Damaged to below half strength (only returned on transition).
@@ -1119,7 +1153,7 @@ enum ConcreteEnum {
 **	Units that move can move at different speeds. These enumerate the
 **	different speeds that a unit can move.
 */
-typedef enum MPHType{
+typedef enum MPHType : unsigned char {
 	MPH_IMMOBILE=0,
 	MPH_VERY_SLOW=5,				//	2
 	MPH_KINDA_SLOW=6,				//	3
@@ -1140,7 +1174,7 @@ typedef enum MPHType{
 **	The houses that can be played are listed here. Each has their own
 **	personality and strengths.
 */
-typedef enum HousesType {
+typedef enum HousesType : char {
 	HOUSE_NONE=-1,
 	HOUSE_SPAIN,				//	Gold (unremapped)
 	HOUSE_GREECE,				// LtBlue
@@ -1166,7 +1200,8 @@ typedef enum HousesType {
 	HOUSE_FIRST=0
 } HousesType;
 
-inline HousesType operator++(HousesType &, int);
+//inline HousesType operator++(HousesType &, int) {return (HousesType)(int;
+inline HousesType operator++(HousesType &ht) { ht = (HousesType)(((int)ht)+1); return ht; }
 
 #define	HOUSEF_ALLIES	(HOUSEF_ENGLAND|HOUSEF_SPAIN|HOUSEF_GREECE|HOUSEF_GERMANY|HOUSEF_FRANCE|HOUSEF_TURKEY|HOUSEF_GOOD)
 #define	HOUSEF_SOVIET	(HOUSEF_USSR|HOUSEF_UKRAINE|HOUSEF_BAD)
@@ -1194,15 +1229,15 @@ inline HousesType operator++(HousesType &, int);
 #define	HOUSEF_MULTI7	(1L<<HOUSE_MULTI7)
 #define	HOUSEF_MULTI8	(1L<<HOUSE_MULTI8)
 
-typedef enum PlayerColorType {
+typedef enum PlayerColorType : char {
 	PCOLOR_NONE = -1,
 	PCOLOR_GOLD,
 	PCOLOR_LTBLUE,
 	PCOLOR_RED,
 	PCOLOR_GREEN,
 	PCOLOR_ORANGE,
-	PCOLOR_GREY,
 	PCOLOR_BLUE,		//This is actually the red scheme used in the dialogs
+	PCOLOR_GREY,
 	PCOLOR_BROWN,
 	PCOLOR_TYPE,
 	PCOLOR_REALLY_BLUE,
@@ -1210,7 +1245,7 @@ typedef enum PlayerColorType {
 
 	PCOLOR_COUNT,
 	PCOLOR_FIRST=0,
-	PCOLOR_LAST=(int)PCOLOR_COUNT-1
+	PCOLOR_LAST=PCOLOR_COUNT-1
 } PlayerColorType;
 
 
@@ -1218,7 +1253,7 @@ typedef enum PlayerColorType {
 **	This enumerates the remap logic to be applied to an object type when
 **	it appears in the construction sidebar.
 */
-typedef enum RemapType {
+typedef enum RemapType : unsigned char {
 	REMAP_NONE,
 	REMAP_NORMAL,
 	REMAP_ALTERNATE
@@ -1230,7 +1265,7 @@ typedef enum RemapType {
 ** usual human-vs-computer games; 2-Player games are network or modem,
 ** with 2 players; multi-player games are network with > 2 players.
 */
-typedef enum ScenarioPlayerEnum
+typedef enum ScenarioPlayerEnum : char
 {
 	SCEN_PLAYER_NONE = -1,
 	SCEN_PLAYER_SPAIN,
@@ -1249,7 +1284,7 @@ inline ScenarioPlayerType operator++(ScenarioPlayerType &, int);
 /**********************************************************************
 ** These are the directional parameters for a scenario.
 */
-typedef enum ScenarioDirEnum
+typedef enum ScenarioDirEnum : char 
 {
 	SCEN_DIR_NONE = -1,
 	SCEN_DIR_EAST,
@@ -1264,7 +1299,7 @@ inline ScenarioDirType operator++(ScenarioDirType &, int);
 /**********************************************************************
 ** These are the random variations of a scenario.
 */
-typedef enum ScenarioVarEnum
+typedef enum ScenarioVarEnum : char 
 {
 	SCEN_VAR_NONE = -1,
 	SCEN_VAR_A,
@@ -1276,7 +1311,8 @@ typedef enum ScenarioVarEnum
 	SCEN_VAR_FIRST = 0
 } ScenarioVarType;
 
-inline ScenarioVarType operator++(ScenarioVarType &, int);
+//inline ScenarioVarType operator++(ScenarioVarType &, int);
+inline ScenarioVarType operator++(ScenarioVarType &n) { n = (ScenarioVarType)(((int)n) + 1); return n; }
 
 
 /**********************************************************************
@@ -1284,7 +1320,7 @@ inline ScenarioVarType operator++(ScenarioVarType &, int);
 **	enumerated values specify those layers. The ground layer is sorted
 **	from back to front.
 */
-typedef enum LayerType {
+typedef enum LayerType : char {
 	LAYER_NONE=-1,
 	LAYER_SURFACE,		// Flat on the ground (no sorting or apparent vertical height).
 	LAYER_GROUND,		// Touching the ground type object (units & buildings).
@@ -1295,14 +1331,15 @@ typedef enum LayerType {
 	LAYER_FIRST=0
 } LayerType;
 
-inline LayerType operator++(LayerType &, int);
+//PG inline LayerType operator++(LayerType &, int);
+inline LayerType operator++(LayerType &n) { n = (LayerType)(((int)n) + 1); return n; }
 
 
 /**********************************************************************
 **	This enumerates the various bullet types. These types specify bullet's
 **	visual and explosive characteristics.
 */
-typedef enum BulletType {
+typedef enum BulletType : char {
 	BULLET_NONE=-1,
 
 	BULLET_INVISIBLE,
@@ -1328,14 +1365,15 @@ typedef enum BulletType {
 	BULLET_FIRST=0
 } BulletType;
 
-inline BulletType operator++(BulletType &, int);
+//PG inline BulletType operator++(BulletType &, int);
+inline BulletType operator++(BulletType &n) { n = (BulletType)(((int)n) + 1); return n; }
 
 
 /**********************************************************************
 **	All game buildings (structures) are enumerated here. This includes
 **	civilian structures as well.
 */
-typedef enum StructType {
+typedef enum StructType : char {
 	STRUCT_NONE=-1,
 	STRUCT_ADVANCED_TECH,
 	STRUCT_IRON_CURTAIN,
@@ -1444,7 +1482,8 @@ typedef enum StructType {
 	STRUCT_FIRST=0
 } StructType;
 
-inline StructType operator++(StructType &, int);
+//PG inline StructType operator++(StructType &, int);
+inline StructType operator++(StructType &n) { n = (StructType)(((int)n) + 1); return n; }
 
 #define	STRUCTF_NONE				0L
 #define	STRUCTF_ADVANCED_TECH	(1L << STRUCT_ADVANCED_TECH)
@@ -1486,7 +1525,7 @@ inline StructType operator++(StructType &, int);
 **	a transparent icon. It is placed over the terrain but usually falls
 **	"under" buildings, trees, and units.
 */
-typedef enum OverlayType {
+typedef enum OverlayType : char {
 	OVERLAY_NONE=-1,
 	OVERLAY_SANDBAG_WALL,	// Piled sandbags.
 	OVERLAY_CYCLONE_WALL,	// Chain-link fence.
@@ -1518,14 +1557,14 @@ typedef enum OverlayType {
 	OVERLAY_FIRST=0
 } OverlayType;
 
-inline OverlayType operator++(OverlayType &, int);
+//PG inline OverlayType operator++(OverlayType &, int);
 
 
 /**********************************************************************
 **	This specifies the infantry in the game. The "E" designation is
 **	similar to the army classification of enlisted soldiers.
 */
-typedef enum InfantryType{
+typedef enum InfantryType : char {
 	INFANTRY_NONE=-1,
 	INFANTRY_E1,				// Mini-gun armed.
 	INFANTRY_E2,				// Grenade thrower.
@@ -1569,14 +1608,14 @@ typedef enum InfantryType{
 
 #define INFANTRYF_DOG	(1L << INFANTRY_DOG)
 
-inline InfantryType operator++(InfantryType &, int);
+//PG inline InfantryType operator++(InfantryType &, int);
 
 
 /**********************************************************************
 **	The game units are enumerated here. These include not only traditional
 **	vehicles, but also hovercraft and gunboats.
 */
-typedef enum UnitType{
+typedef enum UnitType : char {
 	UNIT_NONE=-1,
 	UNIT_HTANK,					// Mammoth tank.
 	UNIT_MTANK,					// Heavy tank.
@@ -1618,7 +1657,7 @@ typedef enum UnitType{
 #endif
 } UnitType;
 
-inline UnitType operator++(UnitType &, int);
+//PG inline UnitType operator++(UnitType &, int);
 
 #define	UNITF_HTANK			(1L<<UNIT_HTANK)
 #define	UNITF_MTANK			(1L<<UNIT_MTANK)
@@ -1636,7 +1675,7 @@ inline UnitType operator++(UnitType &, int);
 /**********************************************************************
 **	The naval vessels are enumerated below.
 */
-typedef enum VesselType{
+typedef enum VesselType : char {
 	VESSEL_NONE=-1,
 
 	VESSEL_SS,						// Submarine
@@ -1660,7 +1699,7 @@ typedef enum VesselType{
 #endif
 } VesselType;
 
-inline VesselType operator++(VesselType &, int);
+//inline VesselType operator++(VesselType &, int);
 
 #define	VESSELF_SS			(1L<<VESSEL_SS)
 #define	VESSELF_DD			(1L<<VESSEL_DD)
@@ -1673,7 +1712,7 @@ inline VesselType operator++(VesselType &, int);
 **	The various aircraft types are enumerated here. These include helicopters
 **	as well as traditional aircraft.
 */
-typedef enum AircraftType {
+typedef enum AircraftType : char {
 	AIRCRAFT_TRANSPORT,			// Transport helicopter.
 	AIRCRAFT_BADGER,				// Badger bomber.
 	AIRCRAFT_U2,					// Photo recon plane.
@@ -1695,7 +1734,7 @@ typedef enum AircraftType {
 #define	AIRCRAFTF_LONGBOW		(1L << AIRCRAFT_LONGBOW)
 #define	AIRCRAFTF_HIND			(1L << AIRCRAFT_HIND)
 
-inline AircraftType operator++(AircraftType &, int);
+//PG inline AircraftType operator++(AircraftType &, int);
 
 
 /**********************************************************************
@@ -1704,7 +1743,7 @@ inline AircraftType operator++(AircraftType &, int);
 **	terrain is broken up into icons, is not transparent, and is drawn
 **	as the bottom most layer, then it is a template.
 */
-typedef enum TemplateType {
+typedef enum TemplateType : unsigned short {
 	TEMPLATE_CLEAR1,
 	TEMPLATE_WATER,			// This must be the first non-clear template.
 	TEMPLATE_WATER2,
@@ -2119,15 +2158,15 @@ typedef enum TemplateType {
 	TEMPLATE_FIRST=0
 } TemplateType;
 
-inline TemplateType operator++(TemplateType &, int);
-
+//PG inline TemplateType operator++(TemplateType &, int);
+inline TemplateType operator++(TemplateType &n) { n = (TemplateType)(((int)n) + 1); return n; }
 
 /**********************************************************************
 **	The three dimensional terrain objects are enumerated here. These
 **	objects function similar to buildings in that they can be driven
 **	behind and can take damage on an individual basis.
 */
-typedef enum TerrainType {
+typedef enum TerrainType : char {
 	TERRAIN_NONE=-1,
 	TERRAIN_TREE1,
 	TERRAIN_TREE2,
@@ -2172,7 +2211,7 @@ typedef enum TerrainType {
 	TERRAIN_FIRST=0
 } TerrainType;
 
-inline TerrainType operator++(TerrainType &, int);
+//PG inline TerrainType operator++(TerrainType &, int);
 
 
 /**********************************************************************
@@ -2180,7 +2219,7 @@ inline TerrainType operator++(TerrainType &, int);
 **	drawn over the underlying terrain in order to give the effect of
 **	alterations to the terrain. Craters are a good example of this.
 */
-typedef enum SmudgeType {
+typedef enum SmudgeType : char {
 	SMUDGE_NONE=-1,
 	SMUDGE_CRATER1,
 	SMUDGE_CRATER2,
@@ -2202,14 +2241,14 @@ typedef enum SmudgeType {
 	SMUDGE_FIRST=0
 } SmudgeType;
 
-inline SmudgeType operator++(SmudgeType &, int);
+//PG inline SmudgeType operator++(SmudgeType &, int);
 
 
 /**********************************************************************
 **	Animations are enumerated here. Animations are the high speed and
 **	short lived effects that occur with explosions and fire.
 */
-typedef enum AnimType {
+typedef enum AnimType : char {
 	ANIM_NONE=-1,
 	ANIM_FBALL1,					// Large fireball explosion (bulges rightward).
 	ANIM_FBALL_FADE,				// Fading fireball puff.
@@ -2290,11 +2329,20 @@ typedef enum AnimType {
 	ANIM_CRATE_TQUAKE,
 	ANIM_PARA_BOMB,
 	ANIM_MINE_EXP1,
+	ANIM_FLAG,
+	ANIM_BEACON,
 
 #ifdef FIXIT_ANTS
-	ANIM_ANT_DEATH,
+	ANIM_ANT1_DEATH,
+	ANIM_ANT2_DEATH,
+	ANIM_ANT3_DEATH,
 #endif
 
+	ANIM_FIRE_SMALL_VIRTUAL,			// Small flame animation.
+	ANIM_FIRE_MED_VIRTUAL,				// Medium flame animation.
+	ANIM_FIRE_MED2_VIRTUAL,				// Medium flame animation (oranger).
+	ANIM_FIRE_TINY_VIRTUAL,				// Very tiny flames.
+	ANIM_BEACON_VIRTUAL,		// Beacon (virtual).
 
 	ANIM_COUNT,
 	ANIM_FIRST=0
@@ -2308,7 +2356,7 @@ inline AnimType operator++(AnimType &, int);
 **	Infantry can be performing various activities. These can range from simple
 **	idle animations to physical hand to hand combat.
 */
-typedef enum DoType {
+typedef enum DoType : char {
 	DO_NOTHING=-1,				// Not performing any choreographed sequence.
 	DO_STAND_READY=0,
 	DO_STAND_GUARD,
@@ -2361,7 +2409,7 @@ typedef struct {
 **	units and buildings. Some of these require a response from the receiver
 **	and some don't.
 */
-typedef enum RadioMessageType {
+typedef enum RadioMessageType : unsigned char {
 	RADIO_STATIC,				// "hisssss" -- non-message
 	RADIO_ROGER,				// "Roger."
 	RADIO_HELLO,				// "Come in. I wish to talk."
@@ -2406,7 +2454,7 @@ typedef enum RadioMessageType {
 **	used to indicate what kind of additional data is required. This is also used
 **	for team mission types that might need additional data.
 */
-typedef enum NeedType {
+typedef enum NeedType : unsigned char {
 	NEED_NONE,					// No additional data is required.
 	NEED_THEME,					// Need a musical theme.
 	NEED_MOVIE,					// Need a movie to play.
@@ -2437,7 +2485,7 @@ typedef enum NeedType {
 **	disposition of potential targets cannot be precisely predicted -- thus these
 **	serve as guidelines for the computer AI.
 */
-typedef enum QuarryType {
+typedef enum QuarryType : unsigned char {
 	QUARRY_NONE,
 
 	QUARRY_ANYTHING,					// Attack any enemy (same as "hunt").
@@ -2461,7 +2509,7 @@ typedef enum QuarryType {
 **	Teams can be assigned formations. This specifies the various formations that
 **	a team can be composed into.
 */
-typedef enum FormationType {
+typedef enum FormationType : unsigned char {
 	FORMATION_NONE,
 
 	FORMATION_TIGHT,				// Tight grouping (vulnerable units in center).
@@ -2483,7 +2531,7 @@ typedef enum FormationType {
 **	defines for the two types of selected unit boxes. One is for infantry and
 **	the other is for regular units.
 */
-typedef enum SelectEnum {
+typedef enum SelectEnum : char {
 	SELECT_NONE=-1,
 	SELECT_INFANTRY,					// Small infantry selection box.
 	SELECT_UNIT,						// Big unit selection box.
@@ -2500,7 +2548,7 @@ typedef enum SelectEnum {
 **	type. These special shapes are drawn over special objects or in other places
 **	where shape technology is needed.
 */
-typedef enum PipEnum
+typedef enum PipEnum : unsigned char 
 {
 	PIP_EMPTY,			// Empty pip spot.
 	PIP_FULL,			// Full pip spot.
@@ -2528,12 +2576,24 @@ typedef enum PipEnum
 
 
 /****************************************************************************
+**	The radar map can be in one of several states depending on the presense of
+**	certain structures and power levels.
+*/
+typedef enum RadarEnum : unsigned char
+{
+	RADAR_NONE,	// Radar map doesn't exist at all
+	RADAR_OFF,	// Radar map is present, but displayed as off and non-interactive
+	RADAR_ON	// Radar map is present, visible, and fully interactive
+} RadarEnum;
+
+
+/****************************************************************************
 **	The mouse cursor can be in different states. These states are listed
 **	below. Some of these represent animating mouse cursors. The mouse
 **	is controlled by passing one of these values to the appropriate
 **	MouseClass member function.
 */
-typedef enum MouseType
+typedef enum MouseType : unsigned char
 {
 	MOUSE_NORMAL,
 	MOUSE_N,
@@ -2593,7 +2653,7 @@ typedef struct {
 	int	Corner;		// Corner color (transition).
 } BoxStyleType;
 
-typedef enum BoxStyleEnum {
+typedef enum BoxStyleEnum : unsigned char {
 	BOXSTYLE_DOWN,					// Typical depressed edge border.
 	BOXSTYLE_RAISED,				// Typical raised edge border.
 	BOXSTYLE_DIS_DOWN,			// Disabled but depressed.
@@ -2610,7 +2670,7 @@ typedef enum BoxStyleEnum {
 **	These are the different "warhead" types that can be assigned to the
 **	various projectiles in the game.
 */
-typedef enum WarheadType{
+typedef enum WarheadType : char {
 	WARHEAD_NONE=-1,
 
 	WARHEAD_SA,					// Small arms -- good against infantry.
@@ -2634,7 +2694,7 @@ typedef enum WarheadType{
 **	by the projectile it launches, the damage it does, and the rate of
 **	fire.
 */
-typedef enum WeaponType {
+typedef enum WeaponType : char {
 	WEAPON_NONE=-1,
 
 	WEAPON_COLT45,
@@ -2701,7 +2761,7 @@ typedef enum WeaponType {
 **	combination of armor and weaponry. Each vehicle or building has armor
 **	rated according to one of the following types.
 */
-typedef enum ArmorType {
+typedef enum ArmorType : unsigned char {
 	ARMOR_NONE,			// Vulnerable to SA and HE.
 	ARMOR_WOOD,			// Vulnerable to HE and Fire.
 	ARMOR_ALUMINUM,	// Vulnerable to AP and SA.
@@ -2716,7 +2776,7 @@ typedef enum ArmorType {
 /**********************************************************************
 **	These are the identifiers for the various monochrome debug screens.
 */
-typedef enum DMonoType {
+typedef enum DMonoType : unsigned char {
 	DMONO_OBJECT,
 	DMONO_HOUSE,
 	DMONO_STRESS,
@@ -2729,7 +2789,7 @@ typedef enum DMonoType {
 /*
 **	Performance benchmark tracking identifiers.
 */
-typedef enum BenchType {
+typedef enum BenchType : unsigned char {
 	BENCH_GAME_FRAME,			// Whole game frame (used for normalizing).
 	BENCH_FINDPATH,			// Find path calls.
 	BENCH_GREATEST_THREAT,	// Greatest threat calculation.
@@ -2796,7 +2856,7 @@ typedef enum BenchType {
 /**********************************************************************
 **	These are the control flags for Fancy_Text_Print function.
 */
-typedef enum TextPrintType {
+typedef enum TextPrintType : unsigned short {
 	TPF_LASTPOINT		=0x0000,		// Use previous font point value.
 	TPF_6POINT			=0x0001,		// Use 6 point font.
 	TPF_8POINT			=0x0002,		// Use 8 point font.
@@ -2821,9 +2881,19 @@ typedef enum TextPrintType {
 	TPF_USE_GRAD_PAL	=0x4000		// Use a gradient palette based on fore color
 } TextPrintType;
 
-inline TextPrintType operator |(TextPrintType, TextPrintType);
-inline TextPrintType operator &(TextPrintType, TextPrintType);
-inline TextPrintType operator ~(TextPrintType);
+//PG
+//inline TextPrintType operator |(TextPrintType, TextPrintType);
+//inline TextPrintType operator &(TextPrintType, TextPrintType);
+//inline TextPrintType operator ~(TextPrintType);
+
+inline TextPrintType operator|(TextPrintType a, TextPrintType b)
+{return static_cast<TextPrintType>(static_cast<int>(a) | static_cast<int>(b));}
+
+inline TextPrintType operator&(TextPrintType a, TextPrintType b)
+{return static_cast<TextPrintType>(static_cast<int>(a) & static_cast<int>(b));}
+
+inline TextPrintType operator~(TextPrintType a)
+{return static_cast<TextPrintType>(~static_cast<int>(a));}
 
 // Standard button text print flags.
 #define TPF_BUTTON	(TPF_CENTER|TPF_6PT_GRAD|TPF_NOSHADOW)
@@ -2859,7 +2929,7 @@ inline TextPrintType operator ~(TextPrintType);
 **	a particular piece of ground must fall under one of these classifications.
 **	This is true, even if it is undergoing a temporary transition.
 */
-typedef enum LandType {
+typedef enum LandType : char {
 	LAND_CLEAR,		// "Clear" terrain.
 	LAND_ROAD,		// Road terrain.
 	LAND_WATER,		// Water.
@@ -2879,7 +2949,7 @@ typedef enum LandType {
 /**********************************************************************
 **	The theaters of operation are as follows.
 */
-typedef enum TheaterType {
+typedef enum TheaterType : char {
 	THEATER_NONE=-1,
 	THEATER_TEMPERATE,
 	THEATER_SNOW,
@@ -2889,7 +2959,9 @@ typedef enum TheaterType {
 	THEATER_FIRST=0
 } TheaterType;
 
-inline TheaterType operator++(TheaterType &, int);
+//inline TheaterType operator++(TheaterType &, int);
+inline TheaterType operator++(TheaterType &n) { n = (TheaterType)(((int)n)+1); return n; }
+
 
 #define	THEATERF_TEMPERATE		(1<<THEATER_TEMPERATE)
 #define	THEATERF_SNOW				(1<<THEATER_SNOW)
@@ -2907,7 +2979,7 @@ typedef struct {
 **	The trailing number is this define is the width and height (respectively)
 **	of the building in cells.
 */
-typedef enum BSizeType {
+typedef enum BSizeType : char {
 	BSIZE_NONE=-1,
 	BSIZE_11=0,
 	BSIZE_21,
@@ -2931,7 +3003,7 @@ inline BSizeType operator++(BSizeType &, int);
 ** or when an object's rendering (not logical) size changes, due to
 ** its being selected or having an animation attached (overlap up/down).
 */
-typedef enum MarkType {
+typedef enum MarkType : unsigned char {
 	MARK_UP,					//	Removed from the map.
 	MARK_DOWN,				//	Placed on the map.
 	MARK_CHANGE,			//	Altered in place on the map.
@@ -2946,7 +3018,7 @@ typedef enum MarkType {
 **	the value given in this list.
 */
 // Allow window number enums to be passed to library functions.
-typedef enum WindowNumberType {
+typedef enum WindowNumberType : unsigned char {
 	WINDOW_MAIN,				// Full screen window.
 	WINDOW_ERROR,				// Library error window.
 	WINDOW_TACTICAL,			// Tactical map window.
@@ -2954,6 +3026,8 @@ typedef enum WindowNumberType {
 	WINDOW_SIDEBAR,			// Sidebar (buildable list) window.
 	WINDOW_EDITOR,				// Scenario editor window.
 	WINDOW_PARTIAL,			// Partial object draw sub-window.
+	WINDOW_CUSTOM,				// Window that can be altered depending on circumstances
+	WINDOW_VIRTUAL				// Window that is used when we want to capture rendering information without actually rendering. ST - 1/15/2019 3:03PM
 } WindowNumberType;
 
 
@@ -2962,7 +3036,7 @@ typedef enum WindowNumberType {
 **	when referring to adjacent cells. This comes into play when moving
 **	between cells and in the Desired_Facing() algorithm.
 */
-typedef enum FacingType {
+typedef enum FacingType : char {
 	FACING_NONE=-1,
 	FACING_N,			// North
 	FACING_NE,			// North-East
@@ -2977,7 +3051,7 @@ typedef enum FacingType {
 	FACING_FIRST=0
 } FacingType;
 
-inline FacingType operator++(FacingType &, int);
+//inline FacingType operator++(FacingType &, int);
 inline FacingType operator + (FacingType f1, FacingType f2)
 {
 	return (FacingType)(((int)f1 + (int)f2) & 0x07);
@@ -3064,7 +3138,7 @@ inline DirType operator + (DirType f1, int f2)
 **	its physical speed, but the means by which it travels (wheels, tracks,
 **	wings, etc). This is used to determine the movement table.
 */
-typedef enum SpeedType {
+typedef enum SpeedType : char {
 	SPEED_NONE=-1,
 
 	SPEED_FOOT,					// Bipedal.
@@ -3081,7 +3155,7 @@ typedef enum SpeedType {
 /**********************************************************************
 **	These are the sound effect digitized sample file names.
 */
-typedef enum VocType{
+typedef enum VocType : short {
 	VOC_NONE=-1,
 
 	VOC_GIRL_OKAY,			// "okay"
@@ -3267,6 +3341,8 @@ typedef enum VocType{
 	VOC_MAD_EXPLODE,
 	VOC_SHOCK_TROOP1,
 
+	VOC_BEACON,
+
 #endif
 	VOC_COUNT,
 	VOC_FIRST=0
@@ -3275,7 +3351,7 @@ typedef enum VocType{
 /*
 **	EVA voices are specified by these identifiers.
 */
-typedef enum VoxType{
+typedef enum VoxType : char {
 	VOX_NONE=-1,
 	VOX_ACCOMPLISHED,					//	mission accomplished
 	VOX_FAIL,							//	your mission has failed
@@ -3408,7 +3484,7 @@ typedef enum VoxType{
 **	data originates in the scenario INI file but is then carried throughout
 **	any saved games.
 */
-typedef enum SourceType {
+typedef enum SourceType : char {
 	SOURCE_NONE=-1,				// No defined source (error condition).
 	SOURCE_NORTH,					// From north edge.
 	SOURCE_EAST,					// From east edge.
@@ -3471,7 +3547,7 @@ typedef struct {
 ** These are special indices into the Waypoint array; slots 0-25 are
 ** reserved for letter-designated Waypoints, the others are special.
 */
-typedef enum WaypointEnum
+typedef enum WaypointEnum : unsigned char 
 {
 	WAYPT_HOME = 98,				// Home-cell for this scenario
 	WAYPT_REINF,					// cell where reinforcements arrive
@@ -3483,9 +3559,9 @@ typedef enum WaypointEnum
 /****************************************************************************
 **	This is the max number of events supported on one frame.
 */
-#define	MAX_EVENTS			64
+#define	MAX_EVENTS			256
 
-typedef enum {
+typedef enum : unsigned char {
 	KF_NUMBER   = 0x08,
 	KF_LCW      = 0x10,
 	KF_DELTA    = 0x20,
@@ -3515,14 +3591,14 @@ typedef struct {
 **	These are the types of dialogs that can pop up outside of the main loop,
 ** an call the game in the background.
 */
-typedef enum {
+typedef enum : unsigned char {
 	SDLG_NONE,
 	SDLG_OPTIONS,
 	SDLG_SURRENDER,
 	SDLG_SPECIAL
 } SpecialDialogType;
 
-typedef enum {
+typedef enum : unsigned char {
 	CC_MOUSE_COLOR=16
 } CCPaletteType;
 
@@ -3533,7 +3609,7 @@ typedef enum {
 **	For dialog box shapes, they are left image / right image paired. For buttons,
 **	they are up / down paired.
 */
-typedef enum OptionControlType {
+typedef enum OptionControlType : char {
 	OPTION_NONE=-1,			// No fancy shmancy shape.
 	OPTION_DIALOG=0,			// Small dialog boxes.
 	OPTION_CONTROLS=2,		// Large dialog boxes, game controls.
@@ -3549,6 +3625,15 @@ typedef enum OptionControlType {
 } OptionControlType;
 
 
+/****************************************************************************
+**	Used to store firing data for a unit.
+*/
+typedef struct {
+	COORDINATE Center;
+	int Distance;
+} FireDataType;
+
+
 #define size_of(typ,id) sizeof(((typ*)0)->id)
 
 
@@ -3557,6 +3642,7 @@ typedef enum OptionControlType {
 // Maximum number of multi players possible.
 #define	MAX_PLAYERS						8		// max # of players we can have
 
-
+// Maximum number of teams
+#define MAX_TEAMS						10
 
 #endif

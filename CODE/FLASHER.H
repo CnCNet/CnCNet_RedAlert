@@ -54,7 +54,21 @@ class FlasherClass {
 		*/
 		unsigned IsBlushing:1;
 
-		FlasherClass(void) {FlashCount = 0; IsBlushing = false;};
+		// 2019/09/20 JAS - Flashing info needs to exist per player
+		unsigned int Get_Flashing_Flags() const;
+		unsigned int FlashCountPerPlayer[HOUSE_COUNT];
+
+		// 2019/09/20 JAS - Flashing info needs to exist per player
+		FlasherClass(void) {
+			FlashCount = 0;
+			IsBlushing = false;
+
+			for (int i = 0; i < HOUSE_COUNT; ++i)
+			{
+				FlashCountPerPlayer[i] = 0;
+			}
+		}
+
 		FlasherClass(NoInitClass const & ) {};
 		~FlasherClass(void) {};
 

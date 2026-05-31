@@ -38,6 +38,9 @@
 #ifndef CREDITS_H
 #define CREDITS_H
 
+class HouseClass;
+extern HouseClass *PlayerPtr;
+
 /****************************************************************************
 **	The animating credit counter display is controlled by this class.
 */
@@ -57,7 +60,7 @@ class CreditClass {
 		void Update(bool forced=false, bool redraw=false);
 
 		void Graphic_Logic(bool forced=false);
-		void AI(bool forced=false);
+		void AI(bool forced=false, HouseClass *player_ptr = PlayerPtr, bool logic_only = false);		// Added house and logic_only parameters. ST - 10/16/2019 2:26PM
 
 		long	Current;		// Credit value currently displayed.
 

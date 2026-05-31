@@ -108,7 +108,7 @@ TASKSWITCHABLE	EQU	0400H	; 1:allows task switching keys thru ALT-TAB,
 PASSBREAKS	EQU	0800H	; 1:Pass all break codes to keyboard buffer.
 KEYMOUSE	EQU	1000H	; 1:Numeric keypad moves mouse
 SIMLBUTTON	EQU	2000H	; 1:have space and enter keys simulate Left
-				;   mouse button when KEYMOUSE is set
+DEBUGINT	EQU	4000H	;   mouse button when KEYMOUSE is set
 
 
 SHIFTPRESS	EQU	001H	; bit 0 for shift key pressed

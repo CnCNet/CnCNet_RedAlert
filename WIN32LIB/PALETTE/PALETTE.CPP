@@ -44,10 +44,12 @@
 /*
 ********************************* Includes **********************************
 */
-#include <mem.h>
-#include "wwstd.h"
+//#include <mem.h>
+
 #include "palette.h"
 #include "timer.h"
+#include "wwstd.h"
+
 
 /*
 ********************************* Constants *********************************
@@ -195,7 +197,7 @@ void Fade_Palette_To(void *palette1, unsigned int delay, void (*callback)() )
 		.................. Wait for time increment to elapse ..................
 		*/
 		if (changed) {
-			while (TickCount.Time() < timer) {
+			while (TickCount.Time() < (int)timer) {
 				/*
 				................. Update callback while waiting .................
 				*/

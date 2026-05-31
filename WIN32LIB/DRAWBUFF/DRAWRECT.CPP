@@ -33,7 +33,10 @@
  *   Draw_Rect -- Draws a rectangle to the LogicPage.                      *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#ifndef GBUFFER_H
 #include "gbuffer.h"
+#include "misc.h"
+#endif
 
 /***************************************************************************
  * Draw_Rect -- Draws a rectangle to the LogicPage.                        *
@@ -66,3 +69,4 @@ VOID GraphicViewPortClass::Draw_Rect(int x1_pixel, int y1_pixel, int x2_pixel, i
 	Draw_Line(x2_pixel, y1_pixel, x2_pixel, y2_pixel, color);
 	Unlock();
 }
+

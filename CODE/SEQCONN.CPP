@@ -42,7 +42,7 @@
  *   SequencedConnClass::Service_Send_Queue -- services the send queue		*
  *   SequencedConnClass::Service_Receive_Queue -- services recieve queue	*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+#if (0)//PG
 #include "function.h"
 
 #include "WolDebug.h"
@@ -560,3 +560,4 @@ printf(">>>Unqueueing Send packet #%d<<<\n",packet_hdr->PacketID);
 	return(true);
 }
 
+#endif

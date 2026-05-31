@@ -71,6 +71,11 @@ extern bool SpawnedFromWChat;
 #endif
 extern int PreserveVQAScreen;
 
+void Display_Briefing_Text_GlyphX();
+
+extern void GlyphX_Assign_Houses(void);	//ST - 8/8/2019 12:35PM
+extern bool UseGlyphXStartLocations;		//ST - 3/31/2020 9:54AM
+
 //#include "WolDebug.h"
 
 #ifdef FIXIT_VERSION_3		//	Stalemate games.
@@ -82,8 +87,8 @@ static void Create_Units(bool official);
 static CELL Clip_Scatter(CELL cell, int maxdist);
 static CELL Clip_Move(CELL cell, FacingType facing, int dist);
 
-
-static int _build_tech[11] = {
+// Made this non-static so we can access it from the updated assign players function. ST - 8/9/2019 10:35AM
+int _build_tech[11] = {
 	2,2,			// Tech level 0 and 1 are the same (tech 0 is never used).
 	4,
 	5,
@@ -136,6 +141,9 @@ ScenarioClass::ScenarioClass(void) :
 	IntroMovie(VQ_NONE),
 	BriefMovie(VQ_NONE),
 	WinMovie(VQ_NONE),
+	WinMovie2(VQ_NONE),
+	WinMovie3(VQ_NONE),
+	WinMovie4(VQ_NONE),
 	LoseMovie(VQ_NONE),
 	ActionMovie(VQ_NONE),
 	TransitTheme(THEME_NONE),
@@ -314,6 +322,14 @@ Theme.Stop();
 		return(false);
 	}
 
+	/* Swap Lt. Blue and Blue color remaps in skirmish/multiplayer */
+	if (Session.Type != GAME_NORMAL) {
+		RemapControlType temp;
+		memcpy(&temp, &ColorRemaps[PCOLOR_LTBLUE], sizeof(RemapControlType));
+		memcpy(&ColorRemaps[PCOLOR_LTBLUE], &ColorRemaps[PCOLOR_BLUE], sizeof(RemapControlType));
+		memcpy(&ColorRemaps[PCOLOR_BLUE], &temp, sizeof(RemapControlType));
+	}
+
 	/*
 	**	Play the winning movie and then start the next scenario.
 	*/
@@ -359,11 +375,16 @@ Theme.Stop();
 	/*
 	** If there's no briefing movie, restate the mission at the beginning.
 	*/
+#if 1 // 12/04/2019 - LLL
+	if (Session.Type == GAME_NORMAL && Scen.BriefMovie == VQ_NONE) {
+		Display_Briefing_Text_GlyphX();
+	}
+#else
 	char buffer[25];
 	if (Scen.BriefMovie != VQ_NONE) {
 		sprintf(buffer, "%s.VQA", VQName[Scen.BriefMovie]);
 	}
-	if (Session.Type == GAME_NORMAL && (Scen.BriefMovie == VQ_NONE || !CCFileClass(buffer).Is_Available())) {
+	if (Session.Type == GAME_NORMAL && Scen.BriefMovie == VQ_NONE || !CCFileClass(buffer).Is_Available()) {
 		/*
 		** Make sure the mouse is visible before showing the restatement.
 		*/
@@ -372,6 +393,7 @@ Theme.Stop();
 		}
 		Restate_Mission(Scen.ScenarioName, TXT_OK, TXT_NONE);
 	}
+#endif
 
 	if (briefing) {
 		Hide_Mouse();
@@ -390,6 +412,41 @@ Theme.Stop();
 	Options.Set();
 
 	return(true);
+}
+
+
+/***********************************************************************************************
+ * Set_Scenario_Difficulty -- Sets the difficulty of the scenario.                             *
+ *                                                                                             *
+ *    Updates the player's difficulty in single-player mode.                                   *
+ *                                                                                             *
+ * INPUT:   difficulty     -- Scenario difficulty                                              *
+ *                                                                                             *
+ * OUTPUT:     none                                                                            *
+ *                                                                                             *
+ * WARNINGS:   Only works in single-player.                                                    *
+ *             Must call Start_Scenario first to initialize the player.                        *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   10/02/2019 SKY : Created.                                                                 *
+ *=============================================================================================*/
+void Set_Scenario_Difficulty(int difficulty)
+{
+	if (Session.Type == GAME_NORMAL) {
+		switch (difficulty) {
+			case 0:
+				PlayerPtr->Assign_Handicap(DIFF_EASY);
+				break;
+			case 1:
+				PlayerPtr->Assign_Handicap(DIFF_NORMAL);
+				break;
+			case 2:
+				PlayerPtr->Assign_Handicap(DIFF_HARD);
+				break;
+			default:
+				break;
+		}
+	}
 }
 
 
@@ -468,7 +525,9 @@ bool Read_Scenario(char * name)
 						}
 					#endif
 #endif
-					Emergency_Exit(EXIT_FAILURE);
+					if (!RunningAsDLL) {	//PG
+						Emergency_Exit(EXIT_FAILURE);
+					}
 		     	}
 			}
 			CCINIClass ini;
@@ -486,12 +545,25 @@ bool Read_Scenario(char * name)
 		}
 #endif
 		Fill_In_Data();
+		Map.Set_View_Dimensions(0, 0, Map.MapCellWidth, Map.MapCellHeight);
 	} else {
+		
+#if (1)
+		char message[200];
+		if (name) {
+			sprintf(message, "Failed to load scenario %s", name);
+			GlyphX_Debug_Print(message);
+		} else {
+			GlyphX_Debug_Print("Failed to load scenario");
+		}
+#else		
 		GamePalette.Set(FADE_PALETTE_FAST, Call_Back);
 //		Fade_Palette_To(GamePalette, FADE_PALETTE_FAST, Call_Back);
 		Show_Mouse();
 		WWMessageBox().Process(TXT_UNABLE_READ_SCENARIO);
 		Hide_Mouse();
+#endif
+		
 		BEnd(BENCH_SCENARIO);
 		return(false);
 	}
@@ -523,8 +595,8 @@ void Fill_In_Data(void)
 	**	game data. We now must fill in the missing pieces.
 	*/
 	ScenarioInit++;
-
-	for (int index = 0; index < Buildings.Count(); index++) {
+	int index;
+	for (index = 0; index < Buildings.Count(); index++) {
 		Buildings.Ptr(index)->Update_Buildables();
 	}
 
@@ -580,12 +652,12 @@ void Fill_In_Data(void)
 	** we won't get the wall of shadow at the edge of the map.
 	*/
 	int x,y;
-	for (x = Map.MapCellX-1; x < ((unsigned)(Map.MapCellX + Map.MapCellWidth + 1)); x++) {
+	for (x = Map.MapCellX-1; x < ((Map.MapCellX + Map.MapCellWidth + 1)); x++) {
 		Map[XY_Cell(x, Map.MapCellY-1)].IsVisible =
 			Map[XY_Cell(x, Map.MapCellY-1)].IsMapped = true;
 
-		Map[XY_Cell(x, Map.MapCellY+(unsigned)Map.MapCellHeight)].IsVisible =
-			Map[XY_Cell(x, Map.MapCellY+(unsigned)Map.MapCellHeight)].IsMapped = true;
+		Map[XY_Cell(x, Map.MapCellY+Map.MapCellHeight)].IsVisible =
+			Map[XY_Cell(x, Map.MapCellY+Map.MapCellHeight)].IsMapped = true;
 	}
 	for (y = Map.MapCellY; y < (Map.MapCellY + Map.MapCellHeight); y++) {
 		Map[XY_Cell(Map.MapCellX-1, y)].IsVisible =
@@ -638,7 +710,7 @@ void Fill_In_Data(void)
 	*/
 	Scen.BridgeCount = Map.Intact_Bridge_Count();
 
-	Map.All_To_Look(true);
+	Map.All_To_Look(PlayerPtr, true);
 }
 
 
@@ -661,6 +733,7 @@ void Fill_In_Data(void)
  *=============================================================================================*/
 void Post_Load_Game(int load_multi)
 {
+	Map.Set_View_Dimensions(0, 0, Map.MapCellWidth, Map.MapCellHeight);
 	//
 	// Do NOT call Overpass if we're loading a multiplayer game; it calls the
 	// random # generator, which throws the games out of sync if they were
@@ -703,6 +776,9 @@ void Clear_Scenario(void)
 	Scen.IntroMovie = VQ_NONE;
 	Scen.BriefMovie = VQ_NONE;
 	Scen.WinMovie = VQ_NONE;
+	Scen.WinMovie2 = VQ_NONE;
+	Scen.WinMovie3 = VQ_NONE;
+	Scen.WinMovie4 = VQ_NONE;
 	Scen.LoseMovie = VQ_NONE;
 	Scen.ActionMovie = VQ_NONE;
 	Scen.IsNoSpyPlane = false;
@@ -762,7 +838,7 @@ void Clear_Scenario(void)
 
 	Base.Init();
 
-	CurrentObject.Clear();
+	CurrentObject.Clear_All();
 
 	for (int index = 0; index < WAYPT_COUNT; index++) {
 		Scen.Waypoint[index] = -1;
@@ -867,6 +943,9 @@ void Do_Win(void)
 	VisiblePage.Clear();
 	Show_Mouse();
 	Play_Movie(Scen.WinMovie);
+	Play_Movie(Scen.WinMovie2);
+	Play_Movie(Scen.WinMovie3);
+	Play_Movie(Scen.WinMovie4);
 
 	Keyboard->Clear();
 
@@ -901,6 +980,7 @@ void Do_Win(void)
 		/*
 		** If this scenario is flagged as ending the game then print the credits and exit.
 		*/
+#if (0)//PG
 		if (Scen.IsEndOfGame) {
 			if (PlayerPtr->ActLike == HOUSE_USSR) {
 				Play_Movie(VQ_SOVFINAL);
@@ -915,7 +995,7 @@ void Do_Win(void)
 #endif
 			return;
 		}
-
+#endif
 		/*
 		** Hack section.  If it's allied scenario 10, variation A, then skip the
 		** score and map selection, don't increment scenario, and set it to
@@ -1315,11 +1395,11 @@ bool Restate_Mission(char const * name, int button1, int button2)
 #define	BUTTON_2		2
 #define	BUTTON_3		3
 #define	BUTTON_FLAG	0x8000
-bool BGMessageBox(char const * msg, int btn1, int btn2)
+int BGMessageBox(char const * msg, int btn1, int btn2)
 {
 #define BUFFSIZE 511
 	char buffer[BUFFSIZE];
-	bool retval;
+	int retval;
 	bool process;								// loop while true
 	KeyNumType input;							// user input
 	int selection;
@@ -1407,13 +1487,13 @@ bool BGMessageBox(char const * msg, int btn1, int btn2)
 		if (b2txt) {
 			numbuttons = 2;
 			b2char = toupper(b2txt[0]);
-			bwidth = max((String_Pixel_Width( b2txt ) + 8), bwidth);
+			bwidth = max(((int)String_Pixel_Width( b2txt ) + 8), bwidth);
 //			b1x = x + 10;								// left side
 
 			if (b3txt) {
 				numbuttons = 3;
 				b3char = toupper(b3txt[0]);
-				bwidth = max((String_Pixel_Width( b3txt ) + 8), bwidth);
+				bwidth = max(((int)String_Pixel_Width( b3txt ) + 8), bwidth);
 			}
 
 		} else {
@@ -1502,7 +1582,7 @@ bool BGMessageBox(char const * msg, int btn1, int btn2)
 	if (PlayerPtr->Class->House != HOUSE_USSR && PlayerPtr->Class->House != HOUSE_UKRAINE) {
 		filename = "ALIPAPER.PCX";
 	}
-	Load_Title_Screen(filename, &HidPage, temp);
+	Load_Title_Screen(filename, &HidPage, (unsigned char*)temp.Get_Data());
 #else
 	char *filename = "SOVPAPER.CPS";
 	if (PlayerPtr->Class->House != HOUSE_USSR && PlayerPtr->Class->House != HOUSE_UKRAINE) {
@@ -1516,7 +1596,7 @@ bool BGMessageBox(char const * msg, int btn1, int btn2)
 	VisiblePage.Blit(seen_buff_save);
 	#endif
 
-	static char _scorepal[]={0,1,12,13,4,5,6,7,8,9,10,255,252,253,14,248};
+	static unsigned char _scorepal[]={0,1,12,13,4,5,6,7,8,9,10,255,252,253,14,248};
 	Set_Font_Palette(_scorepal);
 	temp.Set(FADE_PALETTE_MEDIUM, Call_Back);
 
@@ -2084,8 +2164,10 @@ bool Read_Scenario_INI(char * fname, bool )
 		}
 #endif
 		if (!Force_CD_Available(RequiredCD)) {
-      		//Prog_End();
-			Emergency_Exit(EXIT_FAILURE);
+			Prog_End("Read_Scenario_INI Force_CD_Available failed", true);
+			if (!RunningAsDLL) {	//PG
+				Emergency_Exit(EXIT_FAILURE);
+			}
      	}
 	} else {
 		/*
@@ -2106,8 +2188,13 @@ bool Read_Scenario_INI(char * fname, bool )
 	int result = ini.Load(file, true);
 	if (result == 0) {
 //		Mono_Printf("ini.Load failed");
+		GlyphX_Debug_Print("Failed to load scenario file");
+		GlyphX_Debug_Print(fname);
 		return(false);
 	}
+
+	GlyphX_Debug_Print("Loaded scenario file");
+	GlyphX_Debug_Print(file);
 
 	/*
 	** If the scenario digest is wrong then the return code will be a 2.
@@ -2120,8 +2207,12 @@ bool Read_Scenario_INI(char * fname, bool )
 			**	maps will abort the scenario load.
 			*/
 			if (Scen.ScenarioName[2] != 'M' || Scen.Scenario >= 25) {
+#if (1)				
+				GlyphX_Debug_Print("Scenario digest is wrong");
+#else				
 				GamePalette.Set();
 				WWMessageBox().Process(TXT_SCENARIO_ERROR, TXT_OK);
+#endif
 #ifdef RELEASE_VERSION
 				return(false);
 #endif
@@ -2187,6 +2278,17 @@ bool Read_Scenario_INI(char * fname, bool )
 	Rule.Objects(AftermathINI);
 	Rule.Difficulty(AftermathINI);
 #endif
+
+	/*
+	**	For civilians, remove the graphics name override from the base rules (can still be overridden in scenario-specific INI).
+	*/
+	for (int iindex = 0; iindex < InfantryTypes.Count(); iindex++) {
+		InfantryTypeClass* itype = InfantryTypes.Ptr(iindex);
+		if (itype->IsCivilian) {
+			itype->GraphicName[0] = '\0';
+		}
+	}
+
 	/*
 	**	Override any rules values specified in this
 	**	particular scenario file.
@@ -2200,6 +2302,19 @@ bool Read_Scenario_INI(char * fname, bool )
 	Rule.IQ(ini);
 	Rule.Objects(ini);
 	Rule.Difficulty(ini);
+
+	/*
+	**	- Fix a legacy bug with England and France country bonuses.
+	**	- Use ore growth and spread values from the special settings.
+	*/
+	if (Session.Type != GAME_NORMAL) {
+		HouseTypeClass::As_Reference(HOUSE_ENGLAND).ArmorBias = fixed(9, 10);
+		HouseTypeClass::As_Reference(HOUSE_FRANCE).ROFBias = fixed(9, 10);
+
+		Rule.IsTGrowth = Special.IsTGrowth;
+		Rule.IsTSpread = Special.IsTSpread;
+	}
+
 	/*
 	** Init the Scenario CRC value
 	*/
@@ -2220,6 +2335,9 @@ bool Read_Scenario_INI(char * fname, bool )
 	Scen.IntroMovie = ini.Get_VQType(BASIC, "Intro", Scen.IntroMovie);
 	Scen.BriefMovie = ini.Get_VQType(BASIC, "Brief", Scen.BriefMovie);
 	Scen.WinMovie = ini.Get_VQType(BASIC, "Win", Scen.WinMovie);
+	Scen.WinMovie2 = ini.Get_VQType(BASIC, "Win2", Scen.WinMovie2);
+	Scen.WinMovie3 = ini.Get_VQType(BASIC, "Win3", Scen.WinMovie3);
+	Scen.WinMovie4 = ini.Get_VQType(BASIC, "Win4", Scen.WinMovie4);
 	Scen.LoseMovie = ini.Get_VQType(BASIC, "Lose", Scen.LoseMovie);
 	Scen.ActionMovie = ini.Get_VQType(BASIC, "Action", Scen.ActionMovie);
 	Scen.IsToCarryOver = ini.Get_Bool(BASIC, "ToCarryOver", Scen.IsToCarryOver);
@@ -2254,6 +2372,20 @@ bool Read_Scenario_INI(char * fname, bool )
 	TeamTypeClass::Read_INI(ini);
 	Call_Back();
 
+	/*
+	**	Read in the trigger data. The triggers must be created before any other
+	**	objects can be initialized.
+	*/
+	TriggerTypeClass::Read_INI(ini);
+	Call_Back();
+
+
+	/*
+	**	Read in the map control values. This includes dimensions
+	**	as well as theater information.
+	*/
+	Map.Read_INI(ini);
+	Call_Back();
 
 	/*
 	**	Assign PlayerPtr by reading the player's house from the INI;
@@ -2271,27 +2403,12 @@ bool Read_Scenario_INI(char * fname, bool )
 		PlayerPtr->Credits += carryover;
 		PlayerPtr->Control.InitialCredits += carryover;
 	} else {
-		Assign_Houses();
+		//Call the new Assign_Houses function. ST - 8/8/2019 12:35PM
+		//Assign_Houses();
+		GlyphX_Assign_Houses();
 	}
 	PlayerPtr->IsHuman = true;
 	PlayerPtr->IsPlayerControl = true;
-
-	/*
-	**	Read in the trigger data. The triggers must be created before any other
-	**	objects can be initialized.
-	*/
-	TriggerTypeClass::Read_INI(ini);
-	Call_Back();
-
-
-	/*
-	**	Read in the map control values. This includes dimensions
-	**	as well as theater information.
-	*/
-	Map.Read_INI(ini);
-	Call_Back();
-
-
 
 //	if (NewINIFormat < 2 || !ini.Is_Present("MapPack")) {
 //		Map.Read_Binary(root, &ScenarioCRC);
@@ -2309,7 +2426,10 @@ bool Read_Scenario_INI(char * fname, bool )
 	UnitClass::Read_INI(ini);
 	Call_Back();
 
-    	VesselClass::Read_INI(ini);
+	AircraftClass::Read_INI(ini);
+	Call_Back();
+
+	VesselClass::Read_INI(ini);
 	Call_Back();
 
 	/*
@@ -2366,6 +2486,139 @@ bool Read_Scenario_INI(char * fname, bool )
 	Call_Back();
 
 	/*
+	**	Special cases:
+	**		Gold Rush multiplayer map cell 9033 - LAND_ROCK
+	**		The Lake District multiplayer map cell 8482 - LAND_ROCK
+	**		Blue Lakes multiplayer map cell 11937 - LAND_RIVER
+	**		USSR mission 13 - fixup trigger action
+	**		Allied mission 5B - fail mission if spy re-boards the transport at mission start
+	**		Allied mission 8A - Germany is allied with Greece and itself
+	**		Allied mission 9A - fail mission if tech center is destroyed before being spied
+	**		Aftermath: Brother in Arms - have transports move to separate waypoints
+	**		Aftermath: Let's Make a Steal - Make the pillboxes un-capturable
+	**		Counterstrike: Soviet Soldier Volkov and Chitzkoi / Deus Ex Machina - Sniper burst fix
+	*/
+	if (_stricmp(Scen.ScenarioName, "scmh8ea.ini") == 0) {
+		Map[(CELL)9033].Override_Land_Type(LAND_ROCK);
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scm93ea.ini") == 0) {
+		Map[(CELL)8482].Override_Land_Type(LAND_ROCK);
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scmh4ea.ini") == 0) {
+		Map[(CELL)11937].Override_Land_Type(LAND_RIVER);
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scu13ea.ini") == 0) {
+		TriggerTypeClass* trigger = TriggerTypes.Ptr(11);
+		trigger->Action1.Trigger.Set_Raw(39);
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scg05eb.ini") == 0) {
+		TeamTypeClass* spy1_team = TeamTypeClass::From_Name("spy1");
+		assert(spy1_team != NULL);
+		spy1_team->MissionList[spy1_team->MissionCount].Mission = TMISSION_SET_GLOBAL;
+		spy1_team->MissionList[spy1_team->MissionCount].Data.Value = 16;
+		spy1_team->MissionCount++;
+
+		TriggerTypeClass* los3_trigger = new TriggerTypeClass();
+		los3_trigger->IsPersistant = TriggerTypeClass::VOLATILE;
+		los3_trigger->House = HOUSE_GREECE;
+		los3_trigger->EventControl = MULTI_AND;
+		los3_trigger->ActionControl = MULTI_AND;
+		los3_trigger->Event1.Event = TEVENT_GLOBAL_SET;
+		los3_trigger->Event1.Data.Value = 16;
+		los3_trigger->Event2.Event = TEVENT_ALL_DESTROYED;
+		los3_trigger->Event2.Data.House = HOUSE_GREECE;
+		los3_trigger->Action1.Action = TACTION_LOSE;
+		los3_trigger->Action1.Data.Value = -255;
+		los3_trigger->Action2.Action = TACTION_NONE;
+		los3_trigger->Action2.Data.Value = -1;
+
+		TriggerTypeClass* frc1_trigger = TriggerTypeClass::From_Name("frc1");
+		assert(frc1_trigger != NULL);
+		frc1_trigger->Action1.Trigger = los3_trigger;
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scg08ea.ini") == 0) {
+		for (int house = HOUSE_FIRST; house < HOUSE_COUNT; ++house) {
+			HouseClass* ptr = Houses.Ptr(house);
+			if (ptr != NULL && ptr->IsActive) {
+				if (ptr->Class->House == HOUSE_GREECE || ptr->Class->House == HOUSE_GERMANY) {
+					ptr->Make_Ally(HOUSE_GERMANY);
+				}
+			}
+		}
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scg09ea.ini") == 0) {
+		TriggerTypeClass* spyd_trigger = TriggerTypeClass::From_Name("Spyd");
+		assert(spyd_trigger != NULL);
+
+		TriggerTypeClass* kos_trigger = new TriggerTypeClass();
+		kos_trigger->IsPersistant = spyd_trigger->IsPersistant;
+		kos_trigger->House = spyd_trigger->House;
+		kos_trigger->EventControl = MULTI_LINKED;
+		kos_trigger->ActionControl = MULTI_ONLY;
+		kos_trigger->Event1.Event = spyd_trigger->Event1.Event;
+		kos_trigger->Event1.Data = spyd_trigger->Event1.Data;
+		kos_trigger->Event2.Event = TEVENT_DESTROYED;
+		kos_trigger->Event2.Data.Value = 0;
+		kos_trigger->Action1.Action = TACTION_SET_GLOBAL;
+		kos_trigger->Action1.Data.Value = 22;
+		kos_trigger->Action2.Action = TACTION_SET_GLOBAL;
+		kos_trigger->Action2.Data.Value = 23;
+
+		spyd_trigger->Event1.Event = TEVENT_GLOBAL_SET;
+		spyd_trigger->Event1.Data.Value = 22;
+
+		for (int index = 0; index < Buildings.Count(); index++) {
+			BuildingClass* building = Buildings.Ptr(index);
+			if (building->Trigger.Is_Valid() && (building->Trigger->Class == spyd_trigger)) {
+				building->Attach_Trigger(Find_Or_Make(kos_trigger));
+			}
+		}
+
+		TriggerTypeClass* los3_trigger = new TriggerTypeClass();
+		los3_trigger->IsPersistant = spyd_trigger->IsPersistant;
+		los3_trigger->House = spyd_trigger->House;
+		los3_trigger->EventControl = MULTI_AND;
+		los3_trigger->ActionControl = MULTI_AND;
+		los3_trigger->Event1.Event = TEVENT_GLOBAL_SET;
+		los3_trigger->Event1.Data.Value = 23;
+		los3_trigger->Event2.Event = TEVENT_GLOBAL_CLEAR;
+		los3_trigger->Event2.Data.Value = 22;
+		los3_trigger->Action1.Action = TACTION_LOSE;
+		los3_trigger->Action1.Data.Value = -255;
+		los3_trigger->Action2.Action = TACTION_TEXT_TRIGGER;
+		los3_trigger->Action2.Data.Value = 54;
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scu46ea.ini") == 0) {
+		Scen.Waypoint[20] = 9915;
+		Scen.Waypoint[21] = 9919;
+		Map[Scen.Waypoint[20]].IsWaypoint = 1;
+		Map[Scen.Waypoint[21]].IsWaypoint = 1;
+
+		TeamTypeClass* rnf1_team = TeamTypeClass::From_Name("rnf1");
+		assert(rnf1_team != NULL);
+		rnf1_team->MissionList[0].Data.Value = 20;
+
+		TeamTypeClass* rnf2_team = TeamTypeClass::From_Name("rnf2");
+		assert(rnf2_team != NULL);
+		rnf2_team->MissionList[0].Data.Value = 21;
+	}
+
+	if (_stricmp(Scen.ScenarioName, "scu42ea.ini") == 0) {
+		BuildingTypeClass::As_Reference(STRUCT_PILLBOX).IsCaptureable = false;
+	}
+
+	if ((_stricmp(Scen.ScenarioName, "scu35ea.ini") == 0) || (_stricmp(Scen.ScenarioName, "scu47ea.ini") == 0)) {
+		WeaponTypeClass::As_Pointer(Weapon_From_Name("Sniper"))->Burst = 2;
+	}
+
+	/*
 	**	Multi-player last-minute fixups:
 	**	- If computer players are disabled, remove all computer-owned houses
 	**	- If bases are disabled, create the scenario dynamically
@@ -2406,11 +2659,6 @@ bool Read_Scenario_INI(char * fname, bool )
 				Map.Place_Random_Crate();
 			}
 		}
-
-		/*
-		**	Compute my starting location as the average Coord of all my stuff.
-		*/
-		Map.Compute_Start_Pos();
 	}
 
 	Call_Back();
@@ -2421,8 +2669,8 @@ bool Read_Scenario_INI(char * fname, bool )
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98 - Added runtime check.
 	if( Is_Aftermath_Installed() )
 	{
-		if (Session.Type == GAME_SKIRMISH) {
-			bAftermathMultiplayer = NewUnitsEnabled = true;
+		if (Session.Type == GAME_SKIRMISH || Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+			bAftermathMultiplayer = NewUnitsEnabled = OverrideNewUnitsEnabled;
 		}
 	}	
 #endif
@@ -2708,6 +2956,7 @@ static void Remove_AI_Players(void)
 	HousesType house;
 	HouseClass * housep;
 
+#if (0)
 	for (i = 0; i < MAX_PLAYERS; i++) {
 		house = (HousesType)(i + (int)HOUSE_MULTI1);
 		housep = HouseClass::As_Pointer (house);
@@ -2718,7 +2967,25 @@ static void Remove_AI_Players(void)
 			}
 		}
 	}
+#else
+	/*
+	** AI players are set up like human players now. ST - 8/13/2019 1:32PM
+	*/
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		if (i >= Session.Players.Count()) {
+			house = (HousesType)(i + (int)HOUSE_MULTI1);
+			housep = HouseClass::As_Pointer (house);
+			if (housep->IsHuman == false) {
+				housep->Clobber_All();
+			}
+		}
+	}
+
+#endif
 }
+
+
+#define USE_GLYPHX_START_LOCATIONS 1
 
 
 /***********************************************************************************************
@@ -2742,6 +3009,24 @@ static void Remove_AI_Players(void)
  * HISTORY:                                                                                    *
  *   06/09/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
+static int ReserveInfantryIndex = 0;
+static void Reserve_Infantry()
+{
+	if (Infantry.Count() == Infantry.Length()) {
+		delete Infantry.Ptr(ReserveInfantryIndex);
+		ReserveInfantryIndex = (ReserveInfantryIndex + 1) % Infantry.Length();
+	}
+}
+
+static int ReserveUnitIndex = 0;
+static void Reserve_Unit()
+{
+	if (Units.Count() == Units.Length()) {
+		delete Units.Ptr(ReserveUnitIndex);
+		ReserveUnitIndex = (ReserveUnitIndex + 1) % Units.Length();
+	}
+}
+
 static void Create_Units(bool official)
 {
 	static struct {
@@ -2786,6 +3071,8 @@ static void Create_Units(bool official)
 	TechnoClass * obj;		// newly-created object
 	int i,j,k;				// loop counters
 	int scaleval;			// value to scale # units or infantry
+
+	ReserveInfantryIndex = ReserveUnitIndex = 0;
 
 	/*
 	**	For the current BuildLevel, find the max allowable index into the tables
@@ -2859,8 +3146,11 @@ static void Create_Units(bool official)
 	**	valid locations to the first N waypoints, but just in case, this
 	**	loop verifies that.
 	*/
-	bool taken[26];
-	CELL waypts[26];
+
+	const unsigned int MAX_STORED_WAYPOINTS = 26;
+
+	bool taken[MAX_STORED_WAYPOINTS];
+	CELL waypts[MAX_STORED_WAYPOINTS];
 	assert(Rule.MaxPlayers < ARRAY_SIZE(waypts));
 	int num_waypts = 0;
 
@@ -2870,17 +3160,29 @@ static void Create_Units(bool official)
 	**	if there are 4 or fewer players. Unofficial maps will pick from all the
 	**	available waypoints.
 	*/
+#ifndef USE_GLYPHX_START_LOCATIONS
 	int look_for = max(4, Session.Players.Count()+Session.Options.AIPlayers);
 	if (!official) {
 		look_for = 8;
 	}
-
-	for (int waycount = 0; waycount < look_for; waycount++) {
+#else
+	/*
+	** We allow the users to choose from all available start positions, even on official maps. ST - 1/15/2020 9:19AM
+	*/
+	int look_for = Session.Players.Count();
+#endif
+		
+	for (int waycount = 0; waycount < 26; waycount++) {
 //	for (int waycount = 0; waycount < max(4, Session.Players.Count()+Session.Options.AIPlayers); waycount++) {
 		if (Scen.Waypoint[waycount] != -1) {
 			waypts[num_waypts] = Scen.Waypoint[waycount];
 			taken[num_waypts] = false;
 			num_waypts++;
+
+			if (num_waypts >= MAX_STORED_WAYPOINTS)
+			{
+				break;
+			}
 		}
 	}
 
@@ -2922,60 +3224,73 @@ static void Create_Units(bool official)
 		**	one of the valid locations at random. The other houses pick the furthest
 		**	wapoint from the existing houses.
 		*/
-		if (numtaken == 0) {
-			int pick = Random_Pick(0, num_waypts-1);
-			centroid = waypts[pick];
-			taken[pick] = true;
-			numtaken++;
-		} else {
-
-			/*
-			**	Set all waypoints to have a score of zero in preparation for giving
-			**	a distance score to all waypoints.
-			*/
-			int score[26];
-			memset(score, '\0', sizeof(score));
-
-			/*
-			**	Scan through all waypoints and give a score as a value of the sum
-			**	of the distances from this waypoint to all taken waypoints.
-			*/
-			for (int index = 0; index < num_waypts; index++) {
+		if (!UseGlyphXStartLocations) {
+		
+			if (numtaken == 0) {
+				int pick = Random_Pick(0, num_waypts-1);
+				centroid = waypts[pick];
+				hptr->StartLocationOverride = pick;
+				taken[pick] = true;
+				numtaken++;
+			} else {
 
 				/*
-				**	If this waypoint has not already been taken, then accumulate the
-				**	sum of the distance between this waypoint and all other taken
-				**	waypoints.
+				**	Set all waypoints to have a score of zero in preparation for giving
+				**	a distance score to all waypoints.
 				*/
-				if (!taken[index]) {
-					for (int trypoint = 0; trypoint < num_waypts; trypoint++) {
+				int score[26];
+				memset(score, '\0', sizeof(score));
 
-						if (taken[trypoint]) {
-							score[index] += Distance(Cell_Coord(waypts[index]), Cell_Coord(waypts[trypoint]));
+				/*
+				**	Scan through all waypoints and give a score as a value of the sum
+				**	of the distances from this waypoint to all taken waypoints.
+				*/
+				for (int index = 0; index < num_waypts; index++) {
+
+					/*
+					**	If this waypoint has not already been taken, then accumulate the
+					**	sum of the distance between this waypoint and all other taken
+					**	waypoints.
+					*/
+					if (!taken[index]) {
+						for (int trypoint = 0; trypoint < num_waypts; trypoint++) {
+
+							if (taken[trypoint]) {
+								score[index] += Distance(Cell_Coord(waypts[index]), Cell_Coord(waypts[trypoint]));
+							}
 						}
 					}
 				}
-			}
 
-			/*
-			**	Now find the waypoint with the largest score. This waypoint is the one
-			**	that is furthest from all other taken waypoints.
-			*/
-			int best = 0;
-			int bestvalue = 0;
-			for (int searchindex = 0; searchindex < num_waypts; searchindex++) {
-				if (score[searchindex] > bestvalue || bestvalue == 0) {
-					bestvalue = score[searchindex];
-					best = searchindex;
+				/*
+				**	Now find the waypoint with the largest score. This waypoint is the one
+				**	that is furthest from all other taken waypoints.
+				*/
+				int best = 0;
+				int bestvalue = 0;
+				for (int searchindex = 0; searchindex < num_waypts; searchindex++) {
+					if (score[searchindex] > bestvalue || bestvalue == 0) {
+						bestvalue = score[searchindex];
+						best = searchindex;
+					}
 				}
-			}
 
+				/*
+				**	Assign this best position to the house.
+				*/
+				centroid = waypts[best];
+				hptr->StartLocationOverride = best;
+				taken[best] = true;
+				numtaken++;
+			}
+		} else {
+			
 			/*
-			**	Assign this best position to the house.
+			** New code that respects the start locations passed in from GlyphX.
+			**
+			** ST - 1/8/2020 3:39PM
 			*/
-			centroid = waypts[best];
-			taken[best] = true;
-			numtaken++;
+			centroid = waypts[hptr->StartLocationOverride];
 		}
 
 		/*
@@ -2995,6 +3310,7 @@ static void Create_Units(bool official)
 			**	  - Attach a flag to it for capture-the-flag mode
 			*/
 			scaleval = 1;
+			Reserve_Unit();
 			obj = new UnitClass (UNIT_MCV, house);
 			if (!obj->Unlimbo(Cell_Coord(centroid), DIR_N)) {
 				if (!Scan_Place_Object(obj, centroid)) {
@@ -3046,6 +3362,7 @@ static void Create_Units(bool official)
 				*/
 				if (hptr->ActLike != HOUSE_USSR && hptr->ActLike != HOUSE_UKRAINE) {
 					for (k = 0; k < 2; k++) if(utable[i].AllyType[k] != UNIT_NONE) {
+						Reserve_Unit();
 						obj = new UnitClass (utable[i].AllyType[k], house);
 						if (!Scan_Place_Object(obj, centerpt)) {
 							delete obj;
@@ -3063,6 +3380,7 @@ static void Create_Units(bool official)
 					**	Create a Soviet unit
 					*/
 					for (k = 0; k < 2; k++) if(utable[i].SovietType[k] != UNIT_NONE) {
+						Reserve_Unit();
 						obj = new UnitClass (utable[i].SovietType[k], house);
 						if (!Scan_Place_Object(obj, centerpt)) {
 							delete obj;
@@ -3099,6 +3417,7 @@ static void Create_Units(bool official)
 				*/
 				if (hptr->ActLike != HOUSE_USSR && hptr->ActLike != HOUSE_UKRAINE) {
 					for (k = 0; k < itable[i].AllyCount; k++) {
+						Reserve_Infantry();
 						obj = new InfantryClass (itable[i].AllyType, house);
 						if (!Scan_Place_Object(obj, centerpt)) {
 							delete obj;
@@ -3116,6 +3435,7 @@ static void Create_Units(bool official)
 					**	Create Soviet infantry
 					*/
 					for (k = 0; k < itable[i].SovietCount; k++) {
+						Reserve_Infantry();
 						obj = new InfantryClass (itable[i].SovietType, house);
 						if (!Scan_Place_Object(obj, centerpt)) {
 							delete obj;

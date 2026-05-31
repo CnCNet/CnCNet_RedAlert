@@ -374,7 +374,9 @@ int Read_Game_Options(char *name)
 					//WWDebugString ("RA95I - CounterStrike CD not in drive\n");
 
 					if (!Force_CD_Available (RequiredCD)){
-						Emergency_Exit(EXIT_FAILURE);
+						if (!RunningAsDLL) {	//PG
+							Emergency_Exit(EXIT_FAILURE);
+						}
 					}
 					//WWDebugString ("RA95I - Returned from Force_CD_Available()\n");
 
@@ -391,7 +393,7 @@ int Read_Game_Options(char *name)
 			** See if that scenario is available now. Its fatal if it isnt.
 			*/
 			Session.Options.ScenarioIndex = -1;
-			for (i = 0; i < Session.Scenarios.Count(); i++) {
+			for (int i = 0; i < Session.Scenarios.Count(); i++) {
 				if (!strcmp (Session.Scenarios[i]->Description(), Session.Options.ScenarioDescription) ){
 					Session.Options.ScenarioIndex = i;
 					break;
@@ -473,6 +475,11 @@ void Just_Path(char *path, char *destpath)
  *=============================================================================================*/
 bool Is_User_WChat_Registered(char *buffer, int buffer_len)
 {
+	// ST - 5/13/2019
+	buffer; buffer_len;
+	return false;
+
+#if (0)
 	HKEY	key;
 	char	user_handle[256];
 	DWORD	user_handle_size = sizeof (user_handle);
@@ -530,7 +537,7 @@ bool Is_User_WChat_Registered(char *buffer, int buffer_len)
 	}
 
 	RegCloseKey(key);
-	memcpy (buffer, user_handle, min(buffer_len, user_handle_size));
+	memcpy (buffer, user_handle, min((unsigned)buffer_len, user_handle_size));
 
 	/*
 	** If the first char of the users name is non-numeric then return success
@@ -540,6 +547,7 @@ bool Is_User_WChat_Registered(char *buffer, int buffer_len)
 	}else{
 		return (FALSE);
 	}
+#endif
 }
 
 
@@ -562,6 +570,11 @@ bool Is_User_WChat_Registered(char *buffer, int buffer_len)
 bool Poke_WChat(void);
 bool Spawn_WChat(bool can_launch)
 {
+	// ST - 5/13/2019
+	can_launch;
+	return false;
+
+#if (0)
 	WWDebugString ("RA95 - In Spawn_WChat.\n");
 	char packet[10] = {"Hello"};
 	HWND chat_window = NULL;
@@ -683,6 +696,7 @@ bool Spawn_WChat(bool can_launch)
 		while ( Keyboard->Check() ) {};
 		return (false);
 	}
+#endif
 }
 
 #endif	//#ifndef WOLAPI_INTEGRATION
@@ -704,7 +718,9 @@ bool Spawn_WChat(bool can_launch)
 #ifndef WOLAPI_INTEGRATION
 bool Spawn_Registration_App(void)
 {
-
+	// ST - 5/13/2019
+	return false;
+#if (0)
 	/*
 	** Find where inetreg was installed to
 	*/
@@ -743,7 +759,7 @@ bool Spawn_Registration_App(void)
 		//ShowWindow ( MainWindow, SW_RESTORE );
 	}
 	return (success);
-
+#endif
 }
 
 #endif	//#ifndef WOLAPI_INTEGRATION
@@ -766,7 +782,7 @@ bool Spawn_Registration_App(void)
 #ifndef WOLAPI_INTEGRATION
 bool Do_The_Internet_Menu_Thang(void)
 {
-
+#if (0) //PG
 	int factor			= (SeenBuff.Get_Width() == 320) ? 1 : 2;
 	char packet[10] = {"Hello"};
 
@@ -951,7 +967,7 @@ bool Do_The_Internet_Menu_Thang(void)
 		}
 
 	}
-
+#endif
 	return (false);
 }
 

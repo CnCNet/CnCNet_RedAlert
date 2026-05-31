@@ -145,6 +145,8 @@ void CellClass::Code_Pointers(void)
 			Overlapper[index] = NULL;
 		}
 	}
+
+	assert(CTFFlag == NULL);
 }
 
 
@@ -170,16 +172,18 @@ void CellClass::Code_Pointers(void)
 void CellClass::Decode_Pointers(void)
 {
 	if (OccupierPtr != NULL) {
-		OccupierPtr = As_Object((TARGET)OccupierPtr);
+		OccupierPtr = As_Object((TARGET)OccupierPtr, false);
 		assert(OccupierPtr != NULL);
 	}
 
 	for (int index = 0; index < ARRAY_SIZE(Overlapper); index++) {
 		if (Overlapper[index] != NULL) {
-			Overlapper[index] = As_Object((TARGET)Overlapper[index]);
+			Overlapper[index] = As_Object((TARGET)Overlapper[index], false);
 			assert(Overlapper[index] != NULL);
 		}
 	}
+
+	CTFFlag = NULL;
 }
 
 
@@ -350,7 +354,7 @@ bool MouseClass::Save(Pipe & file) const
 	**	Save cells that need it
 	*/
 	cellptr = &(*this)[(CELL)0];
-	for (cell = 0; cell < MAP_CELL_TOTAL; cell++) {
+	for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
 		if (cellptr->Should_Save()) {
 			file.Put(&cell, sizeof(cell));
 			cellptr->Save(file);
@@ -395,6 +399,23 @@ void DisplayClass::Code_Pointers(void)
 	}
 
 	/*
+	** Fix for saving game while in structure placement mode. ST - 4/15/2020 2:41PM
+	*/
+	memset(CursorShapeSave, 0, sizeof(CursorShapeSave));
+	if (CursorSize && CursorSize != CursorShapeSave) {
+
+		int save_buffer_element_size = sizeof(CursorShapeSave) / sizeof(CursorShapeSave[0]);
+		
+		int index = 0;
+
+		while (index < save_buffer_element_size - 2 && CursorSize[index] != REFRESH_EOL) {
+			CursorShapeSave[index] = CursorSize[index];
+			index++;
+		}
+		CursorShapeSave[index] = REFRESH_EOL;
+	}
+
+	/*
 	**	Chain to parent.
 	*/
 	MapClass::Code_Pointers();
@@ -429,8 +450,12 @@ void DisplayClass::Decode_Pointers(void)
 	**	either.  These have to be done as last-minute fixups.
 	*/
 	if (PendingObjectPtr) {
-		PendingObjectPtr = As_Object((TARGET)PendingObjectPtr);
+		PendingObjectPtr = As_Object((TARGET)PendingObjectPtr, false);
 		assert(PendingObjectPtr != NULL);
+	}
+
+	if (CursorSize) {
+		CursorSize = CursorShapeSave;
 	}
 
 	/*
@@ -462,8 +487,14 @@ void DisplayClass::Decode_Pointers(void)
  *=============================================================================================*/
 void MapClass::Code_Pointers(void)
 {
+	CELL cell;
+
+	for (cell = 0; cell < MAP_CELL_TOTAL; cell++) {
+		(*this)[cell].Flag_Destroy();
+	}
+
 	CellClass * cellptr = &(*this)[(CELL)0];
-	for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
+	for (cell = 0; cell < MAP_CELL_TOTAL; cell++) {
 		cellptr->Code_Pointers();
 		cellptr++;
 	}
@@ -496,5 +527,4 @@ void MapClass::Decode_Pointers(void)
 		cellptr++;
 	}
 }
-
 

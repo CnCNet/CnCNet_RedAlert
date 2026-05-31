@@ -48,7 +48,7 @@ class TriggerClass;
 **	There can be multiple trigger events and trigger actions. This enumeration is used to
 **	indicate if there are multiple events/actions and what their relationship is.
 */
-typedef enum MultiStyleType {
+typedef enum MultiStyleType : unsigned char {
 	MULTI_ONLY,					// "Only" main trigger action/event?
 	MULTI_AND,					// "And" secondary trigger action/event?
 	MULTI_OR,					// "Or" secondary event?
@@ -61,7 +61,7 @@ class TriggerTypeClass : public AbstractTypeClass
 	public:
 		unsigned IsActive:1;
 
-		typedef enum PersistantType {
+		typedef enum PersistantType : unsigned char {
 			VOLATILE = 0,
 			SEMIPERSISTANT = 1,
 			PERSISTANT = 2

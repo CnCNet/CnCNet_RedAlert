@@ -79,6 +79,13 @@ class AbstractClass
 		*/
 		unsigned IsActive:1;
 
+		/*
+		** A flag to indicate that this object was recently created. Since an object's allocation is just a matter of whether
+		** the IsActive flag is set, during a logic frame an object with a given ID could be 'deleted' then reallocated 
+		** as a different type of object in a different location. This flag lets us know that this happened. ST - 8/19/2019 5:33PM
+		*/
+		unsigned IsRecentlyCreated:1;
+
 		/*-----------------------------------------------------------------------------------
 		**	Constructor & destructors.
 		*/
@@ -128,6 +135,11 @@ class AbstractClass
 		**	AI.
 		*/
 		virtual void AI(void) {};
+
+		/*
+		** Set the new recently created flag every time the active flag is set. ST - 8/19/2019 5:41PM
+		*/
+		void Set_Active(void) {IsActive = true; IsRecentlyCreated = true;}
 
 };
 

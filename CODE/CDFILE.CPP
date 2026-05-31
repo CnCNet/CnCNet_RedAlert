@@ -98,7 +98,7 @@ int harderr_handler(unsigned int , unsigned int , unsigned int *)
 int harderr_handler(unsigned int , unsigned int , unsigned int __far *)
 #endif
 {
-	return(_HARDERR_FAIL);
+	return(0);	// _HARDERR_FAIL);
 }
 
 
@@ -120,6 +120,9 @@ int harderr_handler(unsigned int , unsigned int , unsigned int __far *)
 int cdecl Is_Disk_Inserted(int disk)
 {
 #ifndef OBSOLETE
+	disk;
+	return true;
+#if (0)
 	struct find_t fb;
 	char	scan[] = "?:\\*.*";
 
@@ -129,6 +132,7 @@ int cdecl Is_Disk_Inserted(int disk)
 
 	scan[0] = (char)('A' + disk);
 	return(_dos_findfirst(scan, _A_SUBDIR, &fb) == 0);
+#endif
 #else
 	struct {
 		struct {
@@ -390,7 +394,7 @@ int CDFileClass::Set_Search_Drives(char * pathlist)
 	while (ptr != NULL) {
 		if (strlen(ptr) > 0) {
 
-			char path[PATH_MAX];						// Working path buffer.
+			char path[MAX_PATH];						// Working path buffer.
 
 			/*
 			**	Fixup the path to be legal. Legal is defined as all that is necessary to
@@ -674,6 +678,31 @@ int CDFileClass::Open(char const *filename, int rights)
 	Set_Name(filename);
 	return(BufferIOFileClass::Open(rights));
 }
+
+
+const char *CDFileClass::Get_Search_Path(int index)
+{
+	if (First == NULL) {
+		return NULL;
+	}
+
+	SearchDriveType *sd = First;
+
+	for (int i = 0; i <= index; i++) {		// We want to loop once, even if index==0
+
+		if (i == index) {
+			return sd->Path;
+		}
+
+		sd = (SearchDriveType *)sd->Next;
+		if (sd == NULL) {
+			return NULL;
+		}
+	}
+
+	return NULL;
+}
+
 
 
 #ifdef NEVER

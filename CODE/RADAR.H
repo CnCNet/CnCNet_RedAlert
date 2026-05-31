@@ -67,7 +67,7 @@ class RadarClass: public DisplayClass
 		virtual void Init_Clear(void);						// Clears all to known state
 
 		virtual void Flag_Cell(CELL cell);
-		virtual bool Map_Cell(CELL cell, HouseClass * house);
+		virtual bool Map_Cell(CELL cell, HouseClass *house, bool check_radar_spied = true, bool and_for_allies = true);		// Added check_radar_spied parameter to prevent recursion. ST - 8/6/2019 10:16AM. Added and_for_allies ST - 10/31/2019 1:18PM
 		virtual bool Jam_Cell(CELL cell, HouseClass * house);
 		virtual bool UnJam_Cell(CELL cell, HouseClass * house);
 		virtual CELL Click_Cell_Calc(int x, int y) const;
@@ -96,6 +96,7 @@ class RadarClass: public DisplayClass
 		void Render_Overlay(CELL cell, int x, int y, int size);
 		void Radar_Anim(void);
 		bool Is_Radar_Active(void);
+		bool Is_Radar_Activating(void);
 		bool Is_Radar_Existing(void);
 
 		/*
@@ -107,8 +108,10 @@ class RadarClass: public DisplayClass
 		void Draw_Names(void);
 		bool Draw_House_Info(void);
 		int Is_Zoomed(void) {return IsZoomed;}
-		bool Get_Jammed(void);
-		void Set_Jammed(bool jam) {IsRadarJammed = jam;}
+		bool Get_Jammed(HousesType house) const;
+		bool Get_Jammed(HouseClass *player) const;
+		void Set_Jammed(HousesType house, bool jam);
+		void Set_Jammed(HouseClass *player, bool jam);
 		bool Spy_Next_House(void);
 		void Activate_Pulse(void);
 
@@ -137,7 +140,11 @@ class RadarClass: public DisplayClass
 		unsigned IsRadarActive:1;
 		unsigned IsRadarActivating:1;
 		unsigned IsRadarDeactivating:1;
-		unsigned IsRadarJammed:1;
+
+		/*
+		**	Per-player radar jammed flag.
+		*/
+		unsigned int IsRadarJammedByPlayerMask;
 
 		/*
 		** Flag to tell whether sonar pulse should be displayed on radar map

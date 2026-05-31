@@ -141,6 +141,10 @@
 */
 #define	MAX_UNCLOAK_STAGE		38
 
+//Added for getting the input for special character keys from the client 
+// - 6/26/2019 JAS 
+extern bool DLL_Export_Get_Input_Key_State(KeyNumType key);
+
 
 /***************************************************************************
 **	These are the pointers to the special shape data that the units may need.
@@ -158,7 +162,7 @@ const char* NewName[] = {
 	"Scout Ant",	  			"Kundschafter-Ameise",
 	"Warrior Ant",    		"Krieger-Ameise",
 	"Fire Ant",	  				"Feuer-Ameise",
-	"Queen Ant",	  			"Ameisenk”nigin",
+	"Queen Ant",	  			"Ameisenkï¿½nigin",
 	"ATS",						"Angriffs-U-Boot",
 	"Tesla Tank",	  			"Telsapanzer",
 	"Volkov",  					"Modell Volkov",
@@ -174,7 +178,7 @@ const char* NewName[] = {
 #ifdef FRENCH
 const char* NewName[] = {
 	"Scout Ant",	  			"Fourmi de Reconnaissance",
-	"Warrior Ant",    		"Fourmi GuerriŠre",
+	"Warrior Ant",    		"Fourmi Guerriï¿½re",
 	"Fire Ant",	  				"Fourmi Lance-Flammes",
 	"Queen Ant",	  			"Reine des Fourmis",
 	"ATS", 						"SMTA",
@@ -182,9 +186,9 @@ const char* NewName[] = {
 	"Volkov",  					"Volkov",
 	"Chitzkoi", 				"Cyber-Chien",
 	"Stavros",					"Stavros",
-	"F-A Longbow",				"HAA (H‚licoptŠre d'Assaut Avanc‚)",
-	"Civilian Specialist",	"Sp‚cialiste Civil",
-	"Alloy Facility",			"Usine M‚tallurgique",
+	"F-A Longbow",				"HAA (Hï¿½licoptï¿½re d'Assaut Avancï¿½)",
+	"Civilian Specialist",	"Spï¿½cialiste Civil",
+	"Alloy Facility",			"Usine Mï¿½tallurgique",
 	NULL,
 	};
 
@@ -243,7 +247,7 @@ bool TechnoClass::Is_Players_Army(void) const
 	**	If not discoverd by the player, then don't consider it part of the
 	**	player's army (yet).
 	*/
-	if (!IsDiscoveredByPlayer) {
+	if (!Is_Discovered_By_Player()) {
 		return(false);
 	}
 
@@ -488,6 +492,25 @@ bool TechnoClass::Is_Allowed_To_Recloak(void) const
  * HISTORY:                                                                                    *
  *   07/29/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
+FireDataType TechnoClass::Fire_Data(int which) const
+{
+	assert(IsActive);
+
+	TechnoTypeClass const * tclass = Techno_Type_Class();
+
+	int dist = 0;
+	if (which == 0) {
+		dist = tclass->PrimaryOffset;
+	} else {
+		dist = tclass->SecondaryOffset;
+	}
+
+	COORDINATE coord = Coord_Move(Center_Coord(), DIR_N, tclass->VerticalOffset + Height);
+	coord = Coord_Move(coord, DIR_E, tclass->HorizontalOffset);
+
+	return{coord,dist};
+}
+
 COORDINATE TechnoClass::Fire_Coord(int which) const
 {
 	assert(IsActive);
@@ -506,6 +529,7 @@ COORDINATE TechnoClass::Fire_Coord(int which) const
 	}
 
 	COORDINATE coord = Coord_Move(Center_Coord(), DIR_N, tclass->VerticalOffset + Height);
+	coord = Coord_Move(coord, DIR_E, tclass->HorizontalOffset);
 	if (IsSecondShot) {
 		coord = Coord_Move(coord, (DirType)(dir+DIR_E), lateral);
 	} else {
@@ -619,83 +643,19 @@ TechnoClass::TechnoClass(RTTIType rtti, int id, HousesType house) :
 	PrimaryFacing(DIR_N),
 	Arm(0),
 	Ammo(-1),
+	ElectricZapDelay(-1),
+	ElectricZapTarget(0),
+	ElectricZapWhich(0),
 	PurchasePrice(0)
 {
-	IsOwnedByPlayer = (PlayerPtr == House);
-}
-
-
-/***********************************************************************************************
- * TechnoClass::Time_To_Build -- Determines the time it would take to build this.              *
- *                                                                                             *
- *    Use this routine to determine the amount of time it would take to build an object of     *
- *    this type.                                                                               *
- *                                                                                             *
- * INPUT:   none                                                                               *
- *                                                                                             *
- * OUTPUT:  Returns with the time it should take (unmodified by outside factors) to build      *
- *          this object. The time is expressed in game frames.                                 *
- *                                                                                             *
- * WARNINGS:   The time will usually be modified by power status and handicap rating for the   *
- *             owning house. The value returned is merely the raw unmodified time to build.    *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   07/29/1996 JLB : Created.                                                                 *
- *   09/27/1996 JLB : Takes into account the power availability.                               *
- *=============================================================================================*/
-//#define UNIT_BUILD_BIAS fixed(5,4)
-//#define UNIT_BUILD_BIAS fixed(6,4)
-#define UNIT_BUILD_BIAS fixed(1,1)
-//#define UNIT_BUILD_BIAS fixed(5,1)
-
-extern int UnitBuildPenalty;
-
-int TechnoClass::Time_To_Build(void) const
-{
-	int val = Class_Of().Time_To_Build();
-
-#ifdef FIXIT_VERSION_3
-	if (Session.Type == GAME_NORMAL ) {
-#else
-	if (Session.Type == GAME_NORMAL ||
-					PlayingAgainstVersion == VERSION_RED_ALERT_104 ||
-		 			PlayingAgainstVersion == VERSION_RED_ALERT_107){
-#endif
-		val *= House->BuildSpeedBias;
-	}else{
-		if (What_Am_I() == RTTI_BUILDING || What_Am_I() == RTTI_INFANTRY) {
-			val *= House->BuildSpeedBias;
-		} else {
-			val *= House->BuildSpeedBias * fixed (UnitBuildPenalty, 100);	//UNIT_BUILD_BIAS;
-		}
+	//IsOwnedByPlayer = (PlayerPtr == House);
+	// Added for multiplayer changes. ST - 4/24/2019 10:40AM
+	IsDiscoveredByPlayerMask = 0;
+	if (Session.Type == GAME_NORMAL) {
+		IsOwnedByPlayer = (PlayerPtr == House);
+	} else {
+		IsOwnedByPlayer = House->IsHuman;
 	}
-
-
-	/*
-	**	Adjust the time to build based on the power output of the owning house.
-	*/
-	fixed power = House->Power_Fraction();
-	if (power > 1) power = 1;
-	if (power < 1 && power > fixed::_3_4) power = fixed::_3_4;
-	if (power < fixed::_1_2) power = fixed::_1_2;
-	power.Inverse();
-	val *= power;
-
-	int divisor = House->Factory_Count(What_Am_I());
-	if (divisor != 0) {
-#ifdef FIXIT_CSII	//	checked - ajw 9/28/98
-// Hack: allow the multiple-factory bonus, but only up to two factories if
-//			this is an AM<->AM game.
-		if(NewUnitsEnabled) {
-			val /= min(divisor,2);
-		} else {
-			val /= divisor;
-		}
-#else
-		val /= divisor;
-#endif
-	}
-	return(val);
 }
 
 
@@ -729,7 +689,7 @@ bool TechnoClass::Is_Visible_On_Radar(void) const
 			}
 		}
 	}
-	if (!Techno_Type_Class()->IsInvisible && (Cloak != CLOAKED || House->Is_Ally(PlayerPtr))) {
+	if (!Is_Cloaked(PlayerPtr, true)) {
 		return(true);
 	}
 	return(false);
@@ -757,9 +717,25 @@ bool TechnoClass::Revealed(HouseClass * house)
 {
 	assert(IsActive);
 
+	/*   Replaced by client/server version from TD. ST - 8/7/2019 11:09AM
 	if (house == PlayerPtr && IsDiscoveredByPlayer) return(false);
 	if (house != PlayerPtr) {
 		if (IsDiscoveredByComputer) return(false);
+		IsDiscoveredByComputer = true;
+	}
+	*/
+	if (house == NULL) {
+		return false;
+	}
+
+	if (Is_Discovered_By_Player(house)) {
+		return false;
+	}
+
+	if (house->IsHuman == false) {
+		if (IsDiscoveredByComputer) {
+			return false;
+		}
 		IsDiscoveredByComputer = true;
 	}
 
@@ -773,34 +749,57 @@ bool TechnoClass::Revealed(HouseClass * house)
 			Assign_Mission(MISSION_HUNT);
 		}
 
-		if (house == PlayerPtr) {
-			IsDiscoveredByPlayer = true;
+		if (Session.Type == GAME_NORMAL) {
+			if (house == PlayerPtr) {
+				IsDiscoveredByPlayer = true;
 
-			if (!IsOwnedByPlayer) {
+				if (!IsOwnedByPlayer) {
 
-				/*
-				**	If there is a trigger event associated with this object, then process
-				**	it for discovery purposes.
-				*/
-				if (!ScenarioInit && Trigger.Is_Valid()) {
-					Trigger->Spring(TEVENT_DISCOVERED, this);
+					/*
+					**	If there is a trigger event associated with this object, then process
+					**	it for discovery purposes.
+					*/
+					if (!ScenarioInit && Trigger.Is_Valid()) {
+						Trigger->Spring(TEVENT_DISCOVERED, this);
+					}
+
+					/*
+					**	Alert the enemy house to presence of the friendly side.
+					*/
+					House->IsDiscovered = true;
+
+					if (house->IsHuman) {
+						Set_Discovered_By_Player(house);
+					} else {
+						IsDiscoveredByComputer = true;
+					}
+
+				} else {
+
+					if (house->IsHuman) {
+						Set_Discovered_By_Player(house);
+					} else {
+						IsDiscoveredByComputer = true;
+					}
+
+					/*
+					**	A newly revealed object will always perform a look operation.
+					*/
+					Look();
 				}
-
-				/*
-				**	Alert the enemy house to presence of the friendly side.
-				*/
-				House->IsDiscovered = true;
-
 			} else {
-
-				/*
-				**	A newly revealed object will always perform a look operation.
-				*/
-				Look();
+				IsDiscoveredByComputer = true;
 			}
+		
 		} else {
-			IsDiscoveredByComputer = true;
+			
+			if (house->IsHuman) {
+				Set_Discovered_By_Player(house);
+			}
+
+			Look();
 		}
+			
 		return(true);
 	}
 	return(false);
@@ -827,9 +826,12 @@ void TechnoClass::Hidden(void)
 {
 	assert(IsActive);
 
-	if (!IsDiscoveredByPlayer) return;
+	//if (!IsDiscoveredByPlayer) return;
+	if (!Is_Discovered_By_Player()) {	 // ST - 8/7/2019 11:17AM	
+		return;
+	}
 	if (!House->IsHuman) {
-		IsDiscoveredByPlayer = false;
+		Clear_Discovered_By_Players();
 	}
 }
 
@@ -993,9 +995,14 @@ RadioMessageType TechnoClass::Receive_Message(RadioClass * from, RadioMessageTyp
 				/*
 				**	If there is sufficient money to repair the unit one step, then do so.
 				**	Otherwise return with a "can't complete" radio response.
+				**	Special case: in single-player campaigns, also try to use the repair pad house's money.
 				*/
-				if (House->Available_Money() >= cost) {
-					House->Spend_Money(cost);
+				HouseClass* house = House;
+				if (Session.Type == GAME_NORMAL && house->Available_Money() < cost) {
+					house = HouseClass::As_Pointer(from->Owner());
+				}
+				if (house != NULL && house->Available_Money() >= cost) {
+					house->Spend_Money(cost);
 					Strength += step;
 
 					/*
@@ -1060,8 +1067,11 @@ void TechnoClass::Per_Cell_Process(PCPType why)
 		**	If this object somehow moves into mapped terrain, but is not yet
 		**	discovered, then flag it to be discovered.
 		*/
-		if (!IsDiscoveredByPlayer && Map[cell].IsVisible) {
-			Revealed(PlayerPtr);
+		// Change for client/server multiplayer ST - 8/7/2019 11:19AM
+		//if (!IsDiscoveredByPlayer && Map[cell].IsVisible) {
+			//Revealed(PlayerPtr);
+		if (!Is_Discovered_By_Player() && Map[cell].Is_Visible(House)) {
+			Revealed(House);
 		}
 	}
 }
@@ -1095,7 +1105,34 @@ void TechnoClass::Draw_It(int x, int y, WindowNumberType window) const
 	*/
 	((TechnoClass *)this)->Clear_Redraw_Flag();
 
-	if (IsSelected) {
+	/*
+	** Draw electric zap
+	*/
+	if ((ElectricZapDelay >= 0) && ElectricZapTarget) {
+		Electric_Zap(ElectricZapTarget, ElectricZapWhich, window);
+	}
+
+	int width, height;
+	Class_Of().Dimensions(width, height);
+
+	const bool show_health_bar = (Strength > 0) && !Is_Cloaked(PlayerPtr) && (Is_Selected_By_Player() ||
+		((Rule.HealthBarDisplayMode == RulesClass::HB_DAMAGED) && (Strength < Techno_Type_Class()->MaxStrength)) ||
+		(Rule.HealthBarDisplayMode == RulesClass::HB_ALWAYS));
+
+	/*
+	**	Draw the selected object graphic.
+	*/
+	int lx = width / 2;
+	int ly = height / 2;
+	int dx = width / 5;
+	int dy = height / 5;
+	int fudge = show_health_bar ? 4 : 0;
+	if (What_Am_I() == RTTI_VESSEL) {
+		lx = width / 2;
+	}
+
+	//if (IsSelected) {
+	if (Is_Selected_By_Player() || show_health_bar) {
 		GraphicViewPortClass draw_window(	LogicPage->Get_Graphic_Buffer(),
 														WindowList[window][WINDOWX] + LogicPage->Get_XPos(),
 														WindowList[window][WINDOWY] + LogicPage->Get_YPos(),
@@ -1118,10 +1155,8 @@ void TechnoClass::Draw_It(int x, int y, WindowNumberType window) const
 		**	Fetch the dimensions of the object. These dimensions will be used to draw
 		**	the selection box and the health bar.
 		*/
-		int width,height;
-		Class_Of().Dimensions(width, height);
 
-		if (Strength && (House->Is_Ally(PlayerPtr) || Rule.IsHealthBar)) {
+		if (show_health_bar) {
 			fixed	ratio = Health_Ratio();
 			int	pwidth;		// Pixel width of bar interior.
 			int	color;		// The color to give the interior of the bargraph.
@@ -1156,35 +1191,31 @@ void TechnoClass::Draw_It(int x, int y, WindowNumberType window) const
 		/*
 		**	Draw the selected object graphic.
 		*/
-		if (IsSelected) {
-			int lx = width/2;
-			int ly = height/2;
-			int dx = width/5;
-			int dy = height/5;
-			int fudge = (House->Is_Ally(PlayerPtr) || Rule.IsHealthBar) ? 4 : 0;
-			if (What_Am_I() == RTTI_VESSEL) {
-				lx = width / 2;
-			}
-
+		if (Is_Selected_By_Player()) {
 			// Upper left corner.
-			draw_window.Draw_Line(x-lx, fudge+y-ly, x-lx+dx, fudge+y-ly, WHITE);
-			draw_window.Draw_Line(x-lx, fudge+y-ly, x-lx, fudge+y-ly+dy, WHITE);
+			draw_window.Draw_Line(x - lx, fudge + y - ly, x - lx + dx, fudge + y - ly, WHITE);
+			draw_window.Draw_Line(x - lx, fudge + y - ly, x - lx, fudge + y - ly + dy, WHITE);
 
 			// Upper right corner.
-			draw_window.Draw_Line(x+lx, fudge+y-ly, x+lx-dx, fudge+y-ly, WHITE);
-			draw_window.Draw_Line(x+lx, fudge+y-ly, x+lx, fudge+y-ly+dy, WHITE);
+			draw_window.Draw_Line(x + lx, fudge + y - ly, x + lx - dx, fudge + y - ly, WHITE);
+			draw_window.Draw_Line(x + lx, fudge + y - ly, x + lx, fudge + y - ly + dy, WHITE);
 
 			// Lower right corner.
-			draw_window.Draw_Line(x+lx, y+ly, x+lx-dx, y+ly, WHITE);
-			draw_window.Draw_Line(x+lx, y+ly, x+lx, y+ly-dy, WHITE);
+			draw_window.Draw_Line(x + lx, y + ly, x + lx - dx, y + ly, WHITE);
+			draw_window.Draw_Line(x + lx, y + ly, x + lx, y + ly - dy, WHITE);
 
 			// Lower left corner.
-			draw_window.Draw_Line(x-lx, y+ly, x-lx+dx, y+ly, WHITE);
-			draw_window.Draw_Line(x-lx, y+ly, x-lx, y+ly-dy, WHITE);
-			if (House->Is_Ally(PlayerPtr) || (SpiedBy & (1<<(PlayerPtr->Class->House)))) {
-				Draw_Pips((x-lx)+5, y+ly-3, window);
-			}
+			draw_window.Draw_Line(x - lx, y + ly, x - lx + dx, y + ly, WHITE);
+			draw_window.Draw_Line(x - lx, y + ly, x - lx, y + ly - dy, WHITE);
 		}
+	}
+
+	// MBL 04.21.2020 
+	bool selected = Is_Selected_By_Player() || Rule.ResourceBarDisplayMode == RulesClass::RB_ALWAYS;
+	// if ((window == WINDOW_VIRTUAL) || (Is_Selected_By_Player() && (House->Is_Ally(PlayerPtr) || (Spied_By() & (1 << (PlayerPtr->Class->House)))))) 
+	if ((window == WINDOW_VIRTUAL) || (selected && (House->Is_Ally(PlayerPtr) || (Spied_By() & (1 << (PlayerPtr->Class->House)))))) 
+	{
+		Draw_Pips((x-lx)+5, y+ly-3, window);
 	}
 }
 
@@ -1239,7 +1270,7 @@ bool TechnoClass::Unlimbo(COORDINATE coord, DirType dir)
  * HISTORY:                                                                                    *
  *   11/14/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool TechnoClass::In_Range(TARGET target, int which) const
+bool TechnoClass::In_Range(TARGET target, int which, bool reciprocal_check) const
 {
 	assert(IsActive);
 
@@ -1249,9 +1280,29 @@ bool TechnoClass::In_Range(TARGET target, int which) const
 		if (building != NULL) {
 			range += ((building->Class->Width() + building->Class->Height()) * (ICON_LEPTON_W / 4));
 		}
-
-		if (::Distance(Fire_Coord(which), As_Coord(target)) <= range) {
+		FireDataType data = Fire_Data(which);
+		if (MAX(0, ::Distance(data.Center, As_Coord(target)) - data.Distance) <= range) {
 			return(true);
+		}
+
+		/*
+		** There's a longstanding bug where enemy units aligned north/south may have different perceptions of whether they
+		** are in range of each other due to the turrets offset on the unit. This check will say that if either considers the 
+		** the other to be in range, then they both do. ST - 3/18/2020 10:44AM
+		*/
+		if (reciprocal_check && !building) {
+			ObjectClass *target_object = As_Object(target);
+			if (target_object) {
+				RTTIType my_type = What_Am_I();
+				if (target_object->What_Am_I() == my_type) {
+					if (range == target_object->Weapon_Range(which)) {
+						TechnoClass *tech = As_Techno(target);
+						if (tech->In_Range(As_Target(), which, false)) {
+							return true;
+						}
+					}
+				}
+			}
 		}
 	}
 	return(false);
@@ -1275,7 +1326,7 @@ bool TechnoClass::In_Range(TARGET target, int which) const
  * HISTORY:                                                                                    *
  *   11/14/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool TechnoClass::In_Range(ObjectClass const * target, int which) const
+bool TechnoClass::In_Range(ObjectClass const * target, int which, bool reciprocal_check) const
 {
 	assert(IsActive);
 
@@ -1285,9 +1336,27 @@ bool TechnoClass::In_Range(ObjectClass const * target, int which) const
 			BuildingClass const * building = (BuildingClass const *)target;
 			range += ((building->Class->Width() + building->Class->Height()) * (ICON_LEPTON_W / 4));
 		}
-
-		if (::Distance(Fire_Coord(which), target->Center_Coord()) <= range) {
+		FireDataType data = Fire_Data(which);
+		if (MAX(0, ::Distance(data.Center, target->Center_Coord()) - data.Distance) <= range) {
 			return(true);
+		}
+
+		/*
+		** There's a longstanding bug where enemy units aligned north/south may have different perceptions of whether they
+		** are in range of each other due to the turrets offset on the unit. This check will say that if either considers the 
+		** the other to be in range, then they both do. ST - 3/18/2020 10:44AM
+		*/
+		if (reciprocal_check) {
+			RTTIType my_type = What_Am_I();
+			if (my_type != RTTI_BUILDING) {
+				if (target->What_Am_I() == my_type) {
+					if (range == target->Weapon_Range(which)) {
+						if (((TechnoClass*)target)->In_Range(this, which, false)) {
+							return true;
+						}
+					}
+				}
+			}
 		}
 	}
 	return(false);
@@ -1464,7 +1533,7 @@ bool TechnoClass::Evaluate_Object(ThreatType method, int mask, int range, Techno
 	/*
 	**	If the object is cloaked, then it isn't a legal target.
 	*/
-	if (object->Cloak == CLOAKED) {
+	if (object->Is_Cloaked(this)) {
 		BEnd(BENCH_EVAL_OBJECT);
 		return(false);
 	}
@@ -1493,16 +1562,12 @@ bool TechnoClass::Evaluate_Object(ThreatType method, int mask, int range, Techno
 	**	object is a friend.  Unless we're a medic, of course.  But then,
 	** only consider it a target if it's injured.
 	*/
-	if (House->Is_Ally(object)) {
-		if (Combat_Damage() < 0) {
-			if (object->Health_Ratio() == Rule.ConditionGreen) {
-				BEnd(BENCH_EVAL_OBJECT);
-				return(false);
-			}
-		} else {
-			BEnd(BENCH_EVAL_OBJECT);
-			return(false);
-		}
+	bool is_ally = House->Is_Ally(object);
+	bool is_medic = Combat_Damage() < 0;
+	bool green_health = object->Health_Ratio() == Rule.ConditionGreen;
+	if ((is_ally && (!is_medic || green_health)) || (!is_ally && is_medic)) {
+		BEnd(BENCH_EVAL_OBJECT);
+		return(false);
 	}
 
 	/*
@@ -1585,7 +1650,7 @@ bool TechnoClass::Evaluate_Object(ThreatType method, int mask, int range, Techno
 	**	If the scan is limited to capturable buildings only, then bail if the examined
 	**	object isn't a capturable building.
 	*/
-	if ((method & THREAT_CAPTURE) && (otype != RTTI_BUILDING || !((BuildingTypeClass const *)tclass)->IsCaptureable)) {
+	if ((method & THREAT_CAPTURE) && (otype != RTTI_BUILDING || !object->Can_Capture())) {
 		BEnd(BENCH_EVAL_OBJECT);
 		return(false);
 	}
@@ -1613,6 +1678,14 @@ bool TechnoClass::Evaluate_Object(ThreatType method, int mask, int range, Techno
 #ifdef OBSOLETE
 	if ((!Is_Foot() || ((FootClass *)this)->Team.Is_Valid()) && House->IsHuman && otype == RTTI_BUILDING && tclass->PrimaryWeapon == NULL) {
 #endif
+		BEnd(BENCH_EVAL_OBJECT);
+		return(false);
+	}
+
+	/*
+	** Player-controlled demo trucks never automatically target.
+	*/
+	if ((House->IsHuman || (House->IsPlayerControl && Session.Type == GAME_NORMAL)) && What_Am_I() == RTTI_UNIT && *(UnitClass *)this == UNIT_DEMOTRUCK) {
 		BEnd(BENCH_EVAL_OBJECT);
 		return(false);
 	}
@@ -1674,7 +1747,11 @@ bool TechnoClass::Evaluate_Object(ThreatType method, int mask, int range, Techno
 	**	the fake building's value.
 	*/
 	if ((method & THREAT_FAKES) && otype == RTTI_BUILDING) {
-		switch (!((BuildingTypeClass const *)tclass)->Type) {
+		//switch (!((BuildingTypeClass const *)tclass)->Type) {
+		//The '!' in front of the expression means we are switching on a bool instead of the type. Going to remove it so it compiles, but it might change behavior depending on what Watcom original made of this.
+		//Might be better to remove this switch altogether
+		//ST - 5/9/2019
+		switch (((BuildingTypeClass const *)tclass)->Type) {
 			case STRUCT_FAKECONST:
 			case STRUCT_FAKEWEAP:
 			case STRUCT_FAKE_YARD:
@@ -1959,6 +2036,27 @@ int TechnoClass::Evaluate_Just_Cell(CELL cell) const
 	*/
 	BEnd(BENCH_EVAL_WALL);
 	return(Weapon_Range(0) - Distance(Cell_Coord(cell)));
+}
+
+
+bool TechnoClass::Is_Cloaked(HousesType house, bool check_invisible) const
+{
+	const bool is_invisible = check_invisible && Techno_Type_Class()->IsInvisible;
+	return !House->Is_Ally(house) && ((Cloak == CLOAKED) || is_invisible);
+}
+
+
+bool TechnoClass::Is_Cloaked(HouseClass const * house, bool check_invisible) const
+{
+	const bool is_invisible = check_invisible && Techno_Type_Class()->IsInvisible;
+	return !House->Is_Ally(house) && ((Cloak == CLOAKED) || is_invisible);
+}
+
+
+bool TechnoClass::Is_Cloaked(ObjectClass const * object, bool check_invisible) const
+{
+	const bool is_invisible = check_invisible && Techno_Type_Class()->IsInvisible;
+	return !House->Is_Ally(object) && ((Cloak == CLOAKED) || is_invisible);
 }
 
 
@@ -2305,11 +2403,25 @@ HousesType TechnoClass::Owner(void) const
  * HISTORY:                                                                                    *
  *   12/09/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-void TechnoClass::Clicked_As_Target(int count)
+void TechnoClass::Clicked_As_Target(HousesType house, int count) // 2019/09/20 JAS - Added record of who clicked on the object
 {
 	assert(IsActive);
 
 	FlashCount = count;
+
+	// 2019/09/20 JAS - Flashing info needs to exist per player
+	if (house < HOUSE_COUNT)
+	{
+		FlashCountPerPlayer[house] = count;
+	}
+	else
+	{
+		//receiving HOUSE_COUNT means do it for every player
+		for (int i = 0; i < HOUSE_COUNT; ++i)
+		{
+			FlashCountPerPlayer[i] = count;
+		}
+	}
 }
 
 
@@ -2340,6 +2452,21 @@ void TechnoClass::AI(void)
 		Mark(MARK_CHANGE_REDRAW);
 	}
 
+	/*
+	** If this building is being spied on by the player, need to redraw if selected
+	** since the money amount is rendering.
+	*/
+	if (Is_Selected_By_Player()) {
+		if (What_Am_I() == RTTI_BUILDING) {
+			int spiedby = Spied_By() & (1<<(PlayerPtr->Class->House));
+			if (spiedby) {
+				if (((BuildingClass *)this)->Class->Capacity) {
+					Mark(MARK_CHANGE_REDRAW);
+				}
+			}
+		}
+	}
+
 	CargoClass::AI();
 	RadioClass::AI();
 
@@ -2365,7 +2492,7 @@ void TechnoClass::AI(void)
 	**	If for some strange reason, the computer is firing upon itself, then
 	**	tell it not to.
 	*/
-	if (!House->IsHuman && As_Techno(TarCom) && As_Techno(TarCom)->House->Is_Ally(this)) {
+	if (!House->IsHuman && As_Techno(TarCom) && As_Techno(TarCom)->House->Is_Ally(this) && Combat_Damage() >= 0) {
 //#ifdef FIXIT_CSII	//	checked - ajw 9/28/98 (commented out)
 //if(What_Am_I() == RTTI_INFANTRY && *(InfantryClass *)this==INFANTRY_GENERAL && Session.Type==GAME_NORMAL && House->Class->House==HOUSE_UKRAINE) {
 //} else
@@ -2405,6 +2532,17 @@ void TechnoClass::AI(void)
 	if (FlasherClass::Process()) {
 		Mark(MARK_CHANGE);
 	}
+
+	/*
+	**	Handle electric zap delay logic.
+	*/
+	if (ElectricZapDelay >= 0) {
+		Map.Flag_To_Redraw(true);
+		if (--ElectricZapDelay < 0) {
+			ElectricZapTarget = 0;
+			ElectricZapWhich = 0;
+		}
+	}
 }
 
 
@@ -2437,7 +2575,9 @@ void TechnoClass::Cloaking_AI(void)
 		*/
 		if (Cloak == UNCLOAKED) {
 #ifdef PREDATOR
-			if (IsOwnedByPlayer) Mark(MARK_CHANGE);
+			// Changed for multiplayer so we can visually see the different players in the original renderer. ST - 3/13/2019 5:40PM
+			//if (IsOwnedByPlayer) Mark(MARK_CHANGE);
+			if (Is_Owned_By_Player()) Mark(MARK_CHANGE);
 #endif
 			CloakingDevice.Graphic_Logic();
 			if (Is_Ready_To_Cloak()) {
@@ -2527,7 +2667,9 @@ void TechnoClass::Cloaking_AI(void)
 				*/
 				case CLOAKED:
 #ifdef PREDATOR
-					if (IsOwnedByPlayer) {
+					//if (IsOwnedByPlayer) {
+					// Changed for multiplayer so we can visually see the different players in the original renderer. ST - 3/13/2019 5:40PM
+					if (Is_Owned_By_Player()) {
 						Mark(MARK_CHANGE);
 					}
 #endif
@@ -2623,15 +2765,16 @@ bool TechnoClass::Is_Ready_To_Cloak(void) const
  * HISTORY:                                                                                    *
  *   12/11/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool TechnoClass::Select(void)
+bool TechnoClass::Select(bool allow_mixed)
 {
 	assert(IsActive);
 
-	if (!IsDiscoveredByPlayer && !House->IsPlayerControl && !Debug_Unshroud) {
+	//if (!IsDiscoveredByPlayer && !House->IsPlayerControl && !Debug_Unshroud) {  // ST - 8/7/2019 11:24AM	
+	if (!Is_Discovered_By_Player() && !House->IsPlayerControl && !Debug_Unshroud) {
 		return(false);
 	}
 
-	if (RadioClass::Select()) {
+	if (RadioClass::Select(allow_mixed)) {
 
 		/*
 		**	Speak a confirmation of selection.
@@ -2674,9 +2817,9 @@ FireErrorType TechnoClass::Can_Fire(TARGET target, int which) const
 	ObjectClass * object = As_Object(target);
 
 	/*
-	**	If the object is completely cloaked, then you can't fire on it.
+	**	If an enemy object is completely cloaked, then you can't fire on it.
 	*/
-	if (object != NULL && object->Is_Techno() && ((TechnoClass *)object)->Cloak == CLOAKED) {
+	if (object != NULL && object->Is_Techno() && ((TechnoClass *)object)->Is_Cloaked(this)) {
 		return(FIRE_CANT);
 	}
 
@@ -2783,7 +2926,10 @@ void TechnoClass::Stun(void)
 	Assign_Destination(TARGET_NONE);
 	Transmit_Message(RADIO_OVER_OUT);
 	Detach_All();
-	Unselect();
+	//Unselect();
+	//When an object is stunned it needs to be deselected from all players, not just the current PlayerPtr.
+	// - 8/18/2019 JAS 
+	Unselect_All_Players();
 }
 
 
@@ -2879,6 +3025,8 @@ int TechnoClass::Rearm_Delay(bool second, int which) const
  *                                                                                             *
  *          which    -- Which weapon is this zap associated with (0=primary, 1=secondary).     *
  *                                                                                             *
+ *          window      -- The clipping window to use when rendering.                          *
+ *                                                                                             *
  *          source_coord   -- The coordinate that the zap is to originate from. This is an     *
  *                            override value and if not specifide, the normal fire coordinate  *
  *                            is used.                                                         *
@@ -2894,9 +3042,14 @@ int TechnoClass::Rearm_Delay(bool second, int which) const
  *   09/30/1996 BWG : Created.                                                                 *
  *   09/30/1996 JLB : Uses standard facing conversion and distance routines.                   *
  *=============================================================================================*/
-bool TechnoClass::Electric_Zap(TARGET target, int which, COORDINATE source_coord, unsigned char * remap)
+bool TechnoClass::Electric_Zap(COORDINATE target_coord, int which, WindowNumberType window, COORDINATE source_coord, unsigned char * remap) const
 {
-	int x,y,x1,y1;
+	//int x,y,x1,y1;
+	//PG init variables
+	int x = 0;
+	int y = 0;
+	int x1 = 0;
+	int y1 = 0;
 	COORDINATE source;
 
 	if (source_coord != 0) {
@@ -2904,20 +3057,18 @@ bool TechnoClass::Electric_Zap(TARGET target, int which, COORDINATE source_coord
 	} else {
 		source = Fire_Coord(which);
 	}
-	COORDINATE dest = As_Coord(target);
 	if (What_Am_I() == RTTI_BUILDING) {
 		((BuildingClass *)this)->IsCharging = false;
 	}
 	bool gonnadraw = false;
 
-	if (Map.Push_Onto_TacMap(source, dest) && SpecialDialog == SDLG_NONE) {
+	if (SpecialDialog == SDLG_NONE) {
 		Map.Coord_To_Pixel(source, x, y);
-		Map.Coord_To_Pixel(dest, x1, y1);
+		Map.Coord_To_Pixel(target_coord, x1, y1);
 		x += Map.TacPixelX;
 		x1 += Map.TacPixelX;
 		y += Map.TacPixelY;
 		y1 += Map.TacPixelY;
-		Set_Logic_Page(SeenBuff);
 		gonnadraw = true;
 	}
 
@@ -2983,12 +3134,13 @@ bool TechnoClass::Electric_Zap(TARGET target, int which, COORDINATE source_coord
 				** draw it and move the x & y coords in the right
 				** direction for the next piece.
 				*/
+				// Electric zap coordinates are always tactical, so don't use the partial window if passed - SKY
 				x += _xadd[facing][lastfacing];
 				y += _yadd[facing][lastfacing];
 				if (remap != NULL) {
-					CC_Draw_Shape(LightningShapes, _shape[facing]+(shots ? 4 : 0), x, y, WINDOW_TACTICAL, SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, remap);
+					CC_Draw_Shape(this, "LITNING", LightningShapes, _shape[facing]+(shots ? 4 : 0), x, y, (window != WINDOW_PARTIAL) ? window : WINDOW_TACTICAL, SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, remap);
 				} else {
-					CC_Draw_Shape(LightningShapes, _shape[facing]+(shots ? 4 : 0), x, y, WINDOW_TACTICAL, SHAPE_CENTER|SHAPE_WIN_REL);
+					CC_Draw_Shape(this, "LITNING", LightningShapes, _shape[facing]+(shots ? 4 : 0), x, y, (window != WINDOW_PARTIAL) ? window : WINDOW_TACTICAL, SHAPE_CENTER|SHAPE_WIN_REL);
 				}
 				lastfacing = facing;
 			}
@@ -3155,7 +3307,9 @@ BulletClass * TechnoClass::Fire_At(TARGET target, int which)
 		**	Electric zap animation.
 		*/
 		if (weapon->IsElectric) {
-			bool gonnadraw = Electric_Zap(target, which);
+			ElectricZapDelay = 3;
+			ElectricZapTarget = target_coord;
+			ElectricZapWhich = which;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 			if(What_Am_I() != RTTI_INFANTRY) {
 				Set_Stage(0);
@@ -3171,12 +3325,7 @@ BulletClass * TechnoClass::Fire_At(TARGET target, int which)
 
 			TechnoClass * tech = As_Techno(target);
 			if (tech != NULL)  {
-				tech->Clicked_As_Target(4);
-			}
-
-			Delay(1);	// Make sure line is visible briefly
-			if (gonnadraw) {
-				Map.Flag_To_Redraw(true);
+				tech->Clicked_As_Target(PlayerPtr->Class->House, 4); // 2019/09/20 JAS - Added record of who clicked on the object
 			}
 		}
 
@@ -3199,6 +3348,7 @@ BulletClass * TechnoClass::Fire_At(TARGET target, int which)
 		** For multiplayer games, only reveal the unit if the target is the
 		** local player.
 		*/
+#if (0)
 		if ((!IsOwnedByPlayer && !IsDiscoveredByPlayer) || (!Map[Center_Coord()].IsMapped && (What_Am_I()!=RTTI_AIRCRAFT || !IsOwnedByPlayer)) ) {
 			if (Session.Type == GAME_NORMAL) {
 				Map.Sight_From(Coord_Cell(Center_Coord()), 2, PlayerPtr, false);
@@ -3213,6 +3363,32 @@ BulletClass * TechnoClass::Fire_At(TARGET target, int which)
 				}
 			}
 		}
+
+#else
+
+		/*
+		** For client/server multiplayer, we need to reveal for any human player that is the target. ST - 3/13/2019 5:43PM
+		*/
+		ObjectClass *obj = As_Object(target);
+		if (obj) {
+			HousesType tgt_owner = obj->Owner();
+
+			HouseClass *player = HouseClass::As_Pointer(tgt_owner);
+			if ((player != NULL) && player->IsHuman) {
+				if ((!Is_Owned_By_Player(player) && !Is_Discovered_By_Player(player)) || (!Map[Coord_Cell(Center_Coord())].Is_Mapped(House) && (What_Am_I()!=RTTI_AIRCRAFT || !Is_Owned_By_Player(player))) ) {
+					Map.Sight_From(Coord_Cell(Center_Coord()), 1, player, false);
+				}
+			}
+		}
+
+		/*
+		** For electric zaps, immediately perform bullet logic.
+		*/
+		if (weapon->IsElectric) {
+			bullet->AI();
+		}
+
+#endif
 	}
 
 	return(bullet);
@@ -3254,15 +3430,39 @@ void TechnoClass::Player_Assign_Mission(MissionType mission, TARGET target, TARG
 	}
 
 	if (FormMove) {
-		Queue_Mission(TargetClass(this), mission, target, destination, FormSpeed, FormMaxSpeed);
+		SpeedType speed = FormSpeed;
+		MPHType maxspeed = FormMaxSpeed;
+		if (Is_Foot()) {
+			const FootClass* foot = (const FootClass*)this;
+			if (foot->Group < MAX_TEAMS) {
+				TeamFormDataStruct& team_form_data = TeamFormData[foot->Owner()];
+				speed = team_form_data.TeamSpeed[foot->Group];
+				maxspeed = team_form_data.TeamMaxSpeed[foot->Group];
+			}
+		}
+		Queue_Mission(TargetClass(this), mission, target, destination, speed, maxspeed);
 	} else {
 
 		/*
 		**	Cooerce the movement mission into a queued movement mission if the ALT key was
 		**	held down.
 		*/
-		if (mission == MISSION_MOVE && (Keyboard->Down(Options.KeyQueueMove1) || Keyboard->Down(Options.KeyQueueMove2))) {
-			mission = MISSION_QMOVE;
+		//
+		// MBL 04.14.2020 Original code KO, since is still active and can still hit
+		//
+		// if (mission == MISSION_MOVE && (Keyboard->Down(Options.KeyQueueMove1) || Keyboard->Down(Options.KeyQueueMove2))) {
+		// 	mission = MISSION_QMOVE;
+		// }
+
+		//
+		// MBL 04.14.2020 - Apply the same logic as above, using what is assigned as hotkeys
+		//
+		if (PlayerPtr && House) {
+			if (PlayerPtr == House) {
+				if (mission == MISSION_MOVE && PlayerPtr->IsQueuedMovementToggle) {
+					mission = MISSION_QMOVE;
+				}
+			}
 		}
 
 		Queue_Mission(TargetClass(this), mission, target, destination);
@@ -3301,9 +3501,14 @@ ActionType TechnoClass::What_Action(ObjectClass const * object) const
 			return(ACTION_SELF);
 		}
 
-		bool altdown = (Keyboard->Down(Options.KeyForceMove1) || Keyboard->Down(Options.KeyForceMove2));
-		bool ctrldown = (Keyboard->Down(Options.KeyForceAttack1) || Keyboard->Down(Options.KeyForceAttack2));
-		bool shiftdown = (Keyboard->Down(Options.KeySelect1) || Keyboard->Down(Options.KeySelect2));
+		//bool altdown = (Keyboard->Down(Options.KeyForceMove1) || Keyboard->Down(Options.KeyForceMove2));
+		//bool ctrldown = (Keyboard->Down(Options.KeyForceAttack1) || Keyboard->Down(Options.KeyForceAttack2));
+		//bool shiftdown = (Keyboard->Down(Options.KeySelect1) || Keyboard->Down(Options.KeySelect2));
+		//Added for getting the input for special character keys from the client 
+		// - 6/26/2019 JAS 
+		bool altdown = DLL_Export_Get_Input_Key_State(KN_LALT);
+		bool ctrldown = DLL_Export_Get_Input_Key_State(KN_LCTRL);
+		bool shiftdown = DLL_Export_Get_Input_Key_State(KN_LSHIFT);
 
 		/*
 		**	Special guard area mission is possible if both the control and the
@@ -3327,8 +3532,9 @@ ActionType TechnoClass::What_Action(ObjectClass const * object) const
 		**	Override so that toggled select state can be performed while the <SHIFT> key
 		**	is held down.
 		*/
+		bool is_a_loaner = object->Is_Techno() && ((TechnoClass*)object)->IsALoaner;
 		if (shiftdown) {
-			if (House->IsPlayerControl && !IsALoaner) {
+			if (!is_a_loaner) {
 				return(ACTION_TOGGLE_SELECT);
 			}
 		}
@@ -3357,16 +3563,21 @@ ActionType TechnoClass::What_Action(ObjectClass const * object) const
 						(((InfantryTypeClass const *)ttype)->IsBomber ||
 						((InfantryTypeClass const *)ttype)->IsCapture)
 						)) {
-
+					// Check for anti-air capability
 					int primary = What_Weapon_Should_I_Use(object->As_Target());
-					if (Can_Player_Move() || In_Range(object, primary)) {
-						if (In_Range(object, primary) || (What_Am_I() == RTTI_INFANTRY && ((InfantryClass *)this)->Class->IsCapture && object->What_Am_I() == RTTI_BUILDING && ((BuildingClass *)object)->Class->IsCaptureable)) {
-							return(ACTION_ATTACK);
-						} else {
-							if (!Can_Player_Move()) {
-								return(ACTION_NONE);
-							} else {
+					WeaponTypeClass const * weapon = (primary == 0) ? Techno_Type_Class()->PrimaryWeapon : Techno_Type_Class()->SecondaryWeapon;
+					if ((object->What_Am_I() != RTTI_AIRCRAFT) ||
+						((weapon != NULL) && weapon->Bullet->IsAntiAircraft) ||
+						(object->Is_Techno() && (((TechnoClass *)object)->Height == 0))) {
+						if (Can_Player_Move() || In_Range(object, primary)) {
+							if (In_Range(object, primary) || (What_Am_I() == RTTI_INFANTRY && ((InfantryClass *)this)->Class->IsCapture && object->What_Am_I() == RTTI_BUILDING && object->Can_Capture())) {
 								return(ACTION_ATTACK);
+							} else {
+								if (!Can_Player_Move()) {
+									return(ACTION_NONE);
+								} else {
+									return(ACTION_ATTACK);
+								}
 							}
 						}
 					}
@@ -3378,7 +3589,7 @@ ActionType TechnoClass::What_Action(ObjectClass const * object) const
 		**	Possibly try to select the specified object, if that is warranted.
 		*/
 		if (!Is_Weapon_Equipped() || !House->IsPlayerControl || object->Owner() == Owner()) {
-			if ((!IsALoaner || !IsOwnedByPlayer) && object->Class_Of().IsSelectable && !object->IsSelected) {
+			if ((!is_a_loaner || !Is_Owned_By_Player()) && object->Class_Of().IsSelectable && (!object->Is_Selected_By_Player() || CurrentObject.Count())) {
 				return(ACTION_SELECT);
 			}
 			return(ACTION_NONE);
@@ -3413,9 +3624,14 @@ ActionType TechnoClass::What_Action(CELL cell) const
 	CellClass const * cellptr = &Map[cell];
 	OverlayTypeClass const * optr = NULL;
 
-	bool ctrldown = Keyboard->Down(Options.KeyForceAttack1) || Keyboard->Down(Options.KeyForceAttack2);
-	bool shiftdown = Keyboard->Down(Options.KeySelect1) || Keyboard->Down(Options.KeySelect2);
-	bool altdown = (Keyboard->Down(Options.KeyForceMove1) || Keyboard->Down(Options.KeyForceMove2));
+	//bool altdown = (Keyboard->Down(Options.KeyForceMove1) || Keyboard->Down(Options.KeyForceMove2));
+	//bool ctrldown = (Keyboard->Down(Options.KeyForceAttack1) || Keyboard->Down(Options.KeyForceAttack2));
+	//bool shiftdown = (Keyboard->Down(Options.KeySelect1) || Keyboard->Down(Options.KeySelect2));
+	//Added for getting the input for special character keys from the client 
+	// - 6/26/2019 JAS 
+	bool altdown = DLL_Export_Get_Input_Key_State(KN_LALT);
+	bool ctrldown = DLL_Export_Get_Input_Key_State(KN_LCTRL);
+	bool shiftdown = DLL_Export_Get_Input_Key_State(KN_LSHIFT);
 
 	/*
 	**	Disable recognizing the <CTRL> key forced fire option when dealing with buildings.
@@ -3790,7 +4006,7 @@ bool TechnoClass::Captured(HouseClass * newowner)
  * HISTORY:                                                                                    *
  *   06/20/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-ResultType TechnoClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType TechnoClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(IsActive);
 
@@ -3845,6 +4061,20 @@ ResultType TechnoClass::Take_Damage(int & damage, int distance, WarheadType warh
 					KeyNumType input = KN_RMOUSE;
 					Map.AI(input, 0, 0);
 				}
+			}
+
+			/*
+			** May trigger an achievement. ST - 11/14/2019 1:56PM
+			*/
+			if (Session.Type == GAME_NORMAL && !House->IsHuman && source && source->House && source->House->IsHuman) {
+				TechnoTypeClass const *object_type = Techno_Type_Class();
+				if (object_type) {
+					
+					RTTIType what = What_Am_I();
+					if (what == RTTI_AIRCRAFT || what == RTTI_INFANTRY || what == RTTI_UNIT || what == RTTI_VESSEL) {
+						On_Achievement_Event(source->House, "UNIT_DESTROYED", object_type->IniName);
+					}
+				}			
 			}
 			break;
 
@@ -4008,7 +4238,7 @@ void TechnoClass::Record_The_Kill(TechnoClass * source)
  *   07/06/1995 JLB : Created.                                                                 *
  *   09/28/1995 JLB : Uses map scan function.                                                  *
  *=============================================================================================*/
-CELL TechnoClass::Nearby_Location(TechnoClass const * techno) const
+CELL TechnoClass::Nearby_Location(TechnoClass const * techno, int locationmod) const
 {
 	assert(IsActive);
 
@@ -4024,7 +4254,7 @@ CELL TechnoClass::Nearby_Location(TechnoClass const * techno) const
 		cell = Coord_Cell(Center_Coord());
 	}
 
-	return(Map.Nearby_Location(cell, speed, Map[cell].Zones[Techno_Type_Class()->MZone], Techno_Type_Class()->MZone));
+	return(Map.Nearby_Location(cell, speed, Map[cell].Zones[Techno_Type_Class()->MZone], Techno_Type_Class()->MZone, false, locationmod));
 }
 
 
@@ -4160,8 +4390,10 @@ VisualType TechnoClass::Visual_Character(bool raw) const
 {
 	assert(IsActive);
 
-	if (Techno_Type_Class()->IsInvisible && IsOwnedByPlayer) return(VISUAL_NORMAL);
-	if (Techno_Type_Class()->IsInvisible && !IsOwnedByPlayer && !Debug_Map) return(VISUAL_HIDDEN);
+	if (Techno_Type_Class()->IsInvisible) {
+		if ((Session.Type != GAME_NORMAL) || Is_Owned_By_Player()) return(VISUAL_NORMAL);
+		if (!Debug_Map) return(VISUAL_HIDDEN);
+	}
 
 	/*
 	**	When uncloaked or in map editor mode, always draw the object normally.
@@ -4173,7 +4405,9 @@ VisualType TechnoClass::Visual_Character(bool raw) const
 	**	by the player.
 	*/
 	if (Cloak == CLOAKED) {
-		if (!raw && IsOwnedByPlayer) return(VISUAL_SHADOWY);
+		// Changed for multiplayer. Not needed except to test in the old renderer. ST - 3/13/2019 5:56PM
+		if (!raw && Is_Owned_By_Player()) return(VISUAL_SHADOWY);
+		//if (!raw && IsOwnedByPlayer) return(VISUAL_SHADOWY);
 		return(VISUAL_HIDDEN);
 	}
 
@@ -4188,7 +4422,8 @@ VisualType TechnoClass::Visual_Character(bool raw) const
 	if (stage < 0x0040) return(VISUAL_INDISTINCT);
 	if (stage < 0x0080) return(VISUAL_DARKEN);
 	if (stage < 0x00C0) return(VISUAL_SHADOWY);
-	if (!raw && IsOwnedByPlayer) return(VISUAL_SHADOWY);
+	//if (!raw && IsOwnedByPlayer) return(VISUAL_SHADOWY);
+	if (!raw && Is_Owned_By_Player()) return(VISUAL_SHADOWY);		// Changed for multiplayer. Not needed except to test in the old renderer. ST - 3/13/2019 5:56PM
 	if (stage < 0x00FF) return(VISUAL_RIPPLE);
 	return(VISUAL_HIDDEN);
 }
@@ -4225,11 +4460,16 @@ void TechnoClass::Techno_Draw_Object(void const * shapefile, int shapenum, int x
 {
 	assert(IsActive);
 
+	if (rotation != DIR_N || scale != 0x0100) {
+		Disable_Uncompressed_Shapes();
+	}
+
 	if (shapefile != NULL) {
 		VisualType visual = Visual_Character();
 		void const * remap = Remap_Table();
 		void const * shadow = Map.UnitShadow;
 
+#ifdef PARTIAL
 		/*
 		**	Create a minimum shape rectangle if one hasn't already been
 		**	calculated and the shape file matches the one that the
@@ -4248,6 +4488,143 @@ void TechnoClass::Techno_Draw_Object(void const * shapefile, int shapenum, int x
 				ttype->DimensionData[shapenum] = Shape_Dimensions(shapefile, shapenum);
 			}
 		}
+#endif
+		if (Height > 0) {
+			shadow = Map.UnitShadowAir;
+		}
+
+		y -= Lepton_To_Pixel(Height);
+
+		/*
+		** If they're viewing a spy, and the spy belongs to some other house,
+		** make it look like an infantryman from our house
+		*/
+		if (What_Am_I() == RTTI_INFANTRY) {
+			if (!IsOwnedByPlayer) {
+				if (*(InfantryClass *)this == INFANTRY_SPY) remap = PlayerPtr->Remap_Table();
+			}
+			if (((InfantryClass *)this)->Class->IsRemapOverride) {
+				remap = ((InfantryClass *)this)->Class->OverrideRemap;
+			}
+		}
+
+		/*
+		** Check for the special visual effect for the iron curtain
+		*/
+		if (IronCurtainCountDown > 0) {
+//			remap = RemapEmber;
+			remap = DisplayClass::FadingRed;
+		}
+
+#ifdef PREDATOR
+		if (visual != VISUAL_HIDDEN && visual != VISUAL_RIPPLE) {
+			if (visual == VISUAL_SHADOWY) {
+				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING|SHAPE_PREDATOR, NULL, Map.FadingShade, rotation, scale);
+			} else {
+				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING|SHAPE_GHOST, remap, shadow, rotation, scale);
+			}
+			if (visual == VISUAL_DARKEN) {
+				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, remap, Map.FadingShade, rotation, scale);
+			}
+		}
+		if (visual != VISUAL_NORMAL && visual != VISUAL_HIDDEN) {
+			CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL, NULL, NULL, rotation, scale);
+		}
+#else
+		switch (visual) {
+			case VISUAL_NORMAL:
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shapefile, shapenum, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING|SHAPE_GHOST, remap, shadow, rotation, scale);
+				break;
+
+			case VISUAL_INDISTINCT:
+			case VISUAL_DARKEN:
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shapefile, shapenum, x, y, window, SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, remap, Map.FadingShade, rotation, scale);
+				break;
+
+			case VISUAL_SHADOWY:
+			case VISUAL_RIPPLE:
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, NULL, Map.FadingShade, rotation, scale);
+				break;
+
+			case VISUAL_HIDDEN:
+				// Server still needs to "render" hidden objects to the virtual window, so objects get created properly - SKY
+				if (window == WINDOW_VIRTUAL) {
+					CC_Draw_Shape(this, shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, NULL, Map.FadingShade, rotation, scale);
+				}
+				break;
+		}
+#endif
+	}
+
+	Enable_Uncompressed_Shapes();
+}
+
+
+
+/***********************************************************************************************
+ * TechnoClass::Techno_Draw_Object_Virtual -- Draw object with virtual window support          *
+ *                                                                                             *
+ * INPUT:   shapefile   -- Pointer to the shape file that the shape will be drawn from.        *
+ *                                                                                             *
+ *          shapenum    -- The shape number of the object in the file to use.                  *
+ *                                                                                             *
+ *          x,y         -- Center pixel coordinate to use for rendering this object.           *
+ *                                                                                             *
+ *          window      -- The clipping window to use when rendering.                          *
+ *                                                                                             *
+ *          rotation    -- The rotation of the object.                                         *
+ *                                                                                             *
+ *          scale       -- The scaling factor to use (24.8 fixed point).                       *
+ *                                                                                             *
+ *          shape_name  -- The name of the shapefile                                           *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   8/1/2019 5:32PM - ST : Created.                                                           *
+ *=============================================================================================*/
+void TechnoClass::Techno_Draw_Object_Virtual(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, DirType rotation, int scale, const char *shape_name) const
+{
+	assert(IsActive);
+
+	if (shape_name == NULL || *shape_name == 0) {
+		/*
+		** If there's no override shape name, then call the regular draw
+		*/
+		Techno_Draw_Object(shapefile, shapenum, x, y, window, rotation, scale);
+		return;
+	}
+
+	if (shapefile != NULL) {
+		VisualType visual = Visual_Character();
+		void const * remap = Remap_Table();
+		void const * shadow = Map.UnitShadow;
+
+#ifdef PARTIAL
+		/*
+		**	Create a minimum shape rectangle if one hasn't already been
+		**	calculated and the shape file matches the one that the
+		**	class thinks it should be using. This check is necessary because
+		**	the dimension rectangle pointer is referenced from the type class
+		**	object on the presumption that the shapefile pointer passed to this
+		**	routine matches. If it doesn't match, then the wrong rectangle information
+		**	will be stored into the type class object.
+		*/
+		TechnoTypeClass * ttype = Techno_Type_Class();
+		if (shapefile == ttype->Get_Image_Data() && shapenum < Get_Build_Frame_Count(shapefile)-1) {
+			if (ttype->DimensionData == NULL) {
+				ttype->DimensionData = new Rect [Get_Build_Frame_Count(shapefile)];
+			}
+			if (ttype->DimensionData != NULL && !ttype->DimensionData[shapenum].Is_Valid()) {
+				ttype->DimensionData[shapenum] = Shape_Dimensions(shapefile, shapenum);
+			}
+		}
+#endif
 
 		if (Height > 0) {
 			shadow = Map.UnitShadowAir;
@@ -4293,20 +4670,27 @@ void TechnoClass::Techno_Draw_Object(void const * shapefile, int shapenum, int x
 #else
 		switch (visual) {
 			case VISUAL_NORMAL:
-				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING|SHAPE_GHOST, remap, shadow, rotation, scale);
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shape_name, shapefile, shapenum, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING|SHAPE_GHOST, remap, shadow, rotation, scale);
 				break;
 
 			case VISUAL_INDISTINCT:
 			case VISUAL_DARKEN:
-				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, remap, Map.FadingShade, rotation, scale);
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shape_name, shapefile, shapenum, x, y, window, SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, remap, Map.FadingShade, rotation, scale);
 				break;
 
 			case VISUAL_SHADOWY:
 			case VISUAL_RIPPLE:
-				CC_Draw_Shape(shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, NULL, Map.FadingShade, rotation, scale);
+				// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+				CC_Draw_Shape(this, shape_name, shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, NULL, Map.FadingShade, rotation, scale);
 				break;
 
 			case VISUAL_HIDDEN:
+				// Server still needs to "render" hidden objects to the virtual window, so objects get created properly - SKY
+				if (window == WINDOW_VIRTUAL) {
+					CC_Draw_Shape(this, shape_name, shapefile, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_FADING|SHAPE_CENTER|SHAPE_WIN_REL, NULL, Map.FadingShade, rotation, scale);
+				}
 				break;
 		}
 #endif
@@ -4770,7 +5154,7 @@ void TechnoClass::Base_Is_Attacked(TechnoClass const * enemy)
 	** Loop through the units looking for those who are capable of going
 	** on a rescue mission.
 	*/
-	for (index = 0; index < Units.Count() && desired > 0; index++) {
+	for (int index = 0; index < Units.Count() && desired > 0; index++) {
 	 	UnitClass * unit = Units.Ptr(index);
 		if (unit != NULL && unit->Owner() == Owner()) {
 
@@ -4872,7 +5256,7 @@ void TechnoClass::Base_Is_Attacked(TechnoClass const * enemy)
 			}
 		}
 
-		for (lp = 0; lp < count; lp ++) {
+		for (int lp = 0; lp < count; lp ++) {
 			if (Percent_Chance(50)) {
 				defender[lp]->Assign_Mission(MISSION_RESCUE);
 			} else {
@@ -5401,7 +5785,9 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 	**	Transporter type objects have a different graphic representation for the pips. The
 	**	pip color represents the type of occupant.
 	*/
-	if (Techno_Type_Class()->Max_Passengers() > 0) {
+	bool carrying_passengers = (Techno_Type_Class()->Max_Passengers() > 0) &&
+		((What_Am_I() != RTTI_AIRCRAFT) || (*(AircraftClass*)this != AIRCRAFT_BADGER) || (Mission != MISSION_HUNT));
+	if (carrying_passengers) {
 		ObjectClass const * object = Attached_Object();
 		for (int index = 0; index < Class_Of().Max_Pips(); index++) {
 			PipEnum pip = PIP_EMPTY;
@@ -5426,7 +5812,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 #endif
 				object = object->Next;
 			}
-			CC_Draw_Shape(Class_Of().PipShapes, pip, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
+			CC_Draw_Pip(this, Class_Of().PipShapes, pip, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
 		}
 
 	} else {
@@ -5469,7 +5855,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 						graypips--;
 					}
 				}
-				CC_Draw_Shape(Class_Of().PipShapes, shape, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
+				CC_Draw_Pip(this, Class_Of().PipShapes, shape, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
 			}
 		}
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
@@ -5497,7 +5883,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 							break;
 					}
 				}
-				CC_Draw_Shape(Class_Of().PipShapes, shape, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
+				CC_Draw_Pip(this, Class_Of().PipShapes, shape, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
 			}
 #endif
 		} else {
@@ -5515,17 +5901,20 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 				}
 			}
 
-			for (int index = 0; index < (building ? 5 : Class_Of().Max_Pips()); index++) {
-				if (building) {
-					CC_Draw_Shape(Class_Of().PipShapes, pip, x, y-index*3, window, SHAPE_CENTER|SHAPE_WIN_REL);
-				} else {
-					CC_Draw_Shape(Class_Of().PipShapes, (index < pips) ? PIP_FULL : PIP_EMPTY, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
+			// Ally/spied power display is handled separately in the virtual window
+			if (!building || (window != WINDOW_VIRTUAL)) {
+				for (int index = 0; index < (building ? 5 : Class_Of().Max_Pips()); index++) {
+					if (building) {
+						CC_Draw_Pip(this, Class_Of().PipShapes, pip, x, y-index*3, window, SHAPE_CENTER|SHAPE_WIN_REL);
+					} else {
+						CC_Draw_Pip(this, Class_Of().PipShapes, (index < pips) ? PIP_FULL : PIP_EMPTY, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
+					}
 				}
-			}
 
 //BG			for (int index = 0; index < Class_Of().Max_Pips(); index++) {
 //BG				CC_Draw_Shape(Class_Of().PipShapes, (index < pips) ? PIP_FULL : PIP_EMPTY, x+index*3, y, window, SHAPE_CENTER|SHAPE_WIN_REL);
 //BG			}
+			}
 		}
 	}
 
@@ -5539,7 +5928,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 	/*
 	**	Display whether this unit is a leader unit or not.
 	*/
-	if (IsLeader) {
+	if (IsLeader && (window != WINDOW_VIRTUAL)) {
 		PipEnum prishape = PIP_PRIMARY;
 
 		if(What_Am_I() == RTTI_BUILDING) {
@@ -5556,7 +5945,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 	*/
 	if (Is_Foot() && ((FootClass *)this)->Group != 0xFF && ((FootClass *)this)->Group < 10) {
 		int yval = -1;
-		int group = ((FootClass *)this)->Group+1;
+		int group = ((FootClass *)this)->Group;
 
 		if (Class_Of().Max_Pips()) yval -= 4;
 		if (group == 10) group = 0;
@@ -5577,21 +5966,7 @@ void TechnoClass::Draw_Pips(int x, int y, WindowNumberType window) const
 	** factory-producing item or whatever.
 	*/
 	if (What_Am_I() == RTTI_BUILDING) {
-		int spiedby = SpiedBy & (1<<(PlayerPtr->Class->House));
-
-		/*
-		** If it's an ore refinery or other such storage-capable building,
-		** loop thru all of their buildings to see if ANY of them are spied
-		** upon, 'cause once you spy any money, you've spied all of it.
-		*/
-		if (((BuildingClass *)this)->Class->Capacity) {
-			for (int index = 0; index < Buildings.Count(); index++) {
-				BuildingClass * building = Buildings.Ptr(index);
-				if (building->House == House && building->Class->Capacity) {
-					spiedby |= (building->SpiedBy) & (1<<(PlayerPtr->Class->House));
-				}
-			}
-		}
+		int spiedby = Spied_By() & (1<<(PlayerPtr->Class->House));
 
 		/*
 		** Print word "Decoy" above buildings that are spied upon or fake
@@ -5908,7 +6283,30 @@ void TechnoClass::Look(bool incremental)
 	int sight_range = Techno_Type_Class()->SightRange;
 
 	if (sight_range) {
-		Map.Sight_From(Coord_Cell(Coord), sight_range, House, incremental);
+		
+			Map.Sight_From(Coord_Cell(Coord), sight_range, House, incremental);
+
+
+#if (0)		                            // Leaving this here for posterity, in case we need it for revealing allies. ST - 10/17/2019 10:51AM
+		/*
+		** Changed this function to reveal for the appropriate players in GlyphX multiplayer. ST - 8/7/2019 11:34AM
+		*/
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+
+			Map.Sight_From(Coord_Cell(Coord), sight_range, House, incremental);
+		
+		} else {
+		
+			for (int i = 0; i < Session.Players.Count(); i++) {
+				HousesType house_type = Session.Players[i]->Player.ID;
+				HouseClass *house = HouseClass::As_Pointer(house_type);
+
+				if (Is_Owned_By_Player(house) || Is_Discovered_By_Player(house)) {
+					Map.Sight_From(Coord_Cell(Center_Coord()), sight_range, house, incremental);
+				}
+			}
+		}	
+#endif
 	}
 }
 
@@ -5956,7 +6354,8 @@ TechnoTypeClass::TechnoTypeClass(
 		bool is_remappable,
 		bool is_footprint,
 		int rotation,
-		SpeedType speed) :
+		SpeedType speed,
+		int horizontaloffset) :
 	ObjectTypeClass(	rtti,
 							id,
 							true,
@@ -5999,6 +6398,7 @@ TechnoTypeClass::TechnoTypeClass(
 	ROT(0),
 	PrimaryWeapon(NULL),
 	SecondaryWeapon(NULL),
+	HorizontalOffset(horizontaloffset),
 	VerticalOffset(verticaloffset),
 	PrimaryOffset(primaryoffset),
 	PrimaryLateral(primarylateral),
@@ -6072,9 +6472,93 @@ int TechnoTypeClass::Get_Ownable(void) const
  * HISTORY:                                                                                    *
  *   07/29/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-int TechnoTypeClass::Time_To_Build(void) const
+ //#define UNIT_BUILD_BIAS fixed(5,4)
+ //#define UNIT_BUILD_BIAS fixed(6,4)
+#define UNIT_BUILD_BIAS fixed(1,1)
+//#define UNIT_BUILD_BIAS fixed(5,1)
+
+extern int UnitBuildPenalty;
+
+int TechnoTypeClass::Time_To_Build(HousesType house) const
 {
-	return(Cost * Rule.BuildSpeedBias * fixed(TICKS_PER_MINUTE, 1000));
+	int time = Cost * Rule.BuildSpeedBias * fixed(TICKS_PER_MINUTE, 1000);
+
+	HouseClass* hptr = HouseClass::As_Pointer(house);
+	if (!hptr || !hptr->IsActive) {
+		return time;
+	}
+
+#ifdef FIXIT_VERSION_3
+	if (Session.Type == GAME_NORMAL) {
+#else
+	if (Session.Type == GAME_NORMAL ||
+		PlayingAgainstVersion == VERSION_RED_ALERT_104 ||
+		PlayingAgainstVersion == VERSION_RED_ALERT_107) {
+#endif
+		time *= hptr->BuildSpeedBias;
+	}
+	else {
+#if (0)	// No longer desired. ST - 1/18/2021		
+		/*
+		** New feature - Turkey has a 10% build speed bonus even though it isn't specified in the rules
+		*/
+		if (hptr->ActLike == HOUSE_TURKEY) {
+			if (hptr->BuildSpeedBias == fixed(1)) {
+				time *= 9;
+				time /= 10;
+			}
+		}
+#endif		
+		if (What_Am_I() == RTTI_BUILDINGTYPE || What_Am_I() == RTTI_INFANTRYTYPE) {
+			time *= hptr->BuildSpeedBias;
+		}
+		else {
+			time *= hptr->BuildSpeedBias * fixed(UnitBuildPenalty, 100);	//UNIT_BUILD_BIAS;
+		}
+	}
+
+	/*
+	**	Adjust time according to IQ setting of computer controlled house. The
+	**	build time will range from double normal time at the slowest to
+	**	just normal time at the fastest.
+	*/
+	if (!hptr->IsHuman && Rule.Diff[hptr->Difficulty].IsBuildSlowdown) {
+		time = time * Inverse(fixed(hptr->IQ + Rule.MaxIQ, Rule.MaxIQ * 2));
+	}
+
+	/*
+	**	Adjust the time to build based on the power output of the owning house.
+	*/
+	fixed power = hptr->Power_Fraction();
+	fixed scale(1);
+	if (power == 0) {
+		scale = fixed(4, 1);
+	}
+	else if (power < fixed::_1_2) {
+		scale = fixed(5, 2);
+	}
+	else if (power < 1) {
+		scale = fixed(3, 2);
+	}
+	time *= scale;
+
+	int divisor = hptr->Factory_Count(What_Am_I());
+	if (divisor != 0) {
+#ifdef FIXIT_CSII	//	checked - ajw 9/28/98
+		// Hack: allow the multiple-factory bonus, but only up to two factories if
+		//			this is an AM<->AM game.
+		if (NewUnitsEnabled) {
+			time /= min(divisor, 2);
+		}
+		else {
+			time /= divisor;
+		}
+#else
+		time /= divisor;
+#endif
+	}
+
+	return(time);
 }
 
 
@@ -6138,10 +6622,23 @@ void const * TechnoTypeClass::Get_Cameo_Data(void) const
  *=============================================================================================*/
 int TechnoTypeClass::Repair_Cost(void) const
 {
+	// MBL 04.28.2020 "Fix" for RA Barracks structures coming back with a repair cost of 0, and repairing for free
+	//
+	// if (Is_Foot()) {
+	// 	return((Raw_Cost()/(MaxStrength/Rule.URepairStep)) * Rule.URepairPercent);
+	// }
+	// return((Raw_Cost()/(MaxStrength/Rule.RepairStep)) * Rule.RepairPercent);
+	//
+	int repair_cost = 0;
 	if (Is_Foot()) {
-		return((Raw_Cost()/(MaxStrength/Rule.URepairStep)) * Rule.URepairPercent);
+		repair_cost = ((Raw_Cost()/(MaxStrength/Rule.URepairStep)) * Rule.URepairPercent);
 	}
-	return((Raw_Cost()/(MaxStrength/Rule.RepairStep)) * Rule.RepairPercent);
+	else
+	{
+		repair_cost = ((Raw_Cost()/(MaxStrength/Rule.RepairStep)) * Rule.RepairPercent);
+	}
+	repair_cost = MAX(repair_cost, 1);
+	return repair_cost;
 }
 
 
@@ -6346,4 +6843,133 @@ int TechnoTypeClass::Legal_Placement(CELL pos) const
 		}
 	}
 	return(1);
+}
+
+
+
+
+
+
+
+/*
+**  Additions to TechnoClass to track discovery per-player. ST - 3/6/2019 11:18AM
+** 
+** 
+** 
+** 
+** 
+*/
+
+
+/***********************************************************************************************
+ * TechnoClass::Is_Discovered_By_Player -- Has this object been disovered by the given player  *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:  True if discovered by that player                                                  *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   3/6/2019 11:20AM - ST                                                                     *
+ *=============================================================================================*/
+bool TechnoClass::Is_Discovered_By_Player(HouseClass *player) const
+{
+	if (player && player->Class) {
+		int shift = (int) player->Class->House;
+		return (IsDiscoveredByPlayerMask & (1 << shift)) ? true : false;
+	} else {
+		int shift = (int) PlayerPtr->Class->House;
+		return (IsDiscoveredByPlayerMask & (1 << shift)) ? true : false;
+	}	
+	return false;
+}
+	
+
+/***********************************************************************************************
+ * TechnoClass::Set_Discovered_By_Player -- Mark that this object been disovered by the player *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   3/6/2019 11:23AM - ST                                                                     *
+ *=============================================================================================*/
+void TechnoClass::Set_Discovered_By_Player(HouseClass *player)
+{
+	int shift = 0;
+	if (player && player->Class) {
+		shift = (int) player->Class->House;
+	} else {
+		shift = (int)PlayerPtr->Class->House;
+	}	
+	IsDiscoveredByPlayerMask |= (1 << shift);
+
+	if (Session.Type == GAME_NORMAL && player == PlayerPtr) {
+		IsDiscoveredByPlayer = true;
+	}
+}
+
+
+
+/***********************************************************************************************
+ * TechnoClass::Clear_Discovered_By_Players -- Clear player discovery flags                    *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   4/27/2020 - SKY                                                                           *
+ *=============================================================================================*/
+void TechnoClass::Clear_Discovered_By_Players()
+{
+	IsDiscoveredByPlayerMask = 0;
+	IsDiscoveredByPlayer = false;
+}
+
+
+
+/***********************************************************************************************
+ * TechnoClass::Is_Owned_By_Player -- Is this object owned by the active human player          *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   3/13/2019 5:00PM - ST                                                                     *
+ *=============================================================================================*/
+bool TechnoClass::Is_Owned_By_Player(HouseClass *player) const
+{
+	if (player == NULL) {
+		return (PlayerPtr == House) ? true : false;
+	}
+	return (player == House) ? true : false;
+}			  
+
+
+
+/***********************************************************************************************
+ * TechnoClass::Spied_By -- Spied by flags for this object                                     *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   10/31/2019 - SKY                                                                          *
+ *=============================================================================================*/
+unsigned TechnoClass::Spied_By() const
+{
+	return SpiedBy;
 }

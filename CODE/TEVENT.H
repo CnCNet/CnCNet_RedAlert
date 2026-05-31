@@ -43,7 +43,7 @@
 **	These are the trigger events that are checked for and if qualified, they will signal
 **	a successful trigger event. This might result in the trigger action being performed.
 */
-typedef enum TEventType {
+typedef enum TEventType : unsigned char {
 	TEVENT_NONE,
 	TEVENT_PLAYER_ENTERED,					// player enters this square
 	TEVENT_SPIED,								// Spied by.
@@ -151,7 +151,7 @@ struct TEventClass {
 };
 
 
-typedef enum AttachType {
+typedef enum AttachType : unsigned char {
 	ATTACH_NONE=0x00,				// Trigger doesn't attach to anything (orphan trigger types).
 	ATTACH_CELL=0x01,				// Trigger can only attach to a cell.
 	ATTACH_OBJECT=0x02,			// Trigger can attach only to object (usually building or vehicle).

@@ -500,7 +500,7 @@ void MPGSettings::Dialog(void)
 					Theme.Fade_Out();
 					Hide_Mouse();
 					VisiblePage.Clear();
-					PlayMpegMovie("acrop");
+					//PlayMpegMovie("acrop");	//PG
 					Keyboard->Clear();
 					Show_Mouse();
 					Theme.Queue_Song(THEME_CRUS);

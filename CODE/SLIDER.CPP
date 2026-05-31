@@ -109,7 +109,7 @@ SliderClass::SliderClass(unsigned id, int x, int y, int w, int h, int belong_to_
  * HISTORY:                                                                                    *
  *   09/20/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-virtual SliderClass::~SliderClass(void)
+SliderClass::~SliderClass(void)
 {
 	if (PlusGadget) {
 		delete PlusGadget;

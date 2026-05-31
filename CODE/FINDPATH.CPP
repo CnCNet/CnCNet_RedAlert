@@ -451,8 +451,9 @@ PathType * FootClass::Find_Path(CELL dest, FacingType * final_moves, int maxlen,
 							moves_right[MAX_MLIST_SIZE+2];	// Clockwise move list.
 	PathType				pleft,pright;							// Path control structures.
 	PathType *			which;									// Which path to actually use.
-	int					threat;
-	int					threat_stage;
+	int					threat = 0;			//
+	int					threat_stage = 0; //These weren't initialized. ST - 1/8/2019 12:03PM
+
 
 	/*
 	** If we have been provided an illegal place to store our final moves
@@ -628,8 +629,16 @@ top_of_list:
 				pleft.Overlap 	= LeftOverlap;
 				Mem_Copy(path.Command, pleft.Command, path.Length);
 				Mem_Copy(path.Overlap, pleft.Overlap, sizeof(LeftOverlap));
+
+				// MBL 09.30.2019: We hit a runtime bounds crash where END (-1 / 0xFF) was being poked into +1 just past the end of the moves_right[] array;
+				// The FacingType moves_left[] and moves_right[] arrays already have MAX_MLIST_SIZE+2 as their size, which may have been a previous attempted fix;
+				// We are now passing MAX_MLIST_SIZE, since the sizeof calculations included the +2 buffering;
+				#if 0
 				left = Follow_Edge(startcell, next, &pleft, COUNTERCLOCK, direction, threat, threat_stage, sizeof(moves_left)/sizeof(moves_left[0]), threshhold);
 //				left = Follow_Edge(startcell, next, &pleft, COUNTERCLOCK, direction, threat, threat_stage, follow_len, threshhold);
+				#endif
+				left = Follow_Edge(startcell, next, &pleft, COUNTERCLOCK, direction, threat, threat_stage, MAX_MLIST_SIZE, threshhold);
+
 
 				if (left) {
 					follow_len = min(maxlen, pleft.Length + (pleft.Length >> 1));
@@ -640,8 +649,15 @@ top_of_list:
 				pright.Overlap = RightOverlap;
 				Mem_Copy(path.Command, pright.Command, path.Length);
 				Mem_Copy(path.Overlap, pright.Overlap, sizeof(RightOverlap));
+
+				// MBL 09.30.2019: We hit a runtime bounds crash where END (-1 / 0xFF) was being poked into +1 just past the end of the moves_right[] array;
+				// The FacingType moves_left[] and moves_right[] arrays already have MAX_MLIST_SIZE+2 as their size, which may have been a previous attempted fix;
+				// We are now passing MAX_MLIST_SIZE, since the sizeof calculations included the +2 buffering;
+				#if 0
 				right = Follow_Edge(startcell, next, &pright, CLOCK, direction, threat, threat_stage, sizeof(moves_right)/sizeof(moves_right[0]), threshhold);
 //				right = Follow_Edge(startcell, next, &pright, CLOCK, direction, threat, threat_stage, follow_len, threshhold);
+				#endif
+				right = Follow_Edge(startcell, next, &pright, CLOCK, direction, threat, threat_stage, MAX_MLIST_SIZE, threshhold);
 
 				/*
 				**	If we could find a path, break from this loop. Otherwise this

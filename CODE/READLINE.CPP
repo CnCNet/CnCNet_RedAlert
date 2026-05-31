@@ -17,6 +17,7 @@
 */
 
 
+#include "function.h"
 #include	<ctype.h>
 #include	<string.h>
 #include	"wwfile.h"
@@ -25,10 +26,10 @@
 
 
 // Disable the "temporary object used to initialize a non-constant reference" warning.
-#pragma warning 665 9
+//#pragma warning 665 9
 
 
-void strtrim(char * buffer)
+void strtrimcpp(char * buffer)
 {
 	if (buffer) {
 
@@ -84,6 +85,6 @@ int Read_Line(Straw & file, char * buffer, int len, bool & eof)
 	}
 	buffer[count] = '\0';
 
-	strtrim(buffer);
+	strtrimcpp(buffer);
 	return(strlen(buffer));
 }

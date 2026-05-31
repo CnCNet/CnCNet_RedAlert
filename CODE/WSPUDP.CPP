@@ -123,7 +123,7 @@ void UDPInterfaceClass::Set_Broadcast_Address (void *address)
 
 	unsigned char *baddr = new unsigned char[4];
 
-	sscanf ( ip_addr, "%d.%d.%d.%d", &baddr[0], &baddr[1], &baddr[2], &baddr[3] );
+	sscanf ( ip_addr, "%hhu.%hhu.%hhu.%hhu", &baddr[0], &baddr[1], &baddr[2], &baddr[3] );
 	BroadcastAddresses.Add (baddr);
 }
 

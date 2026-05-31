@@ -25,6 +25,9 @@
 
 bool Get_Broadcast_Addresses (void)
 {
+	return false;
+#if (0)//PG
+
 	int d_dialog_w = 320 *RESFACTOR;											// dialog width
 	int d_dialog_h = 160 *RESFACTOR;											// dialog height
 	int d_dialog_x = ((320*RESFACTOR - d_dialog_w) / 2);				// dialog x-coord
@@ -87,7 +90,8 @@ bool Get_Broadcast_Addresses (void)
 
 	RemapControlType * scheme = GadgetClass::Get_Color_Scheme();
 
-	Fancy_Text_Print(TXT_NONE,0,0,TBLACK,TBLACK,TPF_6PT_GRAD | TPF_NOSHADOW);
+	//PG_TO_FIX
+	//Fancy_Text_Print(TXT_NONE,0,0,TBLACK,TBLACK,TPF_6PT_GRAD | TPF_NOSHADOW);
 	Format_Window_String("IP Addresses", SeenBuff.Get_Height(), width, height);
 
 
@@ -223,10 +227,11 @@ WWDebugString (debug);
 
 	for ( int i=0 ; i<ip_address_list.Count() ; i++ ) {
 		char const *temp = ip_address_list.Get_Item(i);
-		char *cut = strchr (temp, '#');
+		char *cut = (char*)strchr (temp, '#');
 		if ( cut ) *cut = 0;
 		PacketTransport->Set_Broadcast_Address ((char*)temp);
 	}
 
 	return (true);
+#endif
 }

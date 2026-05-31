@@ -53,7 +53,7 @@ class EventClass
 		/*
 		**	All external events are identified by these labels.
 		*/
-		typedef enum EventType {
+		typedef enum EventType : unsigned char	{
 			EMPTY,
 
 			ALLY,					// Make allie of specified house.
@@ -139,6 +139,7 @@ class EventClass
 				AnimType		What;			// The animation to create.
 				HousesType	Owner;		// The owner of the animation (when it matters).
 				COORDINATE			Where;		// The location to place the animation.
+				int			Visible;	// Who this animation is visible to.
 			} Anim;
 			struct {
 				int 			Value;		// general-purpose data
@@ -242,7 +243,7 @@ class EventClass
 		EventClass(EventType type, RTTIType object, int id);
 		EventClass(EventType type, RTTIType object, CELL cell);
 		EventClass(EventType type, int id, CELL cell);
-		EventClass(AnimType anim, HousesType owner, COORDINATE coord);
+		EventClass(AnimType anim, HousesType owner, COORDINATE coord, int visible = -1);
 		EventClass(void *ptr, unsigned long size);
 		EventClass(EventType type, void *ptr, unsigned long size);
 

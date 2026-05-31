@@ -89,7 +89,8 @@ EditClass::EditClass(int id, char * text, int max_len, TextPrintType flags, int 
 	Color = GadgetClass::Get_Color_Scheme();
 
 	if (w == -1 || h == -1) {
-		Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TextFlags);
+		// PG_TO_FIX
+		//Fancy_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, TextFlags);
 
 		if (h == -1) {
 			Height = FontHeight+1;
@@ -352,8 +353,8 @@ void EditClass::Draw_Text(char const * text)
 
 	Conquer_Clip_Text_Print(text, X+1, Y+1, Color, TBLACK, TextFlags | flags, Width-2);
 
-	if (Has_Focus() && strlen(text) < MaxLength &&
-		(String_Pixel_Width(text) + String_Pixel_Width ("_") < Width-2) ) {
+	if (Has_Focus() && (int)strlen(text) < MaxLength &&
+		((int)String_Pixel_Width(text) + (int)String_Pixel_Width ("_") < Width-2) ) {
 		Conquer_Clip_Text_Print( "_", X+1+String_Pixel_Width(text), Y+1, Color, TBLACK, TextFlags | flags);
 	}
 }
@@ -418,7 +419,7 @@ bool EditClass::Handle_Key(KeyASCIIType ascii)
 			/*
 			**	Don't add a character if the length is greater than edit width.
 			*/
-			if ((String_Pixel_Width(String) + Char_Pixel_Width(ascii) ) >= (Width-2)) {
+			if (((int)String_Pixel_Width(String) + (int)Char_Pixel_Width(ascii) ) >= (Width-2)) {
 				break;
 			}
 

@@ -44,7 +44,7 @@
  *   VersionClass::Min_Version -- returns lowest version # to connect to   *
  *   VersionClass::Max_Version -- returns highest version # to connect to  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+#if (0)//PG
 #include "function.h"
 
 #ifdef FIXIT_VERSION_3
@@ -850,3 +850,4 @@ char const * Version_Name(void)
 	return(buffer);
 #endif
 }
+#endif

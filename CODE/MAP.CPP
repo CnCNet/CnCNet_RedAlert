@@ -337,9 +337,8 @@ void MapClass::Sight_From(CELL cell, int sightrange, HouseClass * house, bool in
 		**	adjacent cells as well. For full scans, just update
 		**	the cell itself.
 		*/
-		if (!(*this)[newcell].IsMapped) {
-			Map.Map_Cell(newcell, house);
-		}
+		//if (!(*this)[newcell].IsMapped) {  // ST - 8/7/2019 10:31AM		
+		Map.Map_Cell(newcell, house, true, true);
 	}
 }
 
@@ -362,8 +361,9 @@ void MapClass::Sight_From(CELL cell, int sightrange, HouseClass * house, bool in
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   11/10/1995 BWG : Created.                                                                 *
+ *   08/09/2019  ST : Added house parameter                                                    *
  *=============================================================================================*/
-void MapClass::Shroud_From(CELL cell, int sightrange)
+void MapClass::Shroud_From(CELL cell, int sightrange, HouseClass *house)
 {
 	int xx;				// Center cell X coordinate (bounds checking).
 	int const * ptr;	// Offset pointer.
@@ -409,7 +409,7 @@ void MapClass::Shroud_From(CELL cell, int sightrange)
 		/*
 		**	Shroud the cell.
 		*/
-		Map.Shroud_Cell(newcell);
+		Map.Shroud_Cell(newcell, house);
 	}
 }
 
@@ -484,9 +484,22 @@ void MapClass::Jam_From(CELL cell, int jamrange, HouseClass * house)
 		Map.Jam_Cell(newcell, house/*KO, false*/);
 	}
 
-//	PlayerPtr->IsToLook = true;
-	if (!house->IsPlayerControl) {
-		Map.Constrained_Look(Cell_Coord(cell), Rule.GapShroudRadius * CELL_LEPTON_W);
+	/*
+	** Updated for client/server multiplayer. ST - 8/12/2019 3:25PM
+	*/
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+		if (!house->IsPlayerControl) {
+			Map.Constrained_Look(Cell_Coord(cell), Rule.GapShroudRadius * CELL_LEPTON_W, PlayerPtr);
+		}
+		
+	} else {
+		
+		for (int i = 0; i < Session.Players.Count(); i++) {
+			HouseClass *player_house = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+			if (player_house->IsHuman && player_house != house) {
+				Map.Constrained_Look(Cell_Coord(cell), Rule.GapShroudRadius * CELL_LEPTON_W, player_house);
+			}
+		}
 	}
 
 #ifdef OBSOLETE
@@ -909,7 +922,7 @@ int MapClass::Write_Binary(Pipe & pipe)
 	}
 
 	cellptr = &Array[0];
-	for (i = 0; i < MAP_CELL_TOTAL; i++) {
+	for (int i = 0; i < MAP_CELL_TOTAL; i++) {
 		total += comp.Put(&cellptr->TIcon, sizeof(cellptr->TIcon));
 		cellptr++;
 	}
@@ -988,6 +1001,7 @@ bool MapClass::Read_Binary(Straw & straw)
  *=============================================================================================*/
 void MapClass::Logic(void)
 {
+	if (Debug_Force_Crash) { *((int *)0) = 1; }
 	/*
 	**	Crate regeneration is handled here.
 	*/
@@ -1015,8 +1029,19 @@ void MapClass::Logic(void)
 	**	Tiberium cells that can grow or spread.
 	*/
 	int subcount = MAP_CELL_TOTAL / (Rule.GrowthRate * TICKS_PER_MINUTE);
+
+	/*
+	** Use the Tiberium setting as a multiplier on growth rate. ST - 7/1/2020 3:05PM
+	*/
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		if (Session.Options.Tiberium > 1) {
+			subcount *= Session.Options.Tiberium;
+		}
+	}		 
+
 	subcount = max(subcount, 1);
-	for (int index = TiberiumScan; index < MAP_CELL_TOTAL; index++) {
+	int index;
+	for (index = TiberiumScan; index < MAP_CELL_TOTAL; index++) {
 		CELL cell = index;
 		if (In_Radar(cell)) {
 			CellClass * ptr = &(*this)[cell];
@@ -1134,7 +1159,8 @@ int MapClass::Cell_Region(CELL cell)
 int MapClass::Cell_Threat(CELL cell, HousesType house)
 {
 	int threat = HouseClass::As_Pointer(house)->Regions[Map.Cell_Region(Map[cell].Cell_Number())].Threat_Value();
-	if (!threat && Map[cell].IsVisible) {
+	//using function for IsVisible so we have different results for different players - JAS 2019/09/30
+	if (!threat && Map[cell].Is_Visible(house)) {
 		threat = 1;
 	}
 	return(threat);
@@ -1403,13 +1429,15 @@ ObjectClass * MapClass::Close_Object(COORDINATE coord) const
 			while (o != NULL) {
 
 				/*
-				**	Special case check to ignore cloaked object if not owned by the player.
+				**	Special case check to ignore cloaked object if not allied with the player.
 				*/
-				if (!o->Is_Techno() || ((TechnoClass *)o)->IsOwnedByPlayer || ((TechnoClass *)o)->Cloak != CLOAKED) {
+				// Change for client/server multiplayer. ST - 8/7/2019 10:35AM
+				//if (!o->Is_Techno() || ((TechnoClass *)o)->IsOwnedByPlayer || ((TechnoClass *)o)->Cloak != CLOAKED) {
+				if (!o->Is_Techno() || !((TechnoClass *)o)->Is_Cloaked(PlayerPtr)) {
 					int d=-1;
 					if (o->What_Am_I() == RTTI_BUILDING) {
 						d = Distance(coord, Cell_Coord(newcell));
-						if (d > 0x00B5) d = -1;
+						if (d > 0x00C0) d = -1;
 					} else {
 						d = Distance(coord, o->Center_Coord());
 					}
@@ -1424,10 +1452,27 @@ ObjectClass * MapClass::Close_Object(COORDINATE coord) const
 	}
 
 	/*
+	** Handle aircraft selection separately, since they aren't tracked in cells while flying
+	*/
+	for (int index = 0; index < Aircraft.Count(); index++) {
+		AircraftClass * aircraft = Aircraft.Ptr(index);
+
+		if (aircraft->In_Which_Layer() != LAYER_GROUND) {
+			if (!aircraft->Is_Cloaked(PlayerPtr)) {
+				int d = Distance(coord, Coord_Add(aircraft->Center_Coord(), XY_Coord(0, -aircraft->Height)));
+				if (d >= 0 && (!object || d < distance)) {
+					distance = d;
+					object = aircraft;
+				}
+			}
+		}
+	}
+
+	/*
 	**	Only return the object if it is within 1/4 cell distance from the specified
 	**	coordinate.
 	*/
-	if (object && distance > 0xB5) {
+	if (object && distance > 0xC0) {
 		object = 0;
 	}
 	return(object);
@@ -1617,7 +1662,7 @@ int MapClass::Zone_Span(CELL cell, int zone, MZoneType check)
 	**	end of the scan. This is necessary because diagonals are considered
 	**	adjacent.
 	*/
-	for (x = xbegin-1; x <= xend; x++) {
+	for (int x = xbegin-1; x <= xend; x++) {
 		filled += Zone_Span(XY_Cell(x, y-1), zone, check);
 		filled += Zone_Span(XY_Cell(x, y+1), zone, check);
 	}
@@ -1641,6 +1686,8 @@ int MapClass::Zone_Span(CELL cell, int zone, MZoneType check)
  *                                                                                             *
  *          check -- The type of zone to check against. Only valid if a zone value is given.   *
  *                                                                                             *
+ *          checkflagged -- Whether the cell's flagged status is checked (used when dropping). *
+ *                                                                                             *
  * OUTPUT:  Returns with the cell that is generally clear (legal to move to) that is close     *
  *          to the specified cell.                                                             *
  *                                                                                             *
@@ -1649,7 +1696,7 @@ int MapClass::Zone_Span(CELL cell, int zone, MZoneType check)
  * HISTORY:                                                                                    *
  *   10/05/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-CELL MapClass::Nearby_Location(CELL cell, SpeedType speed, int zone, MZoneType check) const
+CELL MapClass::Nearby_Location(CELL cell, SpeedType speed, int zone, MZoneType check, bool checkflagged, int locationmod) const
 {
 	CELL topten[10];
 	int count = 0;
@@ -1660,40 +1707,44 @@ CELL MapClass::Nearby_Location(CELL cell, SpeedType speed, int zone, MZoneType c
 	**	Determine the limits of the scanning in the four directions so that
 	**	it won't scan past the edge of the world.
 	*/
-	int left = xx - MapCellX;
-	int right = (MapCellWidth - left) - 1;
-	int top = yy - MapCellY;
-	int bottom = (MapCellHeight - top) - 1;
+	int left = MapCellX;
+	int right = MapCellX + MapCellWidth - 1;
+	int top = MapCellY;
+	int bottom = MapCellY + MapCellHeight - 1;
 
 	/*
 	**	Radiate outward from the specified location, looking for the closest
 	**	location that is generally clear.
 	*/
-	for (int radius = 0; radius < MAP_CELL_W/2; radius++) {
+	for (int radius = 0; radius < MAP_CELL_W; radius++) {
 		CELL newcell;
 		CellClass const * cellptr;
 
 		/*
 		**	Scan the top and bottom rows of the "box".
 		*/
-		for (int x = -radius; x <= radius; x++) {
-			if (x >= -left && radius <= top) {
-				newcell = XY_Cell(xx+x, yy-radius);
-				cellptr = &Map[newcell];
-				if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check)) {
-					topten[count++] = newcell;
+		for (int x = xx-radius; x <= xx+radius; x++) {
+			if (x >= left && x <= right) {
+				int y = yy-radius;
+				if (y >= top) {
+					newcell = XY_Cell(x, y);
+					cellptr = &Map[newcell];
+					if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check) && (!checkflagged || !cellptr->IsFlagged)) {
+						topten[count++] = newcell;
+					}
 				}
-			}
-			if (count == ARRAY_SIZE(topten)) break;
+				if (count == ARRAY_SIZE(topten)) break;
 
-			if (x <= right && radius <= bottom) {
-				newcell = XY_Cell(xx+x, yy+radius);
-				cellptr = &Map[newcell];
-				if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check)) {
-					topten[count++] = newcell;
+				y = yy+radius;
+				if (y <= bottom) {
+					newcell = XY_Cell(x, y);
+					cellptr = &Map[newcell];
+					if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check) && (!checkflagged || !cellptr->IsFlagged)) {
+						topten[count++] = newcell;
+					}
 				}
+				if (count == ARRAY_SIZE(topten)) break;
 			}
-			if (count == ARRAY_SIZE(topten)) break;
 		}
 
 		if (count == ARRAY_SIZE(topten)) break;
@@ -1701,31 +1752,35 @@ CELL MapClass::Nearby_Location(CELL cell, SpeedType speed, int zone, MZoneType c
 		/*
 		**	Scan the left and right columns of the "box".
 		*/
-		for (int y = -(radius-1); y <= radius-1; y++) {
-			if (y >= -top && radius <= left) {
-				newcell = XY_Cell(xx-radius, yy+y);
-				cellptr = &Map[newcell];
-				if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check)) {
-					topten[count++] = newcell;
+		for (int y = yy-radius; y <= yy+radius; y++) {
+			if (y >= top && y <= bottom) {
+				int x = xx-radius;
+				if (x >= left) {
+					newcell = XY_Cell(x, y);
+					cellptr = &Map[newcell];
+					if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check) && (!checkflagged || !cellptr->IsFlagged)) {
+						topten[count++] = newcell;
+					}
 				}
-			}
-			if (count == ARRAY_SIZE(topten)) break;
+				if (count == ARRAY_SIZE(topten)) break;
 
-			if (y <= bottom && radius <= right) {
-				newcell = XY_Cell(xx+radius, yy+y);
-				cellptr = &Map[newcell];
-				if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check)) {
-					topten[count++] = newcell;
+				x = xx+radius;
+				if (x <= right) {
+					newcell = XY_Cell(x, y);
+					cellptr = &Map[newcell];
+					if (Map.In_Radar(newcell) && cellptr->Is_Clear_To_Move(speed, false, false, zone, check) && (!checkflagged || !cellptr->IsFlagged)) {
+						topten[count++] = newcell;
+					}
 				}
+				if (count == ARRAY_SIZE(topten)) break;
 			}
-			if (count == ARRAY_SIZE(topten)) break;
 		}
 
 		if (count > 0) break;
 	}
 
 	if (count > 0) {
-		return(topten[Frame % count]);
+		return(topten[(Frame+locationmod) % count]);
 	}
 	return(0);
 }
@@ -1787,11 +1842,40 @@ bool MapClass::Base_Region(CELL cell, HousesType & house, ZoneType & zone) const
  * HISTORY:                                                                                    *
  *   07/29/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
+
+// Need to inform the server of the cell change so it can communicate with the clients - SKY
+extern void On_Update_Map_Cell(int cell_x, int cell_y, const char* template_type_name);
+
+struct CellUpdateStruct
+{
+	const TemplateTypeClass* Type;
+	CELL Cell;
+};
+
+static const int MAX_UPDATES = 8;
+
+static void Add_Cell_Update(CellUpdateStruct* updates, int& count, TemplateType type, CELL cell)
+{
+	new TemplateClass(type, cell);
+
+	assert(count < MAX_UPDATES);
+	if (count < MAX_UPDATES)
+	{
+		updates[count].Type = TemplateTypes.Ptr((int)type);
+		updates[count].Cell = cell;
+		count++;
+	}
+}
+
 bool MapClass::Destroy_Bridge_At(CELL cell)
 {
+	bool destroyed = false;
 	if (In_Radar(cell) && !Special.IsCaptureTheFlag) {
 		CellClass * cellptr = &(*this)[cell];
 		TemplateType ttype = cellptr->TType;
+
+		CellUpdateStruct cell_updates[MAX_UPDATES];
+		int update_count = 0;
 
 		if (ttype == TEMPLATE_BRIDGE1 || ttype == TEMPLATE_BRIDGE2) {
 			int icon = cellptr->TIcon;
@@ -1802,9 +1886,9 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 			cell -= MAP_CELL_W * (icon / w);
 
 			if (ttype == TEMPLATE_BRIDGE1) {
-				new TemplateClass(TEMPLATE_BRIDGE1H, cell);
+				Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE1H, cell);
 			} else {
-				new TemplateClass(TEMPLATE_BRIDGE2H, cell);
+				Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE2H, cell);
 			}
 
 			new AnimClass(ANIM_NAPALM3, Cell_Coord(cell + w/2 + (h/2)*MAP_CELL_W));
@@ -1819,9 +1903,9 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 			cell -= MAP_CELL_W * (icon / bridge_w);
 
 			if (ttype == TEMPLATE_BRIDGE1H) {
-				new TemplateClass(TEMPLATE_BRIDGE1D, cell);
+				Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE1D, cell);
 			} else {
-				new TemplateClass(TEMPLATE_BRIDGE2D, cell);
+				Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE2D, cell);
 			}
 
 			Scen.BridgeCount--;
@@ -1833,16 +1917,17 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 			** Now, loop through all the bridge cells and find anyone standing
 			** on a destroyed part (which is now river), and nuke them.
 			*/
+			CELL cell2 = cell;
 			for (int y = 0; y < bridge_h; y++) {
 				for (int x = 0; x < bridge_w; x++) {
-					CellClass * bridge_cell = &(*this)[cell];
+					CellClass * bridge_cell = &(*this)[cell2];
 					if (bridge_cell->TType == ttype) {
 
 						/*
 						**	Any unit that is firing on the bridge at this location, will stop
 						**	firing because the bridge has been destroyed.
 						*/
-						Detach_This_From_All(As_Target(cell), true);
+						Detach_This_From_All(As_Target(cell2), true);
 
 						ObjectClass * obj = bridge_cell->Cell_Occupier();
 						while (obj != NULL) {
@@ -1854,13 +1939,13 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 							obj = next;
 						}
 					}
-					cell++;
+					cell2++;
 				}
-				cell += MAP_CELL_W - bridge_w;
+				cell2 += MAP_CELL_W - bridge_w;
 			}
 			Shake_The_Screen(3);
 
-			return(true);
+			destroyed = true;
 		} else {
 			/*
 			** All this code is for the multi-part bridges.
@@ -1880,7 +1965,7 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 					case TEMPLATE_BRIDGE_3A:
 					case TEMPLATE_BRIDGE_3B:
 						ttype++;
-						new TemplateClass(TemplateType(ttype), cell);
+						Add_Cell_Update(cell_updates, update_count, ttype, cell);
 						break;
 		 		}
 
@@ -1894,8 +1979,8 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 					CellClass * celptr = &(*this)[cell2];
 					if (celptr->TType == TEMPLATE_BRIDGE_3C) {
 						// It was also destroyed.  Update us and it.
-						new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3D), cell);
-						new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3E), cell2);
+						Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3D, cell);
+						Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3E, cell2);
 					}
 
 					// Now check the template above us, at x+1, y-1.
@@ -1904,11 +1989,11 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 					if (celptr->TType == TEMPLATE_BRIDGE_3C) {
 						if (cellptr->TType == TEMPLATE_BRIDGE_3D) {
 							// if we're already one-sided, turn us to all water
-							new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3F), cell);
+							Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3F, cell);
 						} else {
-							new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3E), cell);
+							Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3E, cell);
 						}
-						new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3D), cell2);
+						Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3D, cell2);
 					}
 					Map.Zone_Reset(MZONEF_ALL);
 				}
@@ -1927,10 +2012,10 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 						case TEMPLATE_BRIDGE_3A:
 						case TEMPLATE_BRIDGE_3B:
 						case TEMPLATE_BRIDGE_3C:
-							new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3E), cell2);
+							Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3E, cell2);
 							break;
 						case TEMPLATE_BRIDGE_3D:
-							new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3F), cell2);
+							Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3F, cell2);
 							break;
 					}
 				} else {
@@ -1941,10 +2026,10 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 							case TEMPLATE_BRIDGE_3A:
 							case TEMPLATE_BRIDGE_3B:
 							case TEMPLATE_BRIDGE_3C:
-								new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3D), cell2);
+								Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3D, cell2);
 								break;
 							case TEMPLATE_BRIDGE_3E:
-								new TemplateClass(TemplateType(TEMPLATE_BRIDGE_3F), cell2);
+								Add_Cell_Update(cell_updates, update_count, TEMPLATE_BRIDGE_3F, cell2);
 								break;
 						}
 					}
@@ -1974,15 +2059,39 @@ bool MapClass::Destroy_Bridge_At(CELL cell)
 						}
 						cell += MAP_CELL_W;
 					}
-					Shake_The_Screen(3);
 					Map.Zone_Reset(MZONEF_ALL);
-					return(true);
+					destroyed = true;
 				}
 				Shake_The_Screen(3);
 			}
 		}
+
+		int cell_index = 0;
+		char cell_name[_MAX_PATH] = { 0 };
+		char icon_number[32] = { 0 };
+		int icon = 0;
+		void *image_data = 0;
+		for (int i = 0; i < update_count; i++) {
+			const TemplateTypeClass* type = cell_updates[i].Type;
+			CELL cell = cell_updates[i].Cell;
+			for (int y = 0; y < type->Height; y++) {
+				for (int x = 0; x < type->Width; x++) {
+					CELL newcell = cell + y * MAP_CELL_W + x;
+					if (Map.In_Radar(newcell)) {
+						CellClass * newcellptr = &Map[newcell];
+						if (newcellptr->Get_Template_Info(cell_name, icon, image_data)) {
+							itoa(icon, icon_number, 10);
+							strncat(cell_name, "_i", 32);
+							strncat(cell_name, icon_number, 32);
+							strncat(cell_name, ".tga", 32);
+							On_Update_Map_Cell(Cell_X(newcell), Cell_Y(newcell), cell_name);
+						}
+					}
+				}
+			}
+		}
 	}
-	return(false);
+	return(destroyed);
 }
 
 
@@ -2095,6 +2204,58 @@ CELL MapClass::Pick_Random_Location(void) const
 	return(XY_Cell(x, y));
 }
 
+
+#if (1)
+
+/***********************************************************************************************
+ * MapClass::Shroud_The_Map -- cover the whole map in darkness (usually from blackout crate)	  *
+ *                                                                                             *
+ * INPUT:   House to shroud                                                                    *
+ *                                                                                             *
+ * OUTPUT:  None
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   10/19/1996 BWG : Created.                                                                 *
+ *   08/12/2019  ST : Updated for client/server multiplayer                                    *
+ *=============================================================================================*/
+void MapClass::Shroud_The_Map(HouseClass *house)
+{
+	for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
+		CellClass * cellptr = &Map[cell];
+		if (cellptr->Is_Mapped(house) || cellptr->Is_Visible(house)) {
+			
+			cellptr->Redraw_Objects();
+			
+			/*
+			** BG: remove "ring of darkness" around edge of map.
+			*/
+			int x = Cell_X(cell);
+			int y = Cell_Y(cell);
+			if (x >= Map.MapCellX && x < (Map.MapCellX + Map.MapCellWidth) &&
+				y >= Map.MapCellY && y < (Map.MapCellY + Map.MapCellHeight)) {
+				cellptr->Set_Mapped(house, false);
+				cellptr->Set_Visible(house, false);
+			}
+		}
+	}
+	for (int obj_index = 0; obj_index < DisplayClass::Layer[LAYER_GROUND].Count(); obj_index++) {
+		ObjectClass * layer_object = DisplayClass::Layer[LAYER_GROUND][obj_index];
+		if (layer_object && layer_object->Is_Techno() && ((TechnoClass *)layer_object)->House == house) {
+			layer_object->Look();
+		}
+	}
+	Flag_To_Redraw(true);
+}
+
+
+#else
+
+//
+// Old code for posterity. ST - 8/12/2019 11:34AM
+//
+
 /***********************************************************************************************
  * MapClass::Shroud_The_Map -- cover the whole map in darkness (usually from blackout crate)	  *
  *                                                                                             *
@@ -2133,3 +2294,4 @@ void MapClass::Shroud_The_Map(void)
 	}
 	Flag_To_Redraw(true);
 }
+#endif

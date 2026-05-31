@@ -154,7 +154,7 @@ void Reallocate_Big_Shape_Buffer(void)
 }
 
 
-#ifdef FIXIT_SCORE_CRASH
+//#ifdef FIXIT_SCORE_CRASH
 /***********************************************************************************************
  * Disable_Uncompressed_Shapes -- Temporarily turns off shape decompression                    *
  *                                                                                             *
@@ -194,10 +194,17 @@ void Enable_Uncompressed_Shapes (void)
 {
 	UseBigShapeBuffer = OriginalUseBigShapeBuffer;
 }
-#endif	//FIXIT
+//#endif	//FIXIT
 
 void Check_Use_Compressed_Shapes (void)
 {
+#if (1)	// Uncompressed shapes enabled for performance reasons. We don't need to worry about memory. 
+			// Uncompressed shapes don't seem to work in RA for rotated/scaled objects so wherever scale/rotate is used, 
+			// we will need to disable it (like in Techno_Draw_Object). ST - 11/6/2019 2:09PM
+	UseBigShapeBuffer = true;
+	OriginalUseBigShapeBuffer = true;
+
+#else
 	MEMORYSTATUS	mem_info;
 
 	mem_info.dwLength=sizeof(mem_info);
@@ -211,6 +218,7 @@ void Check_Use_Compressed_Shapes (void)
 	*/
 	OriginalUseBigShapeBuffer = UseBigShapeBuffer;
 #endif	//FIXIT
+#endif
 }
 
 

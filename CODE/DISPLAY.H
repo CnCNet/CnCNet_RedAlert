@@ -63,6 +63,7 @@ extern COORDINATE Coord_Add(COORDINATE coord1, COORDINATE coord2);
 class DisplayClass: public MapClass
 {
 	public:
+		friend class DLLExportClass;	// ST - 5/13/2019
 
 		/*
 		** The tactical map display position is indicated by the cell of the
@@ -92,7 +93,8 @@ class DisplayClass: public MapClass
 		CELL ZoneCell;
 		short ZoneOffset;
 		short const *CursorSize;
-		bool ProximityCheck;		// Is proximity check ok?
+		short CursorShapeSave[256];	// For save/load
+		bool ProximityCheck;				// Is proximity check ok?
 
 		/*
 		** This holds the building type that is about to be placed upon the map.
@@ -143,12 +145,12 @@ class DisplayClass: public MapClass
 		/*
 		**	Added functionality.
 		*/
-		void All_To_Look(bool units_only=false);
-		void Constrained_Look(COORDINATE coord, LEPTON distance);
-		void Shroud_Cell(CELL cell/*KO, bool shadeit = false*/);
-		void Encroach_Shadow(void);
-		void Center_Map(COORDINATE center=0L);
-		virtual bool Map_Cell(CELL cell, HouseClass *house);
+		void All_To_Look(HouseClass *house, bool units_only=false);										// Added house parameter so it can work for multiple players. ST - 8/6/2019 2:30PM
+		void Constrained_Look(COORDINATE coord, LEPTON distance, HouseClass *house);				// Added house parameter for client/server multiplayer. ST - 8/12/2019 3:25PM
+		void Shroud_Cell(CELL cell, HouseClass *house);
+		void Encroach_Shadow(HouseClass *house);
+		COORDINATE Center_Map(COORDINATE center=0L);
+		virtual bool Map_Cell(CELL cell, HouseClass *house, bool check_radar_spied = true, bool and_for_allies = true);		// Added check_radar_spied parameter to prevent recursion. ST - 8/6/2019 10:16AM. Added and_for_allies ST - 10/31/2019 1:18PM
 		virtual CELL Click_Cell_Calc(int x, int y) const;
 		virtual void Help_Text(int , int =-1, int =-1, int =YELLOW, bool =false) {};
 		virtual MouseType Get_Mouse_Shape(void) const = 0;
@@ -170,7 +172,7 @@ class DisplayClass: public MapClass
 		*/
 		virtual void Set_Tactical_Position(COORDINATE coord);
 		void Refresh_Band(void);
-		void Select_These(COORDINATE coord1, COORDINATE coord2);
+		void Select_These(COORDINATE coord1, COORDINATE coord2, bool additive = false);
 		COORDINATE Pixel_To_Coord(int x, int y) const;
 		bool Coord_To_Pixel(COORDINATE coord, int & x, int & y) const;
 		bool Push_Onto_TacMap(COORDINATE &source, COORDINATE &dest);
@@ -182,7 +184,7 @@ class DisplayClass: public MapClass
 		ObjectClass * Cell_Object(CELL cell, int x=0, int y=0) const;
 		ObjectClass * Next_Object(ObjectClass * object) const;
 		ObjectClass * Prev_Object(ObjectClass * object) const;
-		int Cell_Shadow(CELL cell) const;
+		int Cell_Shadow(CELL cell, HouseClass *house) const;
 		short const * Text_Overlap_List(char const * text, int x, int y) const;
 		bool Is_Spot_Free(COORDINATE coord) const;
 		COORDINATE Closest_Free_Spot(COORDINATE coord, bool any=false) const;
@@ -195,7 +197,7 @@ class DisplayClass: public MapClass
 		/*
 		** Computes starting position based on player's units' Coords.
 		*/
-		void Compute_Start_Pos(void);
+		void Compute_Start_Pos(long& x, long& y);
 
 		/*
 		**	File I/O.
@@ -273,6 +275,9 @@ class DisplayClass: public MapClass
 			public:
 				TacticalClass(void) : GadgetClass(0,0,0,0,LEFTPRESS|LEFTRELEASE|LEFTHELD|LEFTUP|RIGHTPRESS,true) {};
 
+				int Selection_At_Mouse(unsigned flags, KeyNumType & key);
+				int Command_Object(unsigned flags, KeyNumType & key);
+
 			protected:
 				virtual int Action(unsigned flags, KeyNumType & key);
 		};
@@ -282,6 +287,7 @@ class DisplayClass: public MapClass
 		**	This is the "button" that tracks all input to the tactical map.
 		** It must be available to derived classes, for Save/Load purposes.
 		*/
+public:		//ST - 1/21/2019 11:59AM
 		static TacticalClass TacButton;
 
 	private:
@@ -315,6 +321,19 @@ class DisplayClass: public MapClass
 		static BooleanVectorClass CellRedraw;
 
 		bool Good_Reinforcement_Cell(CELL outcell, CELL incell, SpeedType loco, int zone, MZoneType mzone) const;
+
+		//
+		// We need a way to bypass visible view checks when we are running in the context of GlyphX without using the
+		// internal C&C renderer. We shouldn't know or care what the user is actually looking at
+		// ST - 4/17/2019 9:01AM
+		//
+		static bool IgnoreViewConstraints;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[1024];
+
 };
 
 

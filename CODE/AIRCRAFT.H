@@ -176,6 +176,8 @@ class AircraftClass : public FootClass, public FlyClass
 		bool Load(Straw & file);
 		bool Save(Pipe & file) const;
 
+		virtual unsigned Spied_By() const;
+
 	public:
 
 		/*
@@ -243,6 +245,11 @@ class AircraftClass : public FootClass, public FlyClass
 		**	zero then the aircraft is technically out of ammo.
 		*/
 		char AttacksRemaining;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 };
 
 #endif

@@ -166,7 +166,7 @@ TimerClass	GameTimer;
 long			GameEndTime;
 void			*PacketLater = NULL;
 
-#include "WolDebug.h"
+//#include "WolDebug.h"
 
 #ifdef WOLAPI_INTEGRATION
 #include "WolapiOb.h"
@@ -192,6 +192,7 @@ extern bool bReconnectDialogCancelled;
 
 void Send_Statistics_Packet(void)
 {
+#if (0)//PG
 //	debugprint( "Stats: Send_Statistics_Packet() called.\n" );
 #ifndef INTERNET_OFF // Denzil 5/4/98
 
@@ -891,6 +892,7 @@ void Send_Statistics_Packet(void)
 
 	GameStatisticsPacketSent = true;
 #endif // INTERNET_OFF
+#endif
 }
 
 

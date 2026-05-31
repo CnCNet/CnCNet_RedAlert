@@ -296,3 +296,4 @@ void MPlayerManClass::Flush_All(void)
 {
 }
 
+#endif

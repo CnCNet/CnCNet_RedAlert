@@ -49,16 +49,16 @@
 
 #include	"function.h"
 #include <stdio.h>
-#include <mem.h>
+//#include <mem.h>
 #include <sys\timeb.h>
 #include "connect.h"
 
-#include "WolDebug.h"
+//#include "WolDebug.h"
 
 /*
 ********************************* Globals ***********************************
 */
-static char *ConnectionClass::Commands[PACKET_COUNT] = {
+char *ConnectionClass::Commands[PACKET_COUNT] = {
 	"ADATA",
 	"NDATA",
 	"ACK"

@@ -38,7 +38,7 @@
 #include  <wwlib32.h>
 #include "filepcx.h"
 #include <wwmem.h>
-static void Write_Pcx_ScanLine ( int file_handle , int scansize , char * ptr );
+static void Write_Pcx_ScanLine ( int file_handle , int scansize , unsigned char * ptr );
 
 
 /***************************************************************************
@@ -64,7 +64,7 @@ int Write_PCX_File (char* name, GraphicViewPortClass& pic, unsigned char* palett
 {
  	unsigned char palcopy[256 * 3];
 	unsigned     i ;
-	unsigned	   width ;
+	//unsigned	   width ;
 	int 	      file_handle ;
 	int				VP_Scan_Line ;
 	char	     * ptr ;
@@ -75,7 +75,7 @@ int Write_PCX_File (char* name, GraphicViewPortClass& pic, unsigned char* palett
 
 	// Open file name
 	file_handle = Open_File ( name , WRITE ) ;
-	if ( file_handle == ERROR ) return FALSE ;
+	if ( file_handle == WW_ERROR ) return FALSE ;
 
 
 	header.width  = pic.Get_Width() - 1 ;
@@ -88,8 +88,8 @@ int Write_PCX_File (char* name, GraphicViewPortClass& pic, unsigned char* palett
 	ptr = ( char * ) Graphic_Buffer->Get_Buffer() ;
 	ptr += ( (pic.Get_YPos() * VP_Scan_Line) + pic.Get_XPos() );
 
-	for ( i = 0 ; i < header.height + 1 ; i ++ )
-   	Write_Pcx_ScanLine ( file_handle , header.byte_per_line, ptr + i * VP_Scan_Line ) ;
+	for ( i = 0 ; i < (unsigned)header.height + 1 ; i ++ )
+   	Write_Pcx_ScanLine ( file_handle , header.byte_per_line, (unsigned char*)ptr + i * VP_Scan_Line ) ;
 
 	Mem_Copy(palette, palcopy, 256 * 3);
 	pal = ( RGB * ) palcopy ;
@@ -132,20 +132,20 @@ int Write_PCX_File (char* name, GraphicViewPortClass& pic, unsigned char* palett
 							 }	}
 
 
-void Write_Pcx_ScanLine ( int file_handle , int scansize , char * ptr )
+void Write_Pcx_ScanLine ( int file_handle , int scansize , unsigned char * ptr )
 {
 	unsigned     i ;
 	unsigned     rle ;
 	unsigned     color ;
 	unsigned		last ;
-	char		  * file_ptr ;
-	char		 	pool [ POOL_SIZE ] ;
+	unsigned char		  * file_ptr ;
+	unsigned char		 	pool [ POOL_SIZE ] ;
 
 	file_ptr = pool ;
 	last = * ptr ;
 	rle = 1 ;
 
-	for ( i = 1 ; i < scansize ; i ++ ) {
+	for ( i = 1 ; i < (unsigned)scansize ; i ++ ) {
    	color = 0xff & * ++ ptr ;
 		if ( color == last ) {
 			rle ++ ;
@@ -178,4 +178,3 @@ void Write_Pcx_ScanLine ( int file_handle , int scansize , char * ptr )
 
 	Write_File ( file_handle, pool , ( int ) file_ptr - ( int ) pool ) ;
 }
-

@@ -60,6 +60,7 @@ bool Debug_Smart_Print = false;		// true = print everything that calls Smart_Pri
 bool Debug_Trap_Check_Heap = false;	// true = check the Heap
 bool Debug_Modem_Dump = false;		// true = print the Modem Stuff
 bool Debug_Print_Events = false;		// true = print event & packet processing
+bool Debug_Force_Crash = false;
 
 TFixedIHeapClass<AircraftClass>		Aircraft;
 TFixedIHeapClass<AnimClass>			Anims;
@@ -100,39 +101,39 @@ TFixedIHeapClass<SmudgeTypeClass>	SmudgeTypes;
 **	for that type are not allowed. For every case of a TFixedIHeap manager of
 **	game objects, then a CCPtr can be instantiated for it.
 */
-template<class T> FixedIHeapClass * CCPtr<AircraftClass>::Heap = &Aircraft;
-template<class T> FixedIHeapClass * CCPtr<AnimClass>::Heap = &Anims;
-template<class T> FixedIHeapClass * CCPtr<BuildingClass>::Heap = &Buildings;
-template<class T> FixedIHeapClass * CCPtr<BulletClass>::Heap = &Bullets;
-template<class T> FixedIHeapClass * CCPtr<FactoryClass>::Heap = &Factories;
-template<class T> FixedIHeapClass * CCPtr<HouseClass>::Heap = &Houses;
-template<class T> FixedIHeapClass * CCPtr<InfantryClass>::Heap = &Infantry;
-template<class T> FixedIHeapClass * CCPtr<OverlayClass>::Heap = &Overlays;
-template<class T> FixedIHeapClass * CCPtr<SmudgeClass>::Heap = &Smudges;
-template<class T> FixedIHeapClass * CCPtr<TeamClass>::Heap = &Teams;
-template<class T> FixedIHeapClass * CCPtr<TeamTypeClass>::Heap = &TeamTypes;
-template<class T> FixedIHeapClass * CCPtr<TemplateClass>::Heap = &Templates;
-template<class T> FixedIHeapClass * CCPtr<TerrainClass>::Heap = &Terrains;
-template<class T> FixedIHeapClass * CCPtr<TriggerClass>::Heap = &Triggers;
-template<class T> FixedIHeapClass * CCPtr<TriggerTypeClass>::Heap = &TriggerTypes;
+#if (0)	//Moved to runtime initialization. ST - 5/20/2019
+template<> FixedIHeapClass * CCPtr<AircraftClass>::Heap = &Aircraft;
+template<> FixedIHeapClass * CCPtr<AnimClass>::Heap = &Anims;
+template<> FixedIHeapClass * CCPtr<BuildingClass>::Heap = &Buildings;
+template<> FixedIHeapClass * CCPtr<BulletClass>::Heap = &Bullets;
+template<> FixedIHeapClass * CCPtr<FactoryClass>::Heap = &Factories;
+template<> FixedIHeapClass * CCPtr<HouseClass>::Heap = &Houses;
+template<> FixedIHeapClass * CCPtr<InfantryClass>::Heap = &Infantry;
+template<> FixedIHeapClass * CCPtr<OverlayClass>::Heap = &Overlays;
+template<> FixedIHeapClass * CCPtr<SmudgeClass>::Heap = &Smudges;
+template<> FixedIHeapClass * CCPtr<TeamClass>::Heap = &Teams;
+template<> FixedIHeapClass * CCPtr<TeamTypeClass>::Heap = &TeamTypes;
+template<> FixedIHeapClass * CCPtr<TemplateClass>::Heap = &Templates;
+template<> FixedIHeapClass * CCPtr<TerrainClass>::Heap = &Terrains;
+template<> FixedIHeapClass * CCPtr<TriggerClass>::Heap = &Triggers;
+template<> FixedIHeapClass * CCPtr<TriggerTypeClass>::Heap = &TriggerTypes;
 
-template<class T> FixedIHeapClass * CCPtr<HouseTypeClass>::Heap = &HouseTypes;
-template<class T> FixedIHeapClass * CCPtr<BuildingTypeClass>::Heap = &BuildingTypes;
-template<class T> FixedIHeapClass * CCPtr<AircraftTypeClass>::Heap = &AircraftTypes;
-template<class T> FixedIHeapClass * CCPtr<InfantryTypeClass>::Heap = &InfantryTypes;
-template<class T> FixedIHeapClass * CCPtr<BulletTypeClass>::Heap = &BulletTypes;
-template<class T> FixedIHeapClass * CCPtr<AnimTypeClass>::Heap = &AnimTypes;
-template<class T> FixedIHeapClass * CCPtr<UnitTypeClass>::Heap = &UnitTypes;
-template<class T> FixedIHeapClass * CCPtr<VesselTypeClass>::Heap = &VesselTypes;
-template<class T> FixedIHeapClass * CCPtr<TemplateTypeClass>::Heap = &TemplateTypes;
-template<class T> FixedIHeapClass * CCPtr<TerrainTypeClass>::Heap = &TerrainTypes;
-template<class T> FixedIHeapClass * CCPtr<OverlayTypeClass>::Heap = &OverlayTypes;
-template<class T> FixedIHeapClass * CCPtr<SmudgeTypeClass>::Heap = &SmudgeTypes;
-
+template<> FixedIHeapClass * CCPtr<HouseTypeClass>::Heap = &HouseTypes;
+template<> FixedIHeapClass * CCPtr<BuildingTypeClass>::Heap = &BuildingTypes;
+template<> FixedIHeapClass * CCPtr<AircraftTypeClass>::Heap = &AircraftTypes;
+template<> FixedIHeapClass * CCPtr<InfantryTypeClass>::Heap = &InfantryTypes;
+template<> FixedIHeapClass * CCPtr<BulletTypeClass>::Heap = &BulletTypes;
+template<> FixedIHeapClass * CCPtr<AnimTypeClass>::Heap = &AnimTypes;
+template<> FixedIHeapClass * CCPtr<UnitTypeClass>::Heap = &UnitTypes;
+template<> FixedIHeapClass * CCPtr<VesselTypeClass>::Heap = &VesselTypes;
+template<> FixedIHeapClass * CCPtr<TemplateTypeClass>::Heap = &TemplateTypes;
+template<> FixedIHeapClass * CCPtr<TerrainTypeClass>::Heap = &TerrainTypes;
+template<> FixedIHeapClass * CCPtr<OverlayTypeClass>::Heap = &OverlayTypes;
+template<> FixedIHeapClass * CCPtr<SmudgeTypeClass>::Heap = &SmudgeTypes;
+#endif
 
 /* These variables are used to keep track of the slowest speed of a team */
-MPHType TeamMaxSpeed[10];
-SpeedType TeamSpeed[10];
+TeamFormDataStruct TeamFormData[HOUSE_COUNT];
 bool FormMove;
 SpeedType FormSpeed;
 MPHType FormMaxSpeed;
@@ -155,6 +156,7 @@ bool AntsEnabled = false;
 bool NewUnitsEnabled = false;
 bool SecretUnitsEnabled = false;
 int MTankDistance = 15;
+bool OverrideNewUnitsEnabled = false;	 // ST - 12/13/2019 12:21PM	
 #ifdef FIXIT_CARRIER	//	checked - ajw 9/28/98
 int CarrierLaunchDelay = 60;
 #endif
@@ -183,8 +185,8 @@ unsigned short			Hard_Error_Occured = 0;
 WWMouseClass *			WWMouse = NULL;
 GraphicBufferClass	SysMemPage(DEFAULT_SCREEN_WIDTH, 200, (void*)NULL);
 WinTimerClass *		WindowsTimer=NULL;
-int						ScreenWidth=640;
-int						ScreenHeight=400;
+int						ScreenWidth=3072;
+int						ScreenHeight=3072;
 GraphicBufferClass	ModeXBuff;
 bool						InMovie = FALSE;	//Are we currently playing a VQ movie?
 HANDLE					hInstance;
@@ -243,7 +245,7 @@ CCINIClass AftermathINI;
 **	This points to the benchmark objects that are allocated only if the
 **	machine is running on a Pentium and this is a debug version.
 */
-Benchmark * Benches;
+//Benchmark * Benches;
 
 
 /***************************************************************************
@@ -287,23 +289,22 @@ RandomStraw CryptRandom;
 
 
 /***************************************************************************
-**	This is a list of all selected objects (for this map). The support functions
-**	are used to control access to this list. Do not modify it directly.
+**	This tracks all selected objects per house (for this map).
 */
-DynamicVectorClass<ObjectClass *> CurrentObject;
+SelectedObjectsType CurrentObject;
 
 
 /***************************************************************************
 **	This is the game version.
 */
-VersionClass VerNum;
+//PG VersionClass VerNum;
 
 
 /***************************************************************************
 **	This is the VQ animation controller structure. It is filled in by reading
 **	the PLAYER.INI and overridden through program control.
 */
-VQAConfig AnimControl;
+//VQAConfig AnimControl;
 
 int PreserveVQAScreen;			// Used for screen mode transition control.
 bool BreakoutAllowed = true;	// "true" if aborting of movies is allowed.
@@ -470,7 +471,7 @@ bool PassedProximity;	// used in display.cpp
 ** These variables should all be set together.
 */
 HousesType Whom;							// Initial command line house choice.
-bool ScenarioInit;
+int ScenarioInit;
 bool SpecialFlag = false;
 
 
@@ -626,13 +627,14 @@ bool				Version107InMix;				// Is there a v1.07 in the game
 **	This is the null modem manager class.  Declaring this class doesn't
 ** perform any allocations;
 */
+#if (0)
 NullModemClass NullModem (
    16,											// number of send entries
 	16,											// number of receive entries
 	(MAX_SERIAL_PACKET_SIZE / sizeof(EventClass) ) * sizeof(EventClass) + sizeof( CommHeaderType ),
 	0x1234);										// Magic number must have each digit unique
 													// and different from the queue magic number
-
+#endif
 
 
 /***************************************************************************
@@ -694,7 +696,7 @@ int Seed = 0;
 */
 int CustomSeed = 0;
 
-int WindowList[][8] = {
+int WindowList[][9] = {
 /* xbyte, ypixel, bytewid, pixelht, cursor color, bkgd color,	cursor x, cursor y */
 
 	/* do not change the first 2 entries!! they are necc. to the system */
@@ -715,7 +717,14 @@ int WindowList[][8] = {
 	{5*8, 30, 30*8, 140, 0, 0, 0, 0},
 
 	// Partial object draw sub-window.
-	{0,0,0,0,WHITE,BLACK,0,0}
+	{0,0,0,0,WHITE,BLACK,0,0},
+
+	// Custom window.
+	{0, 0, 0, 0, 0, 0, 0, 0},
+
+	// Virtual window for external rendering. ST - 1/15/2019 3:02PM
+	{0, 0, 0, 0, 0, 0, 0, 0}
+
 };
 
 
@@ -728,8 +737,8 @@ int MenuList[][8]={
 #ifdef WIN32
 GraphicBufferClass	VisiblePage;
 GraphicBufferClass	HiddenPage;
-GraphicViewPortClass	SeenBuff(&VisiblePage, 0, 0, 640, 480);
-GraphicViewPortClass	HidPage(&HiddenPage, 0, 0, 640, 480);
+GraphicViewPortClass	SeenBuff(&VisiblePage, 0, 0, 3072, 3072);
+GraphicViewPortClass	HidPage(&HiddenPage, 0, 0, 3072, 3072);
 #else
 GraphicBufferClass	HidPage(DEFAULT_SCREEN_WIDTH, 201, (void*)NULL);
 GraphicBufferClass	SeenBuff(320, 200, (void *)0xA0000L);
@@ -781,13 +790,13 @@ TTimerClass<SystemTimerClass> TickCount = 0;
 #ifdef WIN32
 
 bool InDebugger = false;
-bool ReadyToQuit = false;
+int ReadyToQuit = 0;
 
 #else
 bool IsTheaterShape = false;	// must be defined only if not Win32
 #endif	//WIN32
 
-GetCDClass		CDList;
+//PG GetCDClass		CDList;
 int UnitBuildPenalty = 100;
 
 #ifdef MPEGMOVIE // Denzil 6/15/98
@@ -803,3 +812,10 @@ MPGSettings* MpgSettings = NULL;
 #ifdef FIXIT_VERSION_3			//	For endgame auto-sonar pulse.
 bool bAutoSonarPulse = false;
 #endif
+
+bool MMXAvailable = false;
+
+
+// ST - 5/14/2019
+bool RunningAsDLL = false;
+bool RunningFromEditor = false;

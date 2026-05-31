@@ -3471,6 +3471,7 @@ void WOL_GameSetupDialog::TriggerGameStart( char* szGoMessage )
 
 #endif
 
+#include <string.h>
 //***********************************************************************************************
 bool bSpecialAftermathScenario( const char* szScenarioDescription )
 {
@@ -3490,11 +3491,13 @@ bool bSpecialAftermathScenario( const char* szScenarioDescription )
 //***********************************************************************************************
 int ScenarioIndex_From_Filename( const char* szScenarioFilename )
 {
+#if (0)//PG
 	//	Returns the scenario index that matches the scenario filename, or -1 if no match found.
 	for( int index = 0; index < Session.Scenarios.Count(); index++ )
 	{
 		if( _stricmp( szScenarioFilename, Session.Scenarios[index]->Get_Filename() ) == 0 )
 			return index;
 	}
+#endif
 	return -1;
 }

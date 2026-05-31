@@ -49,7 +49,7 @@
  *   NullModemClass::Answer_Modem -- waits for call and answers            *
  *   NullModemClass::Hangup_Modem -- hangs up the modem                    *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+#if (0)//PG
 #include "function.h"
 #ifdef WIN32
 #include "wincomm.h"
@@ -2618,3 +2618,4 @@ int NullModemClass::Verify_And_Convert_To_Int( char *buffer )
 
 /*************************** end of nullmgr.cpp ****************************/
 
+#endif

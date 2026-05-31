@@ -114,7 +114,7 @@ int BlowPipe::Put(void const * source, int slen)
 	**	can be skipped if there are no pending bytes in the buffer.
 	*/
 	if (Counter) {
-		int sublen = (sizeof(Buffer)-Counter < slen) ? (sizeof(Buffer)-Counter) : slen;
+		int sublen = ((int)sizeof(Buffer)-Counter < slen) ? (sizeof(Buffer)-Counter) : slen;
 		memmove(&Buffer[Counter], source, sublen);
 		Counter += sublen;
 		source = ((char *)source) + sublen;

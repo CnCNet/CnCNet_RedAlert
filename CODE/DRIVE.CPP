@@ -410,6 +410,8 @@ bool DriveClass::Teleport_To(CELL cell)
 	}
 	Coord = Cell_Coord(cell);
 	Mark(MARK_DOWN);
+	Look(false);
+	Per_Cell_Process(PCP_END);
 	return(true);
 }
 
@@ -1136,10 +1138,10 @@ bool DriveClass::Start_Of_Move(void)
 		**	Determine the speed that the unit can travel to the desired square.
 		*/
 		ground = Map[destcell].Land_Type();
-		speed = Ground[ground].Cost[Techno_Type_Class()->Speed] * 256;
+		speed = Ground[ground].Cost[Techno_Type_Class()->Speed] * 255;
 
 		/* change speed if it's related to a team move */
-		if (IsFormationMove) speed = Ground[ground].Cost[FormationSpeed] * 256;
+		if (IsFormationMove) speed = Ground[ground].Cost[FormationSpeed] * 255;
 		if (!speed) speed = 128;
 
 #ifdef NEVER
@@ -1365,9 +1367,15 @@ void DriveClass::AI(void)
 					/*
 					**	Double check to make sure that the movement destination is
 					**	in a zone that this unit can travel to. If not, then abort
-					**	the navigation target.
+					**	the navigation target. Exception is to allow units to leave
+					**	impassable cells regardless of zone checks.
 					*/
-					if (IsLocked && Mission != MISSION_ENTER && Target_Legal(NavCom) && !Is_In_Same_Zone(As_Cell(NavCom))) {
+					LandType land = LAND_NONE;
+					if (What_Am_I() == RTTI_INFANTRY || What_Am_I() == RTTI_UNIT) {
+						land = Map[Center_Coord()].Land_Type();
+					}
+					if (IsLocked && Mission != MISSION_ENTER && Target_Legal(NavCom) && !Is_In_Same_Zone(As_Cell(NavCom)) &&
+						land != LAND_ROCK && land != LAND_WATER && land != LAND_RIVER && !Team) {
 						Stop_Driver();
 						Assign_Destination(TARGET_NONE);
 					} else {
@@ -1711,7 +1719,7 @@ bool DriveClass::Ok_To_Move(DirType ) const
 **	Track 11= back up into refinery
 **	Track 12= drive out of refinery
 */
-#pragma warn -ias
+//#pragma warn -ias
 DriveClass::TrackType const DriveClass::Track1[24] = {
 	{0x00F50000L,(DirType)0},
 	{0x00EA0000L,(DirType)0},

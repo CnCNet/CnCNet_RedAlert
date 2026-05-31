@@ -50,8 +50,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <windowsx.h>
+#else
+#include <windows.h>
+#include <windowsx.h>
 #endif
-
 
 // Note: SKB 4/11/94
 // Before this library is done, this needs to be able to be set to TRUE.
@@ -62,7 +64,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dos.h>
-#include <bios.h>
+//#include <bios.h>
 
 //================================
 
@@ -85,6 +87,7 @@
 */
 #define WW_ERROR		-1
 
+#if (0) //PG
 #ifdef NULL
 #undef	NULL
 #endif
@@ -95,6 +98,7 @@
 
 #ifdef VOID
 #undef VOID
+#endif
 #endif
 
 #define PRIVATE		static
@@ -112,7 +116,7 @@
 #endif
 #define GET_SIZE(a)					((sizeof(a) / sizeof(*a)))
 
-#pragma option -Jg
+//#pragma option -Jg
 // Returns the absolute value of the number.
 #ifdef ABS
 #undef ABS
@@ -121,8 +125,8 @@ template<class T> T ABS(T a)
 {
 	return (a < 0) ? -a : a;
 }
-int ABS(int);
-long ABS(long);
+//int ABS(int);
+//long ABS(long);
 
 // Returns the minimum of the two numbers.
 #ifdef MIN
@@ -132,9 +136,10 @@ template<class T> T MIN(T a, T b)
 {
 	return (b < a) ? b : a;
 };
-short MIN(short, short);
-int MIN(int, int);
-long MIN(long, long);
+//PG
+//short MIN(short, short);
+//int MIN(int, int);
+//long MIN(long, long);
 
 // Returns the maximum of the two numbers.
 #ifdef MAX
@@ -144,10 +149,10 @@ template<class T> T MAX(T a, T b)
 {
 	return (b > a) ? b : a;
 };
-short MAX(short, short);
-int MAX(int, int);
-long MAX(long, long);
-#pragma option -Jgd
+//short MAX(short, short);
+//int MAX(int, int);
+//long MAX(long, long);
+//#pragma option -Jgd
 
 // Returns the low word of a long
 #define	LOW_WORD(a)		((unsigned short)((long)(a) & 0x0000FFFFL))
@@ -177,6 +182,7 @@ long MAX(long, long);
 		}\
 }
 
+#if (0)//PG
 // type definitions
 //=======================================
 typedef void 	VOID;
@@ -199,7 +205,7 @@ typedef void 	VOID;
 
 #define	VOID		void
 
-#pragma	warn -eas
+//#pragma	warn -eas
 #define	TRUE		1
 #define	FALSE		0
 
@@ -238,6 +244,7 @@ typedef int bool;
 
 #endif
 #endif
+#endif //PG
 
 /*
 **	The type of processor running on this system as
@@ -249,7 +256,7 @@ typedef int bool;
 
 
 // Inline Routines
-//ÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 //
 // These Template functions are generally used
 // by classes when they havce over loaded > and <.
@@ -314,7 +321,7 @@ template<class T> VOID BitFlagsFlip(T &a, T b)
 }
 #endif
 
-typedef enum {
+typedef enum : unsigned short {
 	TBLACK,
 	PURPLE,
 	CYAN,

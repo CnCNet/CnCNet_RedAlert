@@ -234,3 +234,17 @@ void UnitTrackerClass::To_PC_Format (void)
 }
 
 
+// MBL 01.17.2020: Defined in .h, but not implemented
+int UnitTrackerClass::Get_Unit_Total (int unit_type)
+{
+	if (UnitTotals == NULL) 
+	{
+		return 0;
+	}
+	if (unit_type >= 0 && unit_type < UnitCount)
+	{
+		return UnitTotals[unit_type];
+	}
+	return 0;
+}
+

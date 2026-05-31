@@ -48,6 +48,11 @@
 #include	"function.h"
 
 /*
+** New sidebar for GlyphX multiplayer. ST - 8/7/2019 10:10AM
+*/
+#include "SidebarGlyphx.h"
+
+/*
 **	These are the text names for the various actions. If the action name ends with "..." then
 **	this means that additional data is probably required.
 */
@@ -367,7 +372,7 @@ bool TActionClass::operator() (HousesType house, ObjectClass * object, int id, C
 		**	Display a text message overlayed onto the tactical map.
 		*/
 		case TACTION_TEXT_TRIGGER:
-			Session.Messages.Add_Message(NULL, 0, (char *)TutorialText[Data.Value], PCOLOR_GREEN, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+			Session.Messages.Add_Message(NULL, Data.Value, (char *)TutorialText[Data.Value], PCOLOR_GREEN, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
 			break;
 
 		/*
@@ -409,7 +414,7 @@ bool TActionClass::operator() (HousesType house, ObjectClass * object, int id, C
 		**	Cause the shadow to creep back one step.
 		*/
 		case TACTION_CREEP_SHADOW:
-			Map.Encroach_Shadow();
+			Map.Encroach_Shadow(PlayerPtr);
 			break;
 
 		/*
@@ -497,7 +502,7 @@ bool TActionClass::operator() (HousesType house, ObjectClass * object, int id, C
 		**	Remove time from the mission timer.
 		*/
 		case TACTION_SUB_TIMER:
-			if (Scen.MissionTimer <= Data.Value * (TICKS_PER_MINUTE/10)) {
+			if ((int)Scen.MissionTimer <= Data.Value * (TICKS_PER_MINUTE/10)) {
 				Scen.MissionTimer = 0;
 			} else {
 				Scen.MissionTimer = Scen.MissionTimer - (Data.Value * (TICKS_PER_MINUTE/10));
@@ -521,7 +526,7 @@ bool TActionClass::operator() (HousesType house, ObjectClass * object, int id, C
 		case TACTION_PLAY_MOVIE:
 			Hide_Mouse();
 			SeenPage.Clear();
-			Play_Movie(Data.Movie, THEME_NONE, true);
+			Play_Movie(VQType(char(Data.Movie)), THEME_NONE, true, true);
 			GamePalette.Set();
 			Map.Flag_To_Redraw(true);
 			Show_Mouse();
@@ -556,9 +561,17 @@ bool TActionClass::operator() (HousesType house, ObjectClass * object, int id, C
 			hptr->SuperWeapon[Data.Special].Enable(Action==TACTION_1_SPECIAL, false);
 //			hptr->SuperWeapon[Data.Special].Forced_Charge(PlayerPtr == hptr);
 
-			if (PlayerPtr == hptr) {
-				Map.Add(RTTI_SPECIAL, Data.Special);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (hptr->IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, Data.Special, hptr);
+				}
+			}
+			else {
+				if (PlayerPtr == hptr) {
+					Map.Add(RTTI_SPECIAL, Data.Special);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 			break;
 

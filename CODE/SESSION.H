@@ -125,7 +125,8 @@ typedef enum GameEnum {
 	GAME_INTERNET,									// Internet H2H
 	GAME_SKIRMISH,									// 1 plr vs. AI's
 	GAME_TEN,										// TEN Network game
-	GAME_MPATH										// MPath Network game
+	GAME_MPATH,										// MPath Network game
+	GAME_GLYPHX_MULTIPLAYER						// Multiplayer game controlled by the GLYPHX engine. ST - 5/14/2019 11:41AM
 } GameType;
 
 //...........................................................................

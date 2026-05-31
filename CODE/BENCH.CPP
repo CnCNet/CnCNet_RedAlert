@@ -40,7 +40,7 @@
  *   Benchmark::Value -- Fetch the current average benchmark time.                             *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-
+#if (0)
 #include	"bench.h"
 #include	"mpu.h"
 
@@ -165,3 +165,4 @@ unsigned long Benchmark::Value(void) const
 	}
 	return(0);
 }
+#endif

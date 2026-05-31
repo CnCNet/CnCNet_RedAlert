@@ -102,7 +102,7 @@ int AbstractClass::Distance(TARGET target) const
 	** If the object is a building the adjust it by the average radius
 	** of the object.
 	*/
-	if (obj) {
+	if (obj && obj->IsActive) {
 		dist -= ((obj->Class->Width() + obj->Class->Height()) * (0x100 / 4));
 		if (dist < 0) dist = 0;
 	}

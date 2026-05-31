@@ -113,6 +113,11 @@ class TriggerClass {
 		**	For all other triggers, this value is ignored.
 		*/
 		CELL Cell;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 };
 
 

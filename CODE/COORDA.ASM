@@ -40,8 +40,8 @@ IDEAL
 P386
 MODEL USE32 FLAT
 
-GLOBAL	Cardinal_To_Fixed	:NEAR
-GLOBAL	Fixed_To_Cardinal	:NEAR
+global C	Cardinal_To_Fixed	:NEAR
+global C	Fixed_To_Cardinal	:NEAR
 
 	CODESEG
 
@@ -54,8 +54,8 @@ GLOBAL	Fixed_To_Cardinal	:NEAR
 ;*                                                                                             *
 ;*       result = cardinal / base                                                              *
 ;*                                                                                             *
-;*    The accuracy of the fixed point number is limited to 1/256 as the lowest and up to       *
-;*    256 as the largest.                                                                      *
+;*    The accuracy of the fixed point number is limited to 1/65536 as the lowest and up to     *
+;*    65536 as the largest.                                                                    *
 ;*                                                                                             *
 ;* INPUT:   base     -- The key number to base the fraction about.                             *
 ;*                                                                                             *
@@ -77,17 +77,17 @@ GLOBAL	Fixed_To_Cardinal	:NEAR
 	ARG	base:DWORD
 	ARG	cardinal:DWORD
 
-	mov	eax,0FFFFh		; establish default return value
+	mov	eax,0FFFFFFFFh		; establish default return value
 
 	mov	ebx,[base]
 	or	ebx,ebx
-	jz	near ??retneg1		; if base==0, return 65535
+	jz	near ??retneg1		; if base==0, return 4294967295
 
-	mov	eax,[cardinal]		; otherwise, return (cardinal*256)/base
-	shl	eax,8
+	mov	eax,[cardinal]		; otherwise, return (cardinal*65536)/base
+	shl	eax,16
 	xor	edx,edx
 	div	ebx
-	
+
 ??retneg1:
 	ret
 
@@ -119,14 +119,9 @@ GLOBAL	Fixed_To_Cardinal	:NEAR
 
 	mov	eax,[base]
 	mul	[fixed]
-	add	eax,080h		; eax = (base * fixed) + 0x80
+	add	eax,08000h		; eax = (base * fixed) + 0x8000
 
-	test	eax,0FF000000h		; if high byte set, return FFFF
-	jnz	??rneg1
-	shr	eax,8			; else, return eax/256
-	ret
-??rneg1	:
-	mov	eax,0FFFFh		; establish default return value
+	shr	eax,16			; return eax/65536
 	ret
 
 	ENDP	Fixed_To_Cardinal

@@ -77,6 +77,109 @@ static DoInfoStruct DogDoControls[DO_COUNT] = {
 	{106,	12,14},					//	DO_DOG_MAUL
 };
 
+
+//
+// For the virtual do controls, we are using the TD infantry asset animation frame numbers, take out the -94 frame offsets that were added in RA
+//
+
+static DoInfoStruct E1DoControlsVirtual[DO_COUNT] = {
+	{0,	1,	1},					// DO_STAND_READY
+	{8,	1,	1},					// DO_STAND_GUARD
+	{192,	1,	8},					// DO_PRONE
+	{16,	6,	6},					// DO_WALK
+	{64,	8,	8},					// DO_FIRE_WEAPON
+	{128,	2,	2},					// DO_LIE_DOWN
+	{144,	4,	4},					// DO_CRAWL
+	{176,	2,	2},					// DO_GET_UP
+	{192,	6,	8},					// DO_FIRE_PRONE
+	{256,	16,0},					// DO_IDLE1
+	{272,	16,0},					// DO_IDLE2
+	{382,	8,	0},					// DO_GUN_DEATH
+	{398,	8,	0},					// DO_EXPLOSION_DEATH
+	{398,	8,	0},					// DO_EXPLOSION2_DEATH
+	{406,	12,0},					// DO_GRENADE_DEATH
+	{418,	18,0},					// DO_FIRE_DEATH
+	{436,	3,	3},					// DO_GESTURE1
+	{460,	3,	3},					// DO_SALUTE1
+	{484,	3,	3},					// DO_GESTURE2
+	{508,	3,	3},					// DO_SALUTE2
+	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
+};
+
+static DoInfoStruct E2DoControlsVirtual[DO_COUNT] = {
+	{0,	1,	1},					// DO_STAND_READY
+	{8,	1,	1},					// DO_STAND_GUARD
+	{288,	1,	12},					// DO_PRONE
+	{16,	6,	6},					// DO_WALK
+	{64,	20,20},					// DO_FIRE_WEAPON
+	{224,	2,	2},					// DO_LIE_DOWN
+	{240,	4,	4},					// DO_CRAWL
+	{272,	2,	2},					// DO_GET_UP
+	{288,	8,	12},					// DO_FIRE_PRONE
+	{384,	16,0},					// DO_IDLE1
+	{400,	16,0},					// DO_IDLE2
+	{510,	8,	0},					// DO_GUN_DEATH
+	{526,	8,	0},					// DO_EXPLOSION_DEATH
+	{526,	8,	0},					// DO_EXPLOSION2_DEATH
+	{534,	12,0},					// DO_GRENADE_DEATH
+	{546,	18,0},					// DO_FIRE_DEATH
+	{564,	3,	3},					// DO_GESTURE1
+	{588,	3,	3},					// DO_SALUTE1
+	{612,	3,	3},					// DO_GESTURE2
+	{636,	3,	3},					// DO_SALUTE2
+	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
+};
+
+static DoInfoStruct E3DoControlsVirtual[DO_COUNT] = {
+	{0,	1,	1},					// DO_STAND_READY
+	{8,	1,	1},					// DO_STAND_GUARD
+	{192,	1,10},					// DO_PRONE
+	{16,	6,	6},					// DO_WALK
+	{64,	8,	8},					// DO_FIRE_WEAPON
+	{128,	2,	2},					// DO_LIE_DOWN
+	{144,	4,	4},					// DO_CRAWL
+	{176,	2,	2},					// DO_GET_UP
+	{192,	10,10},					// DO_FIRE_PRONE
+	{272,	16,0},					// DO_IDLE1
+	{288,	16,0},					// DO_IDLE2
+	{398,	8,	0},					// DO_GUN_DEATH
+	{414,	8,	0},					// DO_EXPLOSION_DEATH
+	{414,	8,	0},					// DO_EXPLOSION2_DEATH
+	{422,	12,0},					// DO_GRENADE_DEATH
+	{434,	18,0},					// DO_FIRE_DEATH
+	{452,	3,	3},					// DO_GESTURE1
+	{476,	3,	3},					// DO_SALUTE1
+	{500,	3,	3},					// DO_GESTURE2
+	{524,	3,	3},					// DO_SALUTE2
+	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
+};
+
+static DoInfoStruct E4DoControlsVirtual[DO_COUNT] = {
+	{0,	1,	1},					// DO_STAND_READY
+	{8,	1,	1},					// DO_STAND_GUARD
+	{256,	1,16},					// DO_PRONE
+	{16,	6,	6},					// DO_WALK
+	{64,	16,16},					// DO_FIRE_WEAPON
+	{192,	2,	2},					// DO_LIE_DOWN
+	{208,	4,	4},					// DO_CRAWL
+	{240,	2,	2},					// DO_GET_UP
+	{256,	16,16},					// DO_FIRE_PRONE
+	{384,	16,0},					// DO_IDLE1
+	{400,	16,0},					// DO_IDLE2
+	{510,	8,	0},					// DO_GUN_DEATH
+	{526,	8,	0},					// DO_EXPLOSION_DEATH
+	{526,	8,	0},					// DO_EXPLOSION2_DEATH
+	{534,	12,0},					// DO_GRENADE_DEATH
+	{546,	18,0},					// DO_FIRE_DEATH
+	{564,	3,	3},					// DO_GESTURE1
+	{588,	3,	3},					// DO_SALUTE1
+	{612,	3,	3},					// DO_GESTURE2
+	{636,	3,	3},					// DO_SALUTE2
+	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
+};
+
+
+
 static DoInfoStruct E1DoControls[DO_COUNT] = {
 	{0,	1,	1},					// DO_STAND_READY
 	{8,	1,	1},					// DO_STAND_GUARD
@@ -173,6 +276,7 @@ static DoInfoStruct E4DoControls[DO_COUNT] = {
 	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
 };
 
+
 static DoInfoStruct E6DoControls[DO_COUNT] = {
 	{0,	1,	1},					// DO_STAND_READY
 	{8,	1,	1},					// DO_STAND_GUARD
@@ -188,7 +292,7 @@ static DoInfoStruct E6DoControls[DO_COUNT] = {
 	{146,	8,	0},					// DO_GUN_DEATH
 	{154,	8,	0},					// DO_EXPLOSION_DEATH
 	{162,	8,	0},					// DO_EXPLOSION2_DEATH
-	{162,	12,0},					// DO_GRENADE_DEATH
+	{170,	12,0},					// DO_GRENADE_DEATH
 	{182,	18,0},					// DO_FIRE_DEATH
 	{200,	3,	3},					// DO_GESTURE1
 	{224,	3,	3},					// DO_SALUTE1
@@ -342,6 +446,30 @@ static DoInfoStruct CivilianDoControls[DO_COUNT] = {
 	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
 };
 
+static DoInfoStruct CivilianDoControlsVirtual[DO_COUNT] = {
+	{0,			1,	1},				// DO_STAND_READY
+	{0,			1,	1},				// DO_STAND_GUARD
+	{0,			1,	1},				// DO_PRONE				// N/A
+	{56, 		6,	6},				// DO_WALK
+	{205,		4, 4},				// DO_FIRE_WEAPON
+	{0, 		1,	1},				// DO_LIE_DOWN			// N/A
+	{8, 		6,	6},				// DO_CRAWL
+	{0, 		1,	1},				// DO_GET_UP			// N/A
+	{205,		4,	4},				// DO_FIRE_PRONE
+	{189,		10,0},				// DO_IDLE1
+	{199,		6,	0},				// DO_IDLE2
+	{329,		8,	0},				// DO_GUN_DEATH
+	{337,		8,	0},				// DO_EXPLOSION_DEATH
+	{337,		8,	0},				// DO_EXPLOSION2_DEATH
+	{345,		12,0},				// DO_GRENADE_DEATH
+	{357,		18,0},				// DO_FIRE_DEATH
+	{0, 		1,	0},				// DO_GESTURE1			// N/A
+	{0, 		1,	0},				// DO_SALUTE1			// N/A
+	{0, 		1,	0},				// DO_GESTURE2			// N/A
+	{0, 		1,	0},				// DO_SALUTE2			// N/A
+	{0,	0, 0},					//	DO_DOG_MAUL			// N/A
+};
+
 static DoInfoStruct EinsteinDoControls[DO_COUNT] = {
 	{0,	1,	1},					// DO_STAND_READY
 	{0,	1,	1},					// DO_STAND_GUARD
@@ -381,6 +509,7 @@ static InfantryTypeClass const Dog(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	DogDoControls,
+	DogDoControls,
 	1,								// Frame of projectile launch.
 	1,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -401,6 +530,7 @@ static InfantryTypeClass const E1(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	E1DoControls,
+	E1DoControlsVirtual,
 	2,								// Frame of projectile launch.
 	2,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -421,6 +551,7 @@ static InfantryTypeClass const E2(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	E2DoControls,
+	E2DoControlsVirtual,
 	14,							// Frame of projectile launch.
 	6,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -441,6 +572,7 @@ static InfantryTypeClass const E3(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	E3DoControls,
+	E3DoControlsVirtual,
 	3,								// Frame of projectile launch.
 	3,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -461,6 +593,7 @@ static InfantryTypeClass const E4(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	E4DoControls,
+	E4DoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -480,6 +613,7 @@ static InfantryTypeClass const E6(
 	false,						// Always use the given name for the infantry?
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
+	E6DoControls,
 	E6DoControls,
 	3,								// Frame of projectile launch.
 	3,								// Frame of projectile launch while prone.
@@ -501,6 +635,7 @@ static InfantryTypeClass const E8(
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
 	SpyDoControls,
+	SpyDoControls,
 	3,								// Frame of projectile launch.
 	3,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -520,6 +655,7 @@ static InfantryTypeClass const E9(
 	false,						// Always use the given name for the infantry?
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
+	E9DoControls,
 	E9DoControls,
 	3,								// Frame of projectile launch.
 	3,								// Frame of projectile launch while prone.
@@ -541,6 +677,7 @@ static InfantryTypeClass const E7(
 	false,						// Theater specific graphic image?
 	PIP_COMMANDO,				// Transport pip shape/color to use.
 	E7DoControls,
+	E7DoControls,
 	2,								// Frame of projectile launch.
 	2,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -560,6 +697,7 @@ static InfantryTypeClass const Medic(
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
 	MedicDoControls,
+	MedicDoControls,
 	25,							// Frame of projectile launch.
 	25,							// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -578,6 +716,7 @@ static InfantryTypeClass const General(
 	false,						// Always use the given name for the infantry?
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
+	GeneralDoControls,
 	GeneralDoControls,
 	2,								// Frame of projectile launch.
 	2,								// Frame of projectile launch while prone.
@@ -599,6 +738,7 @@ static InfantryTypeClass const C1(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -618,6 +758,7 @@ static InfantryTypeClass const C2(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv2						// pointer to override remap table
@@ -637,6 +778,7 @@ static InfantryTypeClass const C3(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -656,6 +798,7 @@ static InfantryTypeClass const C4(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv4						// pointer to override remap table
@@ -675,6 +818,7 @@ static InfantryTypeClass const C5(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv5						// pointer to override remap table
@@ -694,6 +838,7 @@ static InfantryTypeClass const C6(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv6						// pointer to override remap table
@@ -713,6 +858,7 @@ static InfantryTypeClass const C7(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv7						// pointer to override remap table
@@ -732,6 +878,7 @@ static InfantryTypeClass const C8(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv8						// pointer to override remap table
@@ -751,6 +898,7 @@ static InfantryTypeClass const C9(
 	false,						// Theater specific graphic image?
 	PIP_CIVILIAN,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv9						// pointer to override remap table
@@ -771,6 +919,7 @@ static InfantryTypeClass const C10(
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	RemapCiv10						// pointer to override remap table
@@ -789,6 +938,7 @@ static InfantryTypeClass const Einstein(
 	true,							// Always use the given name for the infantry?
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
+	EinsteinDoControls,
 	EinsteinDoControls,
 	0,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
@@ -809,6 +959,7 @@ static InfantryTypeClass const Delphi(
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
 	CivilianDoControls,
+	CivilianDoControlsVirtual,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -828,6 +979,7 @@ static InfantryTypeClass const DrChan(
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
 	EinsteinDoControls,
+	EinsteinDoControls,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
 	0								// pointer to override remap table
@@ -840,8 +992,8 @@ static InfantryTypeClass const ShockTrooper(
 	INFANTRY_SHOCK,			// Infantry type number.
 	TXT_SHOCKTROOPER,			// Translate name number for infantry type.
 	"SHOK",						// INI name for infantry.
-	0x0035,						//	Vertical offset.
-	0x0010,						// Primary weapon offset along turret centerline.
+	-0x0010,					//	Vertical offset.
+	0x0038,						// Primary weapon offset along turret centerline.
 	false,						// Is this a female type?
 	true,							// Has crawling animation frames?
 	false,						// Is this a civilian?
@@ -850,9 +1002,11 @@ static InfantryTypeClass const ShockTrooper(
 	false,						// Theater specific graphic image?
 	PIP_FULL,					// Transport pip shape/color to use.
 	E4DoControls,
+	E4DoControls,
 	2,								// Frame of projectile launch.
 	0,								// Frame of projectile launch while prone.
-	0								// pointer to override remap table
+	0,								// pointer to override remap table
+	0x0018						//	Horizontal offset.
 );
 
 
@@ -869,6 +1023,7 @@ static InfantryTypeClass const Mechanic(
 	false,						// Always use the given name for the infantry?
 	false,						// Theater specific graphic image?
 	PIP_ENGINEER,				// Transport pip shape/color to use.
+	MedicDoControls,
 	MedicDoControls,
 	25,							// Frame of projectile launch.
 	25,							// Frame of projectile launch while prone.
@@ -906,9 +1061,11 @@ InfantryTypeClass::InfantryTypeClass (
 						bool is_theater,
 						PipEnum pip,
 						DoInfoStruct const * control,
+						DoInfoStruct const * virtual_control,
 						int firelaunch,
 						int pronelaunch,
-						unsigned char const * override_remap)
+						unsigned char const * override_remap,
+						int horizontaloffset)
 	: TechnoTypeClass(RTTI_INFANTRYTYPE,
 							int(type),
 							name,
@@ -930,7 +1087,8 @@ InfantryTypeClass::InfantryTypeClass (
 							true,
 							true,
 							8,
-							SPEED_FOOT),
+							SPEED_FOOT,
+							horizontaloffset),
 	IsFemale(is_female),
 	IsCrawling(is_crawling),
 	IsCapture(false),
@@ -942,6 +1100,7 @@ InfantryTypeClass::InfantryTypeClass (
 	Type(type),
 	Pip(pip),
 	DoControls(control),
+	DoControlsVirtual(virtual_control),
 	FireLaunch(firelaunch),
 	ProneLaunch(pronelaunch),
 	OverrideRemap(override_remap)

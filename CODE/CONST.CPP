@@ -42,7 +42,7 @@
 **	These are the access passwords used to activate cheat mode, editor mode,
 **	and special game options.
 */
-long const PlayCodes[] = {
+unsigned long const PlayCodes[] = {
 	0xE0792D6D,					// Dwight Okahara
 	0x90046ECF,					// Paul S. Mudra
 	0xC3EE9A26,					// Frank Klepaki
@@ -50,7 +50,7 @@ long const PlayCodes[] = {
 	0L
 };
 
-long const CheatCodes[] = {
+unsigned long const CheatCodes[] = {
 	0xA0E2AB53,					// Joseph Hewitt
 	0x00532693,					// Mike Lightner
 	0x7DDFF824,					// Joe Bostic
@@ -65,7 +65,7 @@ long const CheatCodes[] = {
 };
 
 
-long const EditorCodes[] = {
+unsigned long const EditorCodes[] = {
 	0xA2C09326,					// Erik Yeo
 	0x1F944BB3,					// Mike Lightner
 	0xDE07154D,					// Adam Isgreen
@@ -229,9 +229,9 @@ char const * const VQName[VQ_COUNT] = {
 	"MTNKFACT",
 	"CRONTEST",
 	"OILDRUM",
-	"ALLYEND",
+	"ALLIEND",
 	"RADRRAID",
-	"SHIPYARD",
+	"SHIPYARD", // MISSING
 	"SHORBOMB",
 	"SITDUCK",
 	"SLNTSRVC",
@@ -283,7 +283,7 @@ char const * const VQName[VQ_COUNT] = {
 	"AFTRMATH",
 	"SOVIET11",
 	"MASASSLT",
-	"ENGLISH",		// High res.
+	"ENGLISH",		// High res. Intro
 	"SOVIET1",
 	"SOVIET2",
 	"SOVIET3",
@@ -313,10 +313,38 @@ char const * const VQName[VQ_COUNT] = {
 	"SOVIET9",
 	"BEACHEAD",
 	"SOVIET14",
-	"SIZZLE",
-	"SIZZLE2",
+	"SIZZLE",   //MISSING
+	"SIZZLE2",  //MISSING
 	"ANTEND",
-	"ANTINTRO"
+	"ANTINTRO",
+
+
+		//2019/11/12 JAS - Added for Retaliation movies
+
+		"RETALIATION_ALLIED1",
+		"RETALIATION_ALLIED2",
+		"RETALIATION_ALLIED3",
+		"RETALIATION_ALLIED4",
+		"RETALIATION_ALLIED5",
+		"RETALIATION_ALLIED6",
+		"RETALIATION_ALLIED7",
+		"RETALIATION_ALLIED8",
+		"RETALIATION_ALLIED9",
+		"RETALIATION_ALLIED10",
+
+		"RETALIATION_SOVIET1",
+		"RETALIATION_SOVIET2",
+		"RETALIATION_SOVIET3",
+		"RETALIATION_SOVIET4",
+		"RETALIATION_SOVIET5",
+		"RETALIATION_SOVIET6",
+		"RETALIATION_SOVIET7",
+		"RETALIATION_SOVIET8",
+		"RETALIATION_SOVIET9",
+		"RETALIATION_SOVIET10",
+		"RETALIATION_WINA",
+		"RETALIATION_WINS",
+		"RETALIATION_ANTS"
 };
 
 

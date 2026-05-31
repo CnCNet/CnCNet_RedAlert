@@ -17,7 +17,7 @@
 */
 
 //	ToolTip.cpp
-
+#if (0)//PG
 #include "function.h"
 #include "ToolTip.h"
 #include "IconList.h"
@@ -77,7 +77,7 @@ ToolTipClass* ToolTipClass::GetToolTipHit()
 }
 
 //***********************************************************************************************
-bool ToolTipClass::bGadgetHit() const
+bool ToolTipClass::bGadgetHit()
 {
 	//	Returns true if the mouse is currently over the gadget to which *this is bound.
 	int x = Get_Mouse_X();
@@ -294,3 +294,4 @@ bool RestoreSurfaceRect( int xRect, int yRect, int wRect, int hRect, const char*
 		return false;
 	}
 }
+#endif

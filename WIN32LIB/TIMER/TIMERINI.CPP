@@ -40,6 +40,7 @@
 #include <mmsystem.h>
 #include "timer.H"
 #include <profile.h>
+#include <stdio.h>
 
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// Defines /////////////////////////////////////
@@ -81,6 +82,7 @@ int		InTimerCallback	= 0;		//Flag to say if we are in a timer callback
 
 
 
+#pragma warning (disable : 4996)
 
 
 /***************************************************************************
@@ -112,11 +114,15 @@ WinTimerClass::WinTimerClass (UINT freq, BOOL partial)
 	Frequency = freq;
 #endif
 
+	SysTicks = 0;
+	UserTicks = 0;
 
 	//
 	// Install the timer callback event handler
 	//
-	TimerHandle = timeSetEvent ( 1000/freq , 1 , Timer_Callback , 0 , TIME_PERIODIC);
+	//TimerHandle = timeSetEvent ( 1000/freq , 1 , Timer_Callback , 0 , TIME_PERIODIC);				
+	// Add TIME_KILL_SYNCHRONOUS flag. ST - 2/13/2019 5:07PM
+	TimerHandle = timeSetEvent ( 1000/freq , 1 , Timer_Callback , 0 , TIME_PERIODIC | TIME_KILL_SYNCHRONOUS);
 	TimerSystemOn = success = ( TimerHandle !=0 );
 
 	if (success)  {
@@ -151,6 +157,7 @@ WinTimerClass::~WinTimerClass( void )
 
 	if ( TimerHandle ){
 		timeKillEvent ( TimerHandle );
+		TimerHandle = 0;	//ST - 2/13/2019 5:12PM
 	}
 
 	TimerSystemOn = FALSE;
@@ -186,9 +193,11 @@ void CALLBACK Timer_Callback (UINT , UINT , DWORD , DWORD , DWORD)
 	//CONTEXT	context;
 
 	InTimerCallback++;
-	if (!TimerThreadHandle){
-		DuplicateHandle (GetCurrentProcess(), GetCurrentThread() , GetCurrentProcess() ,&TimerThreadHandle , 0 , TRUE , DUPLICATE_SAME_ACCESS);
-	}
+	
+	// Removed. ST - 2/13/2019 5:11PM
+	//if (!TimerThreadHandle){
+	//	DuplicateHandle (GetCurrentProcess(), GetCurrentThread() , GetCurrentProcess() ,&TimerThreadHandle , 0 , TRUE , DUPLICATE_SAME_ACCESS);
+	//}
 
 
 	if (WindowsTimer) {

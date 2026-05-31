@@ -105,7 +105,7 @@ class TerrainClass : public ObjectClass, public StageClass
 		/*
 		**	User I/O.
 		*/
-		virtual void Clicked_As_Target(int) {};
+		virtual void Clicked_As_Target(HousesType house, int) {}; // 2019/09/20 JAS - Added record of who clicked on the object
 
 		/*
 		**	Combat related.
@@ -147,6 +147,11 @@ class TerrainClass : public ObjectClass, public StageClass
 		**	in fact crumbling at this time?
 		*/
 		unsigned IsCrumbling:1;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[8];
 };
 
 #endif

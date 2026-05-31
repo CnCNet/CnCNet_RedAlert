@@ -71,7 +71,7 @@ BOOL RA95AlreadyRunning = FALSE;		//Was there an instance of Red Alert 95 alread
 */
 extern HWND 			MainWindow;
 extern TimerClass	GameTimer;
-extern BOOL			GameTimerInUse;
+extern bool			GameTimerInUse;
 extern void 			WWDebugString (char *string);
 
 
@@ -125,7 +125,7 @@ DDEServerClass::DDEServerClass(void)
 	if (DDE_Class->Test_Server_Running(DDE_Class->local_name)){
 		RA95AlreadyRunning = TRUE;
 	}else{
-		DDE_Class->Register_Server( DDE_Callback );
+		//DDE_Class->Register_Server( DDE_Callback );				// ST - 5/8/2019
 	}
 }
 

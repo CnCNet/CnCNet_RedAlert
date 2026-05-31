@@ -134,6 +134,18 @@ class ScenarioClass {
 		**	The filename of the movie to play if the scenario is won.
 		*/
 		VQType WinMovie;
+		/*
+		**	The filename of the movie to play if the scenario is won.
+		*/
+		VQType WinMovie2;
+		/*
+		**	The filename of the movie to play if the scenario is won.
+		*/
+		VQType WinMovie3;
+		/*
+		**	The filename of the movie to play if the scenario is won.
+		*/
+		VQType WinMovie4;
 
 		/*
 		**	The filename of the movie to play if the scenario is lost.

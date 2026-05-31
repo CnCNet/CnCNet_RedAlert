@@ -129,9 +129,9 @@
 #include "drawbuff.h"
 #endif
 
-#ifndef BUFFER_H
+//#ifndef BUFFER_H
 #include "buffer.h"
-#endif
+//#endif
 
 #ifndef WINDOWS_H
 #include "ww_win.h"
@@ -144,7 +144,7 @@
 
 #ifndef FUNCTION_H
 
-#pragma off (unreferenced)
+//#pragma off (unreferenced)
 
 #ifndef BITMAPCLASS
 #define BITMAPCLASS
@@ -170,7 +170,7 @@ class TPoint2D
 };
 #endif
 
-#pragma on (unreferenced)
+//#pragma on (unreferenced)
 #endif
 
 
@@ -199,7 +199,7 @@ enum GBC_Enum {
 /* Define the screen width and height to make portability to other modules	*/
 /*		easier.																					*/
 /*=========================================================================*/
-#define	DEFAULT_SCREEN_WIDTH		320
+#define	DEFAULT_SCREEN_WIDTH		356
 #define	DEFAULT_SCREEN_HEIGHT	200
 
 /*=========================================================================*/

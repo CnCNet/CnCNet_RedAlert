@@ -129,7 +129,7 @@ class SidebarClass: public PowerClass
 		void Zoom_Mode_Control(void);
 		bool Abandon_Production(RTTIType type, int factory);
 		bool Activate(int control);
-		bool Add(RTTIType type, int ID);
+		bool Add(RTTIType type, int ID, bool via_capture = false);		// Added via_capture for new sidebar functionality. ST - 9/24/2019 3:15PM  );
 		bool Sidebar_Click(KeyNumType & input, int x, int y);
 		void Recalc(void);
 		bool Factory_Link(int factory, RTTIType type, int id);
@@ -160,7 +160,7 @@ class SidebarClass: public PowerClass
 				StripClass(InitClass const &);
 				StripClass(NoInitClass const & ) {};
 
-				bool Add(RTTIType type, int ID);
+				bool Add(RTTIType type, int ID, bool via_capture);		// Added via_capture for new sidebar functionality. ST - 9/24/2019 3:15PM  );
 				bool Abandon_Production(int factory);
 				bool Scroll(bool up);
 				bool AI(KeyNumType & input, int x, int y);
@@ -312,6 +312,7 @@ class SidebarClass: public PowerClass
 					int BuildableID;
 					RTTIType BuildableType;
 					int Factory;								// Production manager.
+					bool BuildableViaCapture;				// Added for new sidebar functionality. ST - 9/24/2019 3:10PM
 				} BuildType;
 				BuildType Buildables[MAX_BUILDABLES];
 

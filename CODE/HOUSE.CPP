@@ -138,6 +138,11 @@
 
 //#include "WolDebug.h"
 
+/*
+** New sidebar for GlyphX multiplayer. ST - 8/7/2019 10:10AM
+*/
+#include "SidebarGlyphx.h"
+
 TFixedIHeapClass<HouseClass::BuildChoiceClass> HouseClass::BuildChoice;
 
 int TFixedIHeapClass<HouseClass::BuildChoiceClass>::Save(Pipe &) const
@@ -522,6 +527,7 @@ HouseClass::HouseClass(HousesType house) :
 	BuildDelay(0),
 	ActLike(Class->House),
 	IsHuman(false),
+	WasHuman(false),
 	IsPlayerControl(false),
 	IsStarted(false),
 	IsAlerted(false),
@@ -544,6 +550,7 @@ HouseClass::HouseClass(HousesType house) :
 	IsGiverUpper(false),
 	IsParanoid(false),
 	IsToLook(true),
+	IsQueuedMovementToggle(false),
 	DidRepair(false),
 	IQ(Control.IQ),
 	State(STATE_BUILDUP),
@@ -606,11 +613,13 @@ HouseClass::HouseClass(HousesType house) :
 	UnitFactory(-1),
 	BuildingFactory(-1),
 	VesselFactory(-1),
+	Radar(RADAR_NONE),
 	FlagLocation(TARGET_NONE),
 	FlagHome(0),
 	UnitsLost(0),
 	BuildingsLost(0),
 	WhoLastHurtMe(house),
+	StartLocationOverride(-1),
 	Center(0),
 	Radius(0),
 	LATime(0),
@@ -621,6 +630,7 @@ HouseClass::HouseClass(HousesType house) :
 	RadarSpied(0),
 	PointTotal(0),
 	PreferredTarget(QUARRY_ANYTHING),
+	ScreenShakeTime(0),
 	Attack(0),
 	Enemy(HOUSE_NONE),
 	AITimer(0),
@@ -639,7 +649,8 @@ HouseClass::HouseClass(HousesType house) :
 	SpeakPowerDelay(1),
 	SpeakMoneyDelay(1),
 	SpeakMaxedDelay(1),
-	RemapColor(Class->RemapColor)
+	RemapColor(Class->RemapColor),
+	DebugUnlockBuildables(false)
 {
 	/*
 	**	Explicit in-place construction of the super weapons is
@@ -673,22 +684,7 @@ HouseClass::HouseClass(HousesType house) :
 	*/
 	Attack = Rule.AttackDelay * Random_Pick(TICKS_PER_MINUTE/2, TICKS_PER_MINUTE*2);
 
-	if (Session.Type == GAME_INTERNET) {
-		AircraftTotals = new UnitTrackerClass( (int) AIRCRAFT_COUNT);
-		InfantryTotals = new UnitTrackerClass( (int) INFANTRY_COUNT);
-		UnitTotals = new UnitTrackerClass ( (int) UNIT_COUNT);
-		BuildingTotals = new UnitTrackerClass ( (int) STRUCT_COUNT);
-		VesselTotals = new UnitTrackerClass ( (int) VESSEL_COUNT);
-
-		DestroyedAircraft = new UnitTrackerClass ( (int) AIRCRAFT_COUNT);
-		DestroyedInfantry = new UnitTrackerClass( (int) INFANTRY_COUNT);
-		DestroyedUnits = new UnitTrackerClass ( (int) UNIT_COUNT);
-		DestroyedBuildings = new UnitTrackerClass ( (int) STRUCT_COUNT);
-		DestroyedVessels = new UnitTrackerClass ( (int) VESSEL_COUNT);
-
-		CapturedBuildings = new UnitTrackerClass ( (int) STRUCT_COUNT);
-		TotalCrates = new UnitTrackerClass ( CRATE_COUNT );
-	}
+	Init_Unit_Trackers();
 }
 
 
@@ -710,22 +706,7 @@ HouseClass::~HouseClass (void)
 {
 	Class = 0;
 
-	if (Session.Type == GAME_INTERNET) {
-		delete AircraftTotals;
-		delete InfantryTotals;
-		delete UnitTotals;
-		delete BuildingTotals;
-		delete VesselTotals;
-
-		delete DestroyedAircraft;
-		delete DestroyedInfantry;
-		delete DestroyedUnits;
-		delete DestroyedBuildings;
-		delete DestroyedVessels;
-
-		delete CapturedBuildings;
-		delete TotalCrates;
-	}
+	Free_Unit_Trackers();
 }
 
 
@@ -870,10 +851,16 @@ bool HouseClass::Can_Build(ObjectTypeClass const * type, HousesType house) const
 	}
 #endif
 
+	// ST - 8/23/2019 4:53PM
+	if (DebugUnlockBuildables) {
+		level = 98;
+		pre = 0;
+	}			
+
 	/*
 	**	See if the prerequisite requirements have been met.
 	*/
-	return((pre & flags) == pre && ((TechnoTypeClass const *)type)->Level <= level);
+	return((pre & flags) == pre && ((TechnoTypeClass const *)type)->Level <= (unsigned)level);
 }
 
 
@@ -902,6 +889,9 @@ void HouseClass::Init(void)
 	}
 }
 
+// Object selection list is switched with player context for GlyphX. ST - 8/7/2019 10:11AM
+extern void Logic_Switch_Player_Context(HouseClass *house);
+extern bool MPSuperWeaponDisable;
 
 /***********************************************************************************************
  * HouseClass::AI -- Process house logic.                                                      *
@@ -920,16 +910,21 @@ void HouseClass::Init(void)
  *   12/27/1994 JLB : Created.                                                                 *
  *   07/17/1995 JLB : Limits EVA speaking unless the player can do something.                  *
  *=============================================================================================*/
+extern void Recalculate_Placement_Distances();
+
 void HouseClass::AI(void)
 {
 	assert(Houses.ID(this) == ID);
+
+	// Set PlayerPtr to be this house. ST - 8/7/2019 10:12AM
+	Logic_Switch_Player_Context(this);
 
 	/*
 	**	If base building has been turned on by a trigger, then force the house to begin
 	**	production and team creation as well. This is also true if the IQ is high enough to
 	**	being base building.
 	*/
-	if (IsBaseBuilding || IQ >= Rule.IQProduction) {
+	if (!IsHuman && (IsBaseBuilding || IQ >= Rule.IQProduction)) {
 		IsBaseBuilding = true;
 		IsStarted = true;
 		IsAlerted = true;
@@ -965,6 +960,9 @@ void HouseClass::AI(void)
 	if (IsToDie && BorrowedTime == 0) {
 		IsToDie = false;
 		Blowup_All();
+		if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+			MPlayer_Defeated();
+		}
 	}
 
 	/*
@@ -1003,8 +1001,7 @@ void HouseClass::AI(void)
 
 	/*
 	**	If this house's flag waypoint is a valid cell, see if there's
-	**	someone sitting on it.  If so, make the scatter.  If they refuse,
-	**	blow them up.
+	**	someone sitting on it.  If so, make the scatter.
 	*/
 	if (FlagHome != 0 && (Frame % TICKS_PER_SECOND) == 0) {
 
@@ -1019,28 +1016,6 @@ void HouseClass::AI(void)
 
 			if (!moving) {
 				techno->Scatter(0, true, true);
-			}
-
-			/*
-			**	If the techno doesn't have a valid NavCom, he's not moving,
-			**	so blow him up.
-			*/
-			if (techno->Is_Foot()) {
-				if (Target_Legal(((FootClass *)techno)->NavCom)) {
-					moving = true;
-				}
-			}
-
-			/*
-			**	If the techno wasn't an infantry or unit (ie he's a building),
-			**	or he refuses to move, blow him up
-			*/
-			if (!moving) {
-				int count = 0;
-				while (!(techno->IsInLimbo) && count++ < 5) {
-					int damage = techno->Strength;
-					techno->Take_Damage(damage, 0, WARHEAD_HE, NULL, true);
-				}
 			}
 		}
 	}
@@ -1104,6 +1079,12 @@ void HouseClass::AI(void)
 			Speak(VOX_NEED_MO_MONEY);
 			Map.Flash_Money();
 			SpeakMaxedDelay = Options.Normalize_Delay(TICKS_PER_MINUTE * Rule.SpeakDelay);
+
+			int text_id = TXT_INSUFFICIENT_FUNDS;
+			char const * text = Text_String(TXT_INSUFFICIENT_FUNDS);
+			if (text != NULL) {
+				Session.Messages.Add_Message(NULL, text_id, text, PCOLOR_GREEN, TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+			}
 		}
 
 		if (SpeakMaxedDelay == 0 && IsMaxedOut) {
@@ -1119,18 +1100,22 @@ void HouseClass::AI(void)
 				SpeakPowerDelay = Options.Normalize_Delay(TICKS_PER_MINUTE * Rule.SpeakDelay);
 				Map.Flash_Power();
 
+				int text_id = -1;
 				char const * text = NULL;
 				if (BQuantity[STRUCT_AAGUN] > 0) {
 					text = Text_String(TXT_POWER_AAGUN);
+					text_id = TXT_POWER_AAGUN;
 				}
 				if (BQuantity[STRUCT_TESLA] > 0) {
 					text = Text_String(TXT_POWER_TESLA);
+					text_id = TXT_POWER_TESLA;
 				}
 				if (text == NULL) {
 					text = Text_String(TXT_LOW_POWER);
+					text_id = TXT_LOW_POWER;
 				}
 				if (text != NULL) {
-					Session.Messages.Add_Message(NULL, 0, text, PCOLOR_GREEN, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+					Session.Messages.Add_Message(NULL, text_id, text, PCOLOR_GREEN, TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
 				}
 			}
 		}
@@ -1146,6 +1131,7 @@ void HouseClass::AI(void)
 			unit->Mark(MARK_CHANGE);
 		} else {
 			CELL cell = As_Cell(FlagLocation);
+			Map[cell].Flag_Update();
 			Map[cell].Redraw_Objects();
 		}
 	}
@@ -1165,16 +1151,20 @@ void HouseClass::AI(void)
 	/*
 	**	Process any super weapon logic required.
 	*/
-	Super_Weapon_Handler();
+
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER || !MPSuperWeaponDisable) {
+		Super_Weapon_Handler();
+	}
 
 #ifdef FIXIT_VERSION_3			//	For endgame auto-sonar pulse.
-	if( Scen.AutoSonarTimer == 0 )
+	if( (Session.Type != GAME_NORMAL || !IsHuman) && Scen.AutoSonarTimer == 0 )
 	{
 		//	If house has nothing but subs left, do an automatic sonar pulse to reveal them.
 		if( VQuantity[ VESSEL_SS ] > 0 )		//	Includes count of VESSEL_MISSILESUBs. ajw
 		{
 			int iCount = 0;
-			for( int i = 0; i != STRUCT_COUNT-3; ++i )
+			int i;
+			for( i = 0; i != STRUCT_COUNT-3; ++i )
 			{
 				iCount += BQuantity[ i ];
 			}
@@ -1225,6 +1215,10 @@ void HouseClass::AI(void)
 	}
 #endif
 
+	if (Session.Type != GAME_NORMAL) {
+		Check_Pertinent_Structures();
+	}
+
 	/*
 	** Special win/lose check for multiplayer games; by-passes the
 	** trigger system.  We must wait for non-zero frame, because init
@@ -1252,7 +1246,7 @@ void HouseClass::AI(void)
 	**	The radar also is turned off when the power gets below 100% capacity.
 	*/
 	if (PlayerPtr == this) {
-		bool jammed = Map.Is_Radar_Active();
+		bool jammed = true;
 
 		/*
 		** Find if there are any radar facilities, and if they're jammed or not
@@ -1278,10 +1272,7 @@ void HouseClass::AI(void)
 			}
 		}
 
-		if (Map.Get_Jammed() != jammed) {
-			Map.RadarClass::Flag_To_Redraw(true);
-		}
-		Map.Set_Jammed(jammed);
+		Map.Set_Jammed(this, jammed);
 // Need to add in here where we activate it when only GPS is active.
 		if (Map.Is_Radar_Active()) {
 			if (ActiveBScan & STRUCTF_RADAR) {
@@ -1305,7 +1296,14 @@ void HouseClass::AI(void)
 				}
 			}
 		}
+		if (!IsGPSActive && !(ActiveBScan & STRUCTF_RADAR)) {
+			Radar = RADAR_NONE;
+		} else {
+			Radar = (Map.Is_Radar_Active() || Map.Is_Radar_Activating()) ? RADAR_ON : RADAR_OFF;
+		}
 	}
+
+	VisibleCredits.AI(false, this, true);
 
 	/*
 	**	Perform any expert system AI processing.
@@ -1347,6 +1345,9 @@ void HouseClass::AI(void)
 				}
 			}
 		}
+
+		Recalculate_Placement_Distances();
+		Check_Pertinent_Structures();
 	}
 
 	/*
@@ -1358,10 +1359,9 @@ void HouseClass::AI(void)
 
 	if (this == PlayerPtr && IsToLook) {
 		IsToLook = false;
-		Map.All_To_Look();
+		Map.All_To_Look(PlayerPtr);
 	}
 }
-
 
 /***********************************************************************************************
  * HouseClass::Super_Weapon_Handler -- Handles the super weapon charge and discharge logic.    *
@@ -1415,9 +1415,21 @@ void HouseClass::Super_Weapon_Handler(void)
 	*/
 	if (IsGPSActive && !(ActiveBScan & STRUCTF_ADVANCED_TECH) ) {
 		IsGPSActive = false;
-		if (IsPlayerControl) {
-			Map.Shroud_The_Map();
-		}
+
+		/*
+		** Updated for client/server multiplayer. ST  - 8/12/2019 11:32AM
+		*/
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+			if (IsPlayerControl) {
+				Map.Shroud_The_Map(PlayerPtr);
+			}
+		
+		} else {
+			
+			if (IsHuman) {
+				Map.Shroud_The_Map(this);
+			}
+		}	
 	}
 
 	/*
@@ -1482,9 +1494,16 @@ void HouseClass::Super_Weapon_Handler(void)
 				/*
 				**	Flag the sidebar to be redrawn if necessary.
 				*/
-				if (this == PlayerPtr) {
-					Map.Add(RTTI_SPECIAL, SPC_GPS);
-					Map.Column[1].Flag_To_Redraw();
+				// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+				if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+					if (IsHuman) {
+						Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_GPS, this);
+					}
+				} else {
+					if (this == PlayerPtr) {
+						Map.Add(RTTI_SPECIAL, SPC_GPS);
+						Map.Column[1].Flag_To_Redraw();
+					}
 				}
 			}
 		}
@@ -1534,7 +1553,7 @@ void HouseClass::Super_Weapon_Handler(void)
 		*/
 		if ((ActiveBScan & STRUCTF_CHRONOSPHERE) &&
 //			(ActLike == HOUSE_GOOD || Session.Type != GAME_NORMAL) &&
-			Control.TechLevel >= BuildingTypeClass::As_Reference(STRUCT_CHRONOSPHERE).Level &&
+			(unsigned)Control.TechLevel >= BuildingTypeClass::As_Reference(STRUCT_CHRONOSPHERE).Level &&
 //			Control.TechLevel >= Rule.ChronoTechLevel &&
 			(IsHuman || IQ >= Rule.IQSuperWeapons)) {
 
@@ -1543,9 +1562,16 @@ void HouseClass::Super_Weapon_Handler(void)
 			/*
 			**	Flag the sidebar to be redrawn if necessary.
 			*/
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_CHRONOSPHERE);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_CHRONOSPHERE, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_CHRONOSPHERE);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1586,9 +1612,16 @@ void HouseClass::Super_Weapon_Handler(void)
 			/*
 			**	Flag the sidebar to be redrawn if necessary.
 			*/
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_IRON_CURTAIN);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_IRON_CURTAIN, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_IRON_CURTAIN);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1604,7 +1637,7 @@ void HouseClass::Super_Weapon_Handler(void)
 		bool powered = false;
 		for (int q = 0; q < Buildings.Count() && !powered; q++) {
 			BuildingClass * bldg = Buildings.Ptr(q);
-			if ((*bldg == STRUCT_SUB_PEN) && (bldg->House->Class->House != Class->House) && (bldg->SpiedBy & usspy) ) {
+			if ((*bldg == STRUCT_SUB_PEN) && (bldg->House->Class->House != Class->House) && (bldg->Spied_By() & usspy) ) {
 				present = true;
 				powered = !(bldg->House->Power_Fraction() < 1);
 			}
@@ -1667,9 +1700,16 @@ void HouseClass::Super_Weapon_Handler(void)
 			/*
 			**	Flag the sidebar to be redrawn if necessary.
 			*/
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_NUCLEAR_BOMB);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_NUCLEAR_BOMB, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_NUCLEAR_BOMB);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1692,9 +1732,16 @@ void HouseClass::Super_Weapon_Handler(void)
 	} else {
 		if ((ActiveBScan & STRUCTF_AIRSTRIP) != 0 && !Scen.IsNoSpyPlane && Control.TechLevel >= Rule.SpyPlaneTechLevel) {
 			SuperWeapon[SPC_SPY_MISSION].Enable(false, this == PlayerPtr, false);
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_SPY_MISSION);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_SPY_MISSION, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_SPY_MISSION);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1713,9 +1760,16 @@ void HouseClass::Super_Weapon_Handler(void)
 	} else {
 		if ((ActiveBScan & STRUCTF_AIRSTRIP) != 0 && Control.TechLevel >= Rule.ParaBombTechLevel && Session.Type == GAME_NORMAL) {
 			SuperWeapon[SPC_PARA_BOMB].Enable(false, this == PlayerPtr, false);
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_PARA_BOMB);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_PARA_BOMB, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_PARA_BOMB);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1734,9 +1788,16 @@ void HouseClass::Super_Weapon_Handler(void)
 	} else {
 		if ((ActiveBScan & STRUCTF_AIRSTRIP) != 0 && Control.TechLevel >= Rule.ParaInfantryTechLevel) {
 			SuperWeapon[SPC_PARA_INFANTRY].Enable(false, this == PlayerPtr, false);
-			if (this == PlayerPtr) {
-				Map.Add(RTTI_SPECIAL, SPC_PARA_INFANTRY);
-				Map.Column[1].Flag_To_Redraw();
+			// Add to Glyphx multiplayer sidebar. ST - 8/7/2019 10:13AM
+			if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+				if (IsHuman) {
+					Sidebar_Glyphx_Add(RTTI_SPECIAL, SPC_PARA_INFANTRY, this);
+				}
+			} else {
+				if (this == PlayerPtr) {
+					Map.Add(RTTI_SPECIAL, SPC_PARA_INFANTRY);
+					Map.Column[1].Flag_To_Redraw();
+				}
 			}
 		}
 	}
@@ -1759,7 +1820,7 @@ void HouseClass::Super_Weapon_Handler(void)
  * HISTORY:                                                                                    *
  *   12/27/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-void HouseClass::Attacked(void)
+void HouseClass::Attacked(BuildingClass* source)
 {
 	assert(Houses.ID(this) == ID);
 
@@ -1768,8 +1829,16 @@ void HouseClass::Attacked(void)
 #else
 	if (SpeakAttackDelay == 0 && PlayerPtr->Class->House == Class->House) {
 #endif
-		Speak(VOX_BASE_UNDER_ATTACK);
-		SpeakAttackDelay = Options.Normalize_Delay(TICKS_PER_MINUTE * Rule.SpeakDelay);
+		if (Session.Type == GAME_NORMAL) {
+			Speak(VOX_BASE_UNDER_ATTACK, NULL, source ? source->Center_Coord() : 0);
+		} else {
+			Speak(VOX_BASE_UNDER_ATTACK, this);
+		}
+
+		// MBL 06.13.2020 - Timing change from 2 minute cooldown, per https://jaas.ea.com/browse/TDRA-6784
+		// SpeakAttackDelay = Options.Normalize_Delay(TICKS_PER_MINUTE * Rule.SpeakDelay); // 2 minutes
+		// SpeakAttackDelay = Options.Normalize_Delay(TICKS_PER_MINUTE/2); // 30 seconds as requested
+		SpeakAttackDelay = Options.Normalize_Delay( (TICKS_PER_MINUTE/2)+(TICKS_PER_SECOND*5) ); // Tweaked for accuracy
 
 		/*
 		**	If there is a trigger event associated with being attacked, process it
@@ -1884,7 +1953,7 @@ void HouseClass::Spend_Money(unsigned money)
 	assert(Houses.ID(this) == ID);
 
 	long oldtib = Tiberium;
-	if (money > Tiberium) {
+	if (money > (unsigned)Tiberium) {
 		money -= (unsigned)Tiberium;
 		Tiberium = 0;
 		Credits -= money;
@@ -2415,6 +2484,16 @@ ProdFailType HouseClass::Begin_Production(RTTIType type, int id)
 		Set_Factory(type, fptr);
 		result = fptr->Set(*tech, *this);
 		initial_start = true;
+
+		/*
+		** If set failed, we probably reached the production cap. Don't let the factory linger, preventing further production attempts.
+		** ST - 3/17/2020 2:03PM
+		*/
+		if (!result) {
+			Set_Factory(type, NULL);
+			delete fptr;
+			fptr = NULL;
+		}
 	}
 
 	if (result) {
@@ -2424,9 +2503,17 @@ ProdFailType HouseClass::Begin_Production(RTTIType type, int id)
 		**	Link this factory to the sidebar so that proper graphic feedback
 		**	can take place.
 		*/
-		if (PlayerPtr == this) {
-			Map.Factory_Link(fptr->ID, type, id);
+		// Handle Glyphx multiplayer sidebar. ST - 8/14/2019 1:26PM
+		if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+			if (IsHuman) {
+				Sidebar_Glyphx_Factory_Link(fptr->ID, type, id, this);
+			}
+		} else {		 
+			if (PlayerPtr == this) {
+				Map.Factory_Link(fptr->ID, type, id);
+			}
 		}
+
 		return(PROD_OK);
 	}
 
@@ -2473,7 +2560,9 @@ ProdFailType HouseClass::Suspend_Production(RTTIType type)
 	*/
 	if (PlayerPtr == this) {
 		Map.SidebarClass::IsToRedraw = true;
-		Map.Flag_To_Redraw(false);
+		if (!RunningAsDLL) {		// Don't force a redraw when running under GlyphX. PlayerPtr==this will always be true in this case, and we don't want to force a redraw even for AI players
+			Map.Flag_To_Redraw(false);
+		}
 	}
 
 	return(PROD_OK);
@@ -2510,14 +2599,30 @@ ProdFailType HouseClass::Abandon_Production(RTTIType type)
 	/*
 	**	Tell the sidebar that it needs to be redrawn because of this.
 	*/
-	if (PlayerPtr == this) {
-		Map.Abandon_Production(type, fptr->ID);
+	// Handle Glyphx multiplayer sidebar. ST - 8/7/2019 10:18AM
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		if (IsHuman) {
+			Sidebar_Glyphx_Abandon_Production(type, fptr->ID, this);
+			
+			// Need to clear pending object here if legacy renderer enabled
 
-		if (type == RTTI_BUILDINGTYPE || type == RTTI_BUILDING) {
-			Map.PendingObjectPtr = 0;
-			Map.PendingObject = 0;
-			Map.PendingHouse = HOUSE_NONE;
-			Map.Set_Cursor_Shape(0);
+			if (type == RTTI_BUILDINGTYPE || type == RTTI_BUILDING && Map.PendingObjectPtr) {
+				Map.PendingObjectPtr = 0;
+				Map.PendingObject = 0;
+				Map.PendingHouse = HOUSE_NONE;
+				Map.Set_Cursor_Shape(0);
+			}
+		}
+	} else {
+		if (PlayerPtr == this) {
+			Map.Abandon_Production(type, fptr->ID);
+
+			if (type == RTTI_BUILDINGTYPE || type == RTTI_BUILDING) {
+				Map.PendingObjectPtr = 0;
+				Map.PendingObject = 0;
+				Map.PendingHouse = HOUSE_NONE;
+				Map.Set_Cursor_Shape(0);
+			}
 		}
 	}
 
@@ -2598,9 +2703,17 @@ void HouseClass::Special_Weapon_AI(SpecialWeaponType id)
  *   07/25/1995 JLB : Added scatter effect for nuclear bomb.                                   *
  *   07/28/1995 JLB : Revamped to use super weapon class controller.                           *
  *=============================================================================================*/
+extern void Logic_Switch_Player_Context(ObjectClass *object);
+extern void Logic_Switch_Player_Context(HouseClass *object);
+extern void On_Special_Weapon_Targetting(const HouseClass* player_ptr, SpecialWeaponType weapon_type);
+
 bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 {
 	assert(Houses.ID(this) == ID);
+
+	// Added. ST - 12/2/2019 11:26AM
+	bool fired = false;
+	const char *what = NULL;
 
 	BuildingClass * launchsite = 0;
 	AnimClass * anim = 0;
@@ -2615,6 +2728,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				}
 				Sound_Effect(VOC_SONAR);
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "SONAR";
 				for (int index = 0; index < Vessels.Count(); index++) {
 					VesselClass * sub = Vessels.Ptr(index);
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
@@ -2643,6 +2758,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 						}
 						SuperWeapon[SPC_NUCLEAR_BOMB].Discharged(this == PlayerPtr);
 						IsRecalcNeeded = true;
+						fired = true;
+						what = "NUKE";
 						if (this == PlayerPtr) {
 							Map.Column[1].Flag_To_Redraw();
 							Map.IsTargettingMode = SPC_NONE;
@@ -2669,6 +2786,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 					}
 					SuperWeapon[SPC_NUCLEAR_BOMB].Discharged(this == PlayerPtr);
 					IsRecalcNeeded = true;
+					fired = true;
+					what = "NUKE";
 				}
 			}
 			break;
@@ -2708,6 +2827,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				}
 				SuperWeapon[SPC_PARA_INFANTRY].Discharged(this == PlayerPtr);
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "PARA";
 			}
 			break;
 
@@ -2719,6 +2840,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				}
 				SuperWeapon[SPC_SPY_MISSION].Discharged(this == PlayerPtr);
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "SPY";
 			}
 			break;
 
@@ -2730,6 +2853,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				}
 				SuperWeapon[SPC_PARA_BOMB].Discharged(this == PlayerPtr);
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "PARABOMB";
 			}
 			break;
 
@@ -2763,6 +2888,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				}
 
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "IRON";
 			}
 			break;
 
@@ -2788,10 +2915,14 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 	}
 	if (porthim) {
 #endif
-							if (this == PlayerPtr) {
-								Map.IsTargettingMode = SPC_CHRONO2;
-							}
+							HouseClass* old_player_ptr = PlayerPtr;
+							Logic_Switch_Player_Context(this);
+							Map.IsTargettingMode = SPC_CHRONO2;
+							On_Special_Weapon_Targetting(PlayerPtr, Map.IsTargettingMode);
+							Logic_Switch_Player_Context(old_player_ptr);
 							UnitToTeleport = tech->As_Target();
+							fired = true;
+							what = "CHRONO";
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 	}
 #endif
@@ -2846,6 +2977,16 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 #endif
 						Scen.Do_BW_Fade();
 						Sound_Effect(VOC_CHRONO, drive->Coord);
+
+						/*
+						**	Set active animation on Chronospheres.
+						*/
+						for (int index = 0; index < Buildings.Count(); ++index) {
+							BuildingClass* building = Buildings.Ptr(index);
+							if (building != nullptr && building->IsActive && building->Owner() == Class->House && *building == STRUCT_CHRONOSPHERE) {
+								building->Begin_Mode(BSTATE_ACTIVE);
+							}
+						}
 					}
 				}
 				UnitToTeleport = TARGET_NONE;
@@ -2860,6 +3001,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 	}
 #endif
 				IsRecalcNeeded = true;
+				fired = true;
+				what = "CHRONO2";
 
 				/*
 				** Now set a percentage chance that a time quake will occur.
@@ -2880,7 +3023,7 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				if (!ChronalVortex.Is_Active() && Percent_Chance(Rule.VortexChance * 100)) {
 					int x = Random_Pick(0, Map.MapCellWidth-1);
 					int y = Random_Pick(0, Map.MapCellHeight-1);
-					ChronalVortex.Appear(XY_Cell(Map.MapCellX + x, Map.MapCellY + y));
+					ChronalVortex.Appear(Cell_Coord(XY_Cell(Map.MapCellX + x, Map.MapCellY + y)));
 
 //					if (Percent_Chance(50)) {
 //						ChronalVortex.Appear(Cell_Coord(oldcell));
@@ -2892,6 +3035,14 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
 				break;
 			}
 	}
+
+	/*
+	** Maybe trigger an achivement. ST - 12/2/2019 11:25AM
+	*/
+	if (IsHuman && fired && what) {
+		On_Achievement_Event(this, "SUPERWEAPON_FIRED", what);
+	}
+
 	return(true);
 }
 
@@ -2915,6 +3066,8 @@ bool HouseClass::Place_Special_Blast(SpecialWeaponType id, CELL cell)
  * HISTORY:                                                                                    *
  *   05/18/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
+extern void On_Ping(const HouseClass* player_ptr, COORDINATE coord);
+
 bool HouseClass::Place_Object(RTTIType type, CELL cell)
 {
 	assert(Houses.ID(this) == ID);
@@ -2962,7 +3115,7 @@ bool HouseClass::Place_Object(RTTIType type, CELL cell)
 				}
 				TechnoClass * builder = pending->Who_Can_Build_Me(intheory, false);
 #endif
-
+				TechnoTypeClass const *object_type = pending->Techno_Type_Class();
 				if (builder != NULL && builder->Exit_Object(pending)) {
 
 					/*
@@ -2970,8 +3123,22 @@ bool HouseClass::Place_Object(RTTIType type, CELL cell)
 					**	the production manager tied to this slot in the sidebar. Its job
 					**	has been completed.
 					*/
+					factory->Set_Is_Blocked(false);
 					factory->Completed();
 					Abandon_Production(type);
+
+					/*
+					** Could be tied to an achievement. ST - 11/11/2019 11:56AM
+					*/
+					if (IsHuman) {
+						if (object_type) {
+							On_Achievement_Event(this, "UNIT_CONSTRUCTED", object_type->IniName);
+						}
+						if (pending->IsActive) {
+							On_Ping(this, pending->Center_Coord());
+						}
+					}
+
 					switch (pending->What_Am_I()) {
 						case RTTI_UNIT:
 							JustBuiltUnit = ((UnitClass*)pending)->Class->Type;
@@ -3003,6 +3170,13 @@ bool HouseClass::Place_Object(RTTIType type, CELL cell)
 					**	The object could not leave under it's own power. Just wait
 					**	until the player tries to place the object again.
 					*/
+					
+					/*
+					** Flag that it's blocked so we can re-try the exit later.
+					** This would have been a bad idea under the old peer-peer code since it would have pumped events into
+					** the queue too often. ST - 2/25/2020 11:56AM
+					*/
+					factory->Set_Is_Blocked(true);
 					return(false);
 				}
 			}
@@ -3331,7 +3505,7 @@ bool HouseClass::Flag_Remove(TARGET target, bool set_home)
 {
 	assert(Houses.ID(this) == ID);
 
-	int rc;
+	bool rc = false;
 
 	if (Target_Legal(target)) {
 
@@ -3370,10 +3544,8 @@ bool HouseClass::Flag_Remove(TARGET target, bool set_home)
 				FlagHome = 0;
 			}
 		}
-
-		return(rc);
 	}
-	return(false);
+	return(rc);
 }
 
 
@@ -3427,7 +3599,7 @@ bool HouseClass::Flag_Attach(CELL cell, bool set_home)
 		CELL newcell = cell;
 		rc = Map[newcell].Flag_Place(Class->House);
 		if (!rc) {
-			newcell = Map.Nearby_Location(cell, SPEED_TRACK);
+			newcell = Map.Nearby_Location(cell, SPEED_TRACK, -1, MZONE_NORMAL, true);
 			if (newcell != 0) {
 				rc = Map[newcell].Flag_Place(Class->House);
 			}
@@ -3483,7 +3655,8 @@ bool HouseClass::Flag_Attach(CELL cell, bool set_home)
 		/*
 		**	If we've found a spot for the flag, place the flag at the new cell.
 		**	if 'set_home' is set, OR this house has no current flag home cell,
-		**	mark that cell as this house's flag home cell.
+		**	mark that cell as this house's flag home cell. Otherwise fall back
+		**	on returning the flag to its home.
 		*/
 		if (rc) {
 			FlagLocation = As_Target(newcell);
@@ -3494,6 +3667,9 @@ bool HouseClass::Flag_Attach(CELL cell, bool set_home)
 				Map[newcell].Recalc_Attributes();
 				FlagHome = newcell;
 			}
+		}
+		else if (FlagHome != 0) {
+			rc = Map[FlagHome].Flag_Place(Class->House);
 		}
 
 		return(rc);
@@ -3536,6 +3712,7 @@ bool HouseClass::Flag_Attach(UnitClass * object, bool set_home)
 	return(false);
 }
 
+extern void On_Defeated_Message(const char* message, float timeout_seconds);
 
 /***************************************************************************
  * HouseClass::MPlayer_Defeated -- multiplayer; house is defeated          *
@@ -3592,6 +3769,13 @@ void HouseClass::MPlayer_Defeated(void)
 	}
 
 	/*
+	**	Remove any one-time superweapons the player might have.
+	*/
+	for (i = SPC_FIRST; i < SPC_COUNT; i++) {
+		SuperWeapon[i].Remove(true);
+	}
+
+	/*
 	**	If this is me:
 	**	- Set MPlayerObiWan, so I can only send messages to all players, and
 	**	  not just one (so I can't be obnoxiously omnipotent)
@@ -3600,7 +3784,6 @@ void HouseClass::MPlayer_Defeated(void)
 	*/
 	if (PlayerPtr == this) {
 		Session.ObiWan = 1;
-		Debug_Unshroud = true;
 		HidPage.Clear();
 		Map.Flag_To_Redraw(true);
 
@@ -3608,9 +3791,16 @@ void HouseClass::MPlayer_Defeated(void)
 		**	Pop up a message showing that I was defeated
 		*/
 		sprintf(txt, Text_String(TXT_PLAYER_DEFEATED), IniName);
-		Session.Messages.Add_Message(NULL, 0, txt, Session.ColorIdx,
-			TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+		if (Session.Type == GAME_NORMAL) {
+			Session.Messages.Add_Message(NULL, 0, txt, Session.ColorIdx,
+				TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+		}
 		Map.Flag_To_Redraw(false);
+		if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+			int timeout = Rule.MessageDelay * TICKS_PER_MINUTE;
+			On_Defeated_Message(txt, timeout * 60.0f / TICKS_PER_MINUTE);
+			Sound_Effect(VOC_INCOMING_MESSAGE);
+		}
 
 	} else {
 
@@ -3620,10 +3810,14 @@ void HouseClass::MPlayer_Defeated(void)
 		if (IsHuman) {
 			sprintf (txt, Text_String(TXT_PLAYER_DEFEATED), IniName);
 
-			Session.Messages.Add_Message(NULL, 0, txt, RemapColor,
-				TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
+			//Session.Messages.Add_Message(NULL, 0, txt, RemapColor,
+			//	TPF_6PT_GRAD | TPF_USE_GRAD_PAL | TPF_FULLSHADOW, Rule.MessageDelay * TICKS_PER_MINUTE);
 			Map.Flag_To_Redraw(false);
 			RedrawOptionsMenu = true;
+
+			int timeout = Rule.MessageDelay * TICKS_PER_MINUTE;
+			On_Defeated_Message(txt, timeout * 60.0f / TICKS_PER_MINUTE);
+			Sound_Effect(VOC_INCOMING_MESSAGE);
 		}
 	}
 
@@ -3746,11 +3940,6 @@ void HouseClass::MPlayer_Defeated(void)
 #endif	// MPATH
 
 	}
-
-	/*
-	**	Be sure our messages get displayed, even if we're about to exit.
-	*/
-	Map.Render();
 }
 
 
@@ -3927,7 +4116,14 @@ void HouseClass::Blowup_All(void)
 			*/
 			count = 0;
 			while (::Units.Ptr(i)==uptr && uptr->Strength) {
-				damage = uptr->Strength;
+
+				// MBL 06.22.2020 RA: Not all aircraft die in this case; See https://jaas.ea.com/browse/TDRA-6840
+				// Likely due to damage biasing based on RA factions and/or difficulty settings
+				// Applying this to units (vehicles), ships, buildings, and infantry, too
+				//
+				// damage = uptr->Strength; // Original
+				damage = 0x7fff; // Copied from TD
+
 				uptr->Take_Damage(damage, 0, WARHEAD_HE, NULL, true);
 				count++;
 				if (count > 5 && uptr->IsActive) {
@@ -3946,7 +4142,13 @@ void HouseClass::Blowup_All(void)
 		if (::Aircraft.Ptr(i)->House == this && !::Aircraft.Ptr(i)->IsInLimbo) {
 			AircraftClass * aptr = ::Aircraft.Ptr(i);
 
-			damage = aptr->Strength;
+			// MBL 06.22.2020 RA: Not all aircraft die in this case; See https://jaas.ea.com/browse/TDRA-6840
+			// Likely due to damage biasing based on RA factions and/or difficulty settings
+			// Applying this to units (vehicles), ships, buildings, and infantry, too
+			//
+			// damage = aptr->Strength; // Original
+			damage = 0x7fff; // Copied from TD
+
 			aptr->Take_Damage(damage, 0, WARHEAD_HE, NULL, true);
 			if (!aptr->IsActive) {
 				i--;
@@ -3961,7 +4163,13 @@ void HouseClass::Blowup_All(void)
 		if (::Vessels.Ptr(i)->House == this && !::Vessels.Ptr(i)->IsInLimbo) {
 			VesselClass * vptr = ::Vessels.Ptr(i);
 
-			damage = vptr->Strength;
+			// MBL 06.22.2020 RA: Not all aircraft die in this case; See https://jaas.ea.com/browse/TDRA-6840
+			// Likely due to damage biasing based on RA factions and/or difficulty settings
+			// Applying this to units (vehicles), ships, buildings, and infantry, too
+			//
+			// damage = vptr->Strength; // Original
+			damage = 0x7fff; // Copied from TD 
+
 			vptr->Take_Damage(damage, 0, WARHEAD_HE, NULL, true);
 			if (!vptr->IsActive) {
 				i--;
@@ -3979,7 +4187,14 @@ void HouseClass::Blowup_All(void)
 
 			count = 0;
 			while (Buildings.Ptr(i)==bptr && bptr->Strength) {
-				damage = bptr->Strength;
+
+				// MBL 06.22.2020 RA: Not all aircraft die in this case; See https://jaas.ea.com/browse/TDRA-6840
+				// Likely due to damage biasing based on RA factions and/or difficulty settings
+				// Applying this to units (vehicles), ships, buildings, and infantry, too
+				//
+				// damage = bptr->Strength; // Original
+				damage = 0x7fff; // Copied from TD 
+
 				bptr->Take_Damage(damage, 0, WARHEAD_HE, NULL, true);
 				count++;
 				if (count > 5) {
@@ -4002,7 +4217,14 @@ void HouseClass::Blowup_All(void)
 
 			count = 0;
 			while (Infantry.Ptr(i)==iptr && iptr->Strength) {
-				damage = iptr->Strength;
+
+				// MBL 06.22.2020 RA: Not all aircraft die in this case; See https://jaas.ea.com/browse/TDRA-6840
+				// Likely due to damage biasing based on RA factions and/or difficulty settings
+				// Applying this to units (vehicles), ships, buildings, and infantry, too
+				//
+				// damage = iptr->Strength; // Original
+				damage = 0x7fff; // Copied from TD 
+
 				warhead = Random_Pick(WARHEAD_SA, WARHEAD_FIRE);
 				iptr->Take_Damage(damage, 0, warhead, NULL, true);
 
@@ -4120,13 +4342,26 @@ bool HouseClass::Flag_To_Lose(void)
  * HISTORY:                                                                                    *
  *   07/29/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
+extern bool NowSavingGame; // TEMP MBL: Need to discuss better solution with Steve
 void HouseClass::Init_Data(PlayerColorType color, HousesType house, int credits)
 {
 	assert(Houses.ID(this) == ID);
 
 	Credits = Control.InitialCredits = credits;
+	VisibleCredits.Current = Credits;
 	RemapColor = color;
 	ActLike = house;
+
+	// MBL 03.20.2020 
+	// Attempt to fix Red Alert credit tick-up bug after saving a game that has had harvesting underway
+	// Note that this code gets called with both game loads and saves
+	// When this function is called, sometimes credits value has Tiberium (or HarvestedCredits?) variables applied, and sometimes now
+	//
+	if (NowSavingGame == true) 
+	{
+		// At this point VisibleCredits.Current (set above) does not have harvested ore/tiberium applied, but VisibleCredits.Credits does
+		VisibleCredits.Current = VisibleCredits.Credits;
+	}
 }
 
 
@@ -4225,6 +4460,14 @@ void HouseClass::Sell_Wall(CELL cell)
 					Map[cell].OverlayData = 0;
 					Map[cell].Owner = HOUSE_NONE;
 					Map[cell].Wall_Update();
+					CellClass * ncell = Map[cell].Adjacent_Cell(FACING_N);
+					if (ncell) ncell->Wall_Update();
+					CellClass * wcell = Map[cell].Adjacent_Cell(FACING_W);
+					if (wcell) wcell->Wall_Update();
+					CellClass * scell = Map[cell].Adjacent_Cell(FACING_S);
+					if (scell) scell->Wall_Update();
+					CellClass * ecell = Map[cell].Adjacent_Cell(FACING_E);
+					if (ecell) ecell->Wall_Update();
 					Map[cell].Recalc_Attributes();
 					Map[cell].Redraw_Objects();
 					Map.Radar_Pixel(cell);
@@ -4361,7 +4604,8 @@ COORDINATE HouseClass::Find_Build_Location(BuildingClass * building) const
 	**	Determine the average zone strengths for the base. This value is
 	**	used to determine what zones are considered under or over strength.
 	*/
-	for (ZoneType z = ZONE_NORTH; z < ZONE_COUNT; z++) {
+	ZoneType z;
+	for (z = ZONE_NORTH; z < ZONE_COUNT; z++) {
 		zoneinfo.AntiAir += ZoneInfo[z].AirDefense;
 		zoneinfo.AntiArmor += ZoneInfo[z].ArmorDefense;
 		zoneinfo.AntiInfantry += ZoneInfo[z].InfantryDefense;
@@ -4474,8 +4718,9 @@ void HouseClass::Recalc_Center(void)
 		int x = 0;
 		int y = 0;
 		int count = 0;
+		int index;
 
-		for (int index = 0; index < Buildings.Count(); index++) {
+		for (index = 0; index < Buildings.Count(); index++) {
 			BuildingClass const * b = Buildings.Ptr(index);
 
 			if (b != NULL && !b->IsInLimbo && (HouseClass *)b->House == this && b->Strength > 0) {
@@ -4529,7 +4774,7 @@ void HouseClass::Recalc_Center(void)
 		*/
 		if (count > 1) {
 			int radius = 0;
-
+	
 			for (index = 0; index < Buildings.Count(); index++) {
 				BuildingClass const * b = Buildings.Ptr(index);
 
@@ -4711,19 +4956,19 @@ int HouseClass::Expert_AI(void)
 			maxaircraft /= enemycount;
 		}
 
-		if (Control.MaxBuilding < maxbuilding + 10) {
+		if (Control.MaxBuilding < (unsigned)maxbuilding + 10) {
 			Control.MaxBuilding = maxbuilding + 10;
 		}
-		if (Control.MaxUnit < maxunit + 10) {
+		if (Control.MaxUnit < (unsigned)maxunit + 10) {
 			Control.MaxUnit = maxunit + 10;
 		}
-		if (Control.MaxInfantry < maxinfantry + 10) {
+		if (Control.MaxInfantry < (unsigned)maxinfantry + 10) {
 			Control.MaxInfantry = maxinfantry + 10;
 		}
-		if (Control.MaxVessel < maxvessel + 10) {
+		if (Control.MaxVessel < (unsigned)maxvessel + 10) {
 			Control.MaxVessel = maxvessel + 10;
 		}
-		if (Control.MaxAircraft < maxaircraft + 10) {
+		if (Control.MaxAircraft < (unsigned)maxaircraft + 10) {
 			Control.MaxAircraft = maxaircraft + 10;
 		}
 	}
@@ -4760,8 +5005,8 @@ int HouseClass::Expert_AI(void)
 	**	Records the urgency of all actions possible.
 	*/
 	UrgencyType urgency[STRATEGY_COUNT];
-
-	for (StrategyType strat = STRATEGY_FIRST; strat < STRATEGY_COUNT; strat++) {
+	StrategyType strat;
+	for (strat = STRATEGY_FIRST; strat < STRATEGY_COUNT; strat++) {
 		urgency[strat] = URGENCY_NONE;
 
 		switch (strat) {
@@ -5436,7 +5681,7 @@ int HouseClass::AI_Building(void)
 		/*
 		**	Don't suggest anything to build if the base is already big enough.
 		*/
-		int quant = 0;
+		unsigned int quant = 0;
 		for (HousesType h = HOUSE_FIRST; h < HOUSE_COUNT; h++) {
 			HouseClass const * hptr = HouseClass::As_Pointer(h);
 
@@ -5487,7 +5732,7 @@ int HouseClass::AI_Building(void)
 		**	Build a refinery if there isn't one already available.
 		*/
 		unsigned int current = BQuantity[STRUCT_REFINERY];
-		if (!IsTiberiumShort && current < Round_Up(Rule.RefineryRatio*fixed(CurBuildings)) && current < Rule.RefineryLimit) {
+		if (!IsTiberiumShort && current < Round_Up(Rule.RefineryRatio*fixed(CurBuildings)) && current < (unsigned)Rule.RefineryLimit) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_REFINERY);
 			if (Can_Build(b, ActLike) && (money > b->Cost_Of() || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5502,7 +5747,7 @@ int HouseClass::AI_Building(void)
 		**	will be sufficient money to train troopers.
 		*/
 		current = BQuantity[STRUCT_BARRACKS] + BQuantity[STRUCT_TENT];
-		if (current < Round_Up(Rule.BarracksRatio*fixed(CurBuildings)) && current < Rule.BarracksLimit && (money > 300 || hasincome)) {
+		if (current < Round_Up(Rule.BarracksRatio*fixed(CurBuildings)) && current < (unsigned)Rule.BarracksLimit && (money > 300 || hasincome)) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_BARRACKS);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5553,7 +5798,7 @@ int HouseClass::AI_Building(void)
 		**	be sufficient money to build vehicles.
 		*/
 		current = BQuantity[STRUCT_WEAP];
-		if (current < Round_Up(Rule.WarRatio*fixed(CurBuildings)) && current < Rule.WarLimit && (money > 2000 || hasincome)) {
+		if (current < Round_Up(Rule.WarRatio*fixed(CurBuildings)) && current < (unsigned)Rule.WarLimit && (money > 2000 || hasincome)) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_WEAP);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5567,7 +5812,7 @@ int HouseClass::AI_Building(void)
 		**	Always build up some base defense.
 		*/
 		current = BQuantity[STRUCT_PILLBOX] + BQuantity[STRUCT_CAMOPILLBOX] + BQuantity[STRUCT_TURRET] + BQuantity[STRUCT_FLAME_TURRET];
-		if (current < Round_Up(Rule.DefenseRatio*fixed(CurBuildings)) && current < Rule.DefenseLimit) {
+		if (current < Round_Up(Rule.DefenseRatio*fixed(CurBuildings)) && current < (unsigned)Rule.DefenseLimit) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_FLAME_TURRET);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5599,7 +5844,7 @@ int HouseClass::AI_Building(void)
 		**	Build some air defense.
 		*/
 		current = BQuantity[STRUCT_SAM] + BQuantity[STRUCT_AAGUN];
-		if (current < Round_Up(Rule.AARatio*fixed(CurBuildings)) && current < Rule.AALimit) {
+		if (current < Round_Up(Rule.AARatio*fixed(CurBuildings)) && current < (unsigned)Rule.AALimit) {
 
 			/*
 			**	Building air defense only makes sense if the opponent has aircraft
@@ -5637,14 +5882,14 @@ int HouseClass::AI_Building(void)
 				if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 					choiceptr = BuildChoice.Alloc();
 					if (choiceptr != NULL) {
-						*choiceptr = BuildChoiceClass((current < threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
+						*choiceptr = BuildChoiceClass((current < (unsigned)threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
 					}
 				} else {
 					b = &BuildingTypeClass::As_Reference(STRUCT_AAGUN);
 					if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 						choiceptr = BuildChoice.Alloc();
 						if (choiceptr != NULL) {
-							*choiceptr = BuildChoiceClass((current < threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
+							*choiceptr = BuildChoiceClass((current < (unsigned)threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
 						}
 					}
 				}
@@ -5655,7 +5900,7 @@ int HouseClass::AI_Building(void)
 		**	Advanced base defense would be good.
 		*/
 		current = BQuantity[STRUCT_TESLA];
-		if (current < Round_Up(Rule.TeslaRatio*fixed(CurBuildings)) && current < Rule.TeslaLimit) {
+		if (current < Round_Up(Rule.TeslaRatio*fixed(CurBuildings)) && current < (unsigned)Rule.TeslaLimit) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_TESLA);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome) && Power_Fraction() >= 1) {
 				choiceptr = BuildChoice.Alloc();
@@ -5691,7 +5936,7 @@ int HouseClass::AI_Building(void)
 		**	A helipad would be good.
 		*/
 		current = BQuantity[STRUCT_HELIPAD];
-		if (current < Round_Up(Rule.HelipadRatio*fixed(CurBuildings)) && current < Rule.HelipadLimit) {
+		if (current < Round_Up(Rule.HelipadRatio*fixed(CurBuildings)) && current < (unsigned)Rule.HelipadLimit) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_HELIPAD);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5701,7 +5946,7 @@ int HouseClass::AI_Building(void)
 						threat_quantity = enemy->CurAircraft;
 					}
 
-					*choiceptr = BuildChoiceClass((CurAircraft < threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
+					*choiceptr = BuildChoiceClass((CurAircraft < (unsigned)threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
 				}
 			}
 		}
@@ -5710,7 +5955,7 @@ int HouseClass::AI_Building(void)
 		**	An airstrip would be good.
 		*/
 		current = BQuantity[STRUCT_AIRSTRIP];
-		if (current < Round_Up(Rule.AirstripRatio*fixed(CurBuildings)) && current < Rule.AirstripLimit) {
+		if (current < Round_Up(Rule.AirstripRatio*fixed(CurBuildings)) && current < (unsigned)Rule.AirstripLimit) {
 			b = &BuildingTypeClass::As_Reference(STRUCT_AIRSTRIP);
 			if (Can_Build(b, ActLike) && (b->Cost_Of() < money || hasincome)) {
 				choiceptr = BuildChoice.Alloc();
@@ -5720,7 +5965,7 @@ int HouseClass::AI_Building(void)
 						threat_quantity = enemy->CurAircraft;
 					}
 
-					*choiceptr = BuildChoiceClass((CurAircraft < threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
+					*choiceptr = BuildChoiceClass((CurAircraft < (unsigned)threat_quantity) ? URGENCY_HIGH : URGENCY_MEDIUM, b->Type);
 				}
 			}
 		}
@@ -5787,7 +6032,7 @@ int HouseClass::AI_Unit(void)
 	**	harvester if possible.
 	*/
 	if (IQ >= Rule.IQHarvester && !IsTiberiumShort && !IsHuman && BQuantity[STRUCT_REFINERY] > UQuantity[UNIT_HARVESTER] && Difficulty != DIFF_HARD) {
-		if (UnitTypeClass::As_Reference(UNIT_HARVESTER).Level <= Control.TechLevel) {
+		if (UnitTypeClass::As_Reference(UNIT_HARVESTER).Level <= (unsigned)Control.TechLevel) {
 			BuildUnit = UNIT_HARVESTER;
 			return(TICKS_PER_SECOND);
 		}
@@ -5802,7 +6047,8 @@ int HouseClass::AI_Unit(void)
 		**	Build a list of the maximum of each type we wish to produce. This will be
 		**	twice the number required to fill all teams.
 		*/
-		for (int index = 0; index < Teams.Count(); index++) {
+		int index;
+		for (index = 0; index < Teams.Count(); index++) {
 			TeamClass * tptr = Teams.Ptr(index);
 			if (tptr != NULL) {
 				TeamTypeClass const * team = tptr->Class;
@@ -5876,7 +6122,8 @@ int HouseClass::AI_Unit(void)
 
 		int counter[UNIT_COUNT];
 		int total = 0;
-		for (UnitType index = UNIT_FIRST; index < UNIT_COUNT; index++) {
+		UnitType index;
+		for (index = UNIT_FIRST; index < UNIT_COUNT; index++) {
 			UnitTypeClass const * utype = &UnitTypeClass::As_Reference(index);
 			if (Can_Build(utype, ActLike) && utype->Type != UNIT_HARVESTER) {
 				if (utype->PrimaryWeapon != NULL) {
@@ -5922,7 +6169,7 @@ int HouseClass::AI_Vessel(void)
 			memset(counter, 0x00, sizeof(counter));
 		} else {
 			for (VesselType index = VESSEL_FIRST; index < VESSEL_COUNT; index++) {
-				if (Can_Build(&VesselTypeClass::As_Reference(index), Class->House) && VesselTypeClass::As_Reference(index).Level <= Control.TechLevel) {
+				if (Can_Build(&VesselTypeClass::As_Reference(index), Class->House) && VesselTypeClass::As_Reference(index).Level <= (unsigned)Control.TechLevel) {
 					counter[index] = 16;
 				} else {
 					counter[index] = 0;
@@ -5934,7 +6181,8 @@ int HouseClass::AI_Vessel(void)
 		**	Build a list of the maximum of each type we wish to produce. This will be
 		**	twice the number required to fill all teams.
 		*/
-		for (int index = 0; index < Teams.Count(); index++) {
+		int index;
+		for (index = 0; index < Teams.Count(); index++) {
 			TeamClass * tptr = Teams.Ptr(index);
 			if (tptr) {
 				TeamTypeClass const * team = tptr->Class;
@@ -6044,7 +6292,8 @@ int HouseClass::AI_Infantry(void)
 		**	Build a list of the maximum of each type we wish to produce. This will be
 		**	twice the number required to fill all teams.
 		*/
-		for (int index = 0; index < Teams.Count(); index++) {
+		int index;
+		for (index = 0; index < Teams.Count(); index++) {
 			TeamClass * tptr = Teams.Ptr(index);
 			if (tptr != NULL) {
 				TeamTypeClass const * team = tptr->Class;
@@ -6138,7 +6387,7 @@ int HouseClass::AI_Infantry(void)
 		int count = 0;
 		int total = 0;
 		for (InfantryType index = INFANTRY_FIRST; index < INFANTRY_COUNT; index++) {
-			if (Can_Build(&InfantryTypeClass::As_Reference(index), ActLike) && InfantryTypeClass::As_Reference(index).Level <= Control.TechLevel) {
+			if (Can_Build(&InfantryTypeClass::As_Reference(index), ActLike) && InfantryTypeClass::As_Reference(index).Level <= (unsigned)Control.TechLevel) {
 				typetrack[count].Value = 0;
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98 This looks like a potential bug. It is prob. for save game format compatibility.
 				int clipindex = index;
@@ -6233,28 +6482,28 @@ int HouseClass::AI_Aircraft(void)
 		if (CurAircraft >= Control.MaxAircraft) return(TICKS_PER_SECOND);
 
 		if (Can_Build(&AircraftTypeClass::As_Reference(AIRCRAFT_LONGBOW), ActLike) &&
-				 AircraftTypeClass::As_Reference(AIRCRAFT_LONGBOW).Level <= Control.TechLevel &&
+				 AircraftTypeClass::As_Reference(AIRCRAFT_LONGBOW).Level <= (unsigned)Control.TechLevel &&
 				 BQuantity[STRUCT_HELIPAD] > AQuantity[AIRCRAFT_LONGBOW] + AQuantity[AIRCRAFT_HIND]) {
 			BuildAircraft = AIRCRAFT_LONGBOW;
 			return(TICKS_PER_SECOND);
 		}
 
 		if (Can_Build(&AircraftTypeClass::As_Reference(AIRCRAFT_HIND), ActLike) &&
-				 AircraftTypeClass::As_Reference(AIRCRAFT_HIND).Level <= Control.TechLevel &&
+				 AircraftTypeClass::As_Reference(AIRCRAFT_HIND).Level <= (unsigned)Control.TechLevel &&
 				 BQuantity[STRUCT_HELIPAD] > AQuantity[AIRCRAFT_LONGBOW] + AQuantity[AIRCRAFT_HIND]) {
 			BuildAircraft = AIRCRAFT_HIND;
 			return(TICKS_PER_SECOND);
 		}
 
 		if (Can_Build(&AircraftTypeClass::As_Reference(AIRCRAFT_MIG), ActLike) &&
-				 AircraftTypeClass::As_Reference(AIRCRAFT_MIG).Level <= Control.TechLevel &&
+				 AircraftTypeClass::As_Reference(AIRCRAFT_MIG).Level <= (unsigned)Control.TechLevel &&
 				 BQuantity[STRUCT_AIRSTRIP] > AQuantity[AIRCRAFT_MIG] + AQuantity[AIRCRAFT_YAK]) {
 			BuildAircraft = AIRCRAFT_MIG;
 			return(TICKS_PER_SECOND);
 		}
 
 		if (Can_Build(&AircraftTypeClass::As_Reference(AIRCRAFT_YAK), ActLike) &&
-				 AircraftTypeClass::As_Reference(AIRCRAFT_YAK).Level <= Control.TechLevel &&
+				 AircraftTypeClass::As_Reference(AIRCRAFT_YAK).Level <= (unsigned)Control.TechLevel &&
 				 BQuantity[STRUCT_AIRSTRIP] > AQuantity[AIRCRAFT_MIG] + AQuantity[AIRCRAFT_YAK]) {
 			BuildAircraft = AIRCRAFT_YAK;
 			return(TICKS_PER_SECOND);
@@ -6703,7 +6952,8 @@ void HouseClass::Recalc_Attributes(void)
 	**	routine. This allows the filling in process to not worry about
 	**	old existing values.
 	*/
-	for (int index = 0; index < Houses.Count(); index++) {
+	int index;
+	for (index = 0; index < Houses.Count(); index++) {
 		HouseClass * house = Houses.Ptr(index);
 
 		if (house != NULL) {
@@ -7498,27 +7748,29 @@ bool HouseClass::Is_Allowed_To_Ally(HousesType house) const
  *=============================================================================================*/
 void HouseClass::Computer_Paranoid(void)
 {
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {		// Re-enable this for multiplayer if we support classic team/ally mode. ST - 10/29/2019
+	
+		/*
+		**	Loop through every computer controlled house and make allies with all other computer
+		**	controlled houses and then make enemies with all other human controlled houses.
+		*/
+		for (HousesType house = HOUSE_MULTI1; house < HOUSE_COUNT; house++) {
+			HouseClass * hptr = HouseClass::As_Pointer(house);
+			if (hptr != NULL && hptr->IsActive && !hptr->IsDefeated && !hptr->IsHuman) {
+				hptr->IsParanoid = true;
 
-	/*
-	**	Loop through every computer controlled house and make allies with all other computer
-	**	controlled houses and then make enemies with all other human controlled houses.
-	*/
-	for (HousesType house = HOUSE_MULTI1; house < HOUSE_COUNT; house++) {
-		HouseClass * hptr = HouseClass::As_Pointer(house);
-		if (hptr != NULL && hptr->IsActive && !hptr->IsDefeated && !hptr->IsHuman) {
-			hptr->IsParanoid = true;
-
-			/*
-			**	Break alliance with every human it is allied with and make friends with
-			**	any other computer players.
-			*/
-			for (HousesType house2 = HOUSE_MULTI1; house2 < HOUSE_COUNT; house2++) {
-				HouseClass * hptr2 = HouseClass::As_Pointer(house2);
-				if (hptr2 != NULL && hptr2->IsActive && !hptr2->IsDefeated) {
-					if (hptr2->IsHuman) {
-						hptr->Make_Enemy(house2);
-					} else {
-						hptr->Make_Ally(house2);
+				/*
+				**	Break alliance with every human it is allied with and make friends with
+				**	any other computer players.
+				*/
+				for (HousesType house2 = HOUSE_MULTI1; house2 < HOUSE_COUNT; house2++) {
+					HouseClass * hptr2 = HouseClass::As_Pointer(house2);
+					if (hptr2 != NULL && hptr2->IsActive && !hptr2->IsDefeated) {
+						if (hptr2->IsHuman) {
+							hptr->Make_Enemy(house2);
+						} else {
+							hptr->Make_Ally(house2);
+						}
 					}
 				}
 			}
@@ -7593,7 +7845,7 @@ void HouseClass::Update_Spied_Power_Plants(void)
 			if (tech && tech->What_Am_I()==RTTI_BUILDING) {
 				BuildingClass *bldg = (BuildingClass *)tech;
 				if (!bldg->IsOwnedByPlayer && *bldg == STRUCT_POWER || *bldg == STRUCT_ADVANCED_POWER) {
-					if ( bldg->SpiedBy & (1<<(PlayerPtr->Class->House)) ) {
+					if ( bldg->Spied_By() & (1<<(PlayerPtr->Class->House)) ) {
 						bldg->Mark(MARK_CHANGE);
 					}
 				}
@@ -7762,4 +8014,222 @@ CELL HouseClass::Random_Cell_In_Zone(ZoneType zone) const
 		cell = XY_Cell(x, y);
 	}
 	return(cell);
+}
+
+/***********************************************************************************************
+ * HouseClass::Get_Ally_Flags --  Get the bit flags denoting the allies this house has.		  *
+ *                                                                                             *
+ * INPUT:   none																										  *
+ *                                                                                             *
+ * OUTPUT:  Returns the bit field storing which houses this house is allied with.              *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   09/12/2019 JAS : Created.                                                                 *
+ *=============================================================================================*/
+unsigned HouseClass::Get_Ally_Flags()
+{
+	return Allies;
+}
+
+
+
+/***********************************************************************************************
+ * HouseClass::Check_Pertinent_Structures -- See if any useful structures remain               *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   1/31/2020 3:34PM ST : Created.                                                            *
+ *=============================================================================================*/
+void HouseClass::Check_Pertinent_Structures(void)
+{
+	/*
+	** New default win mode to avoid griefing. ST - 1/31/2020 3:33PM
+	**
+	** Game is over when no pertinent structures remain
+	*/
+
+	if (!Special.IsEarlyWin) {
+		return;
+	}
+		  
+	if (IsToDie || IsToWin || IsToLose) {
+		return;
+	}
+
+	// MBL 07.15.2020 - Prevention of recent issue with constant "player defeated logic" and message to client spamming
+	// Per https://jaas.ea.com/browse/TDRA-7433
+	//
+	if (IsDefeated) {
+		return;
+	}
+
+	bool any_good_buildings = false;
+	
+	for (int index = 0; index < Buildings.Count(); index++) {
+		BuildingClass *b = Buildings.Ptr(index);
+
+		if (b && b->IsActive && b->House == this) {
+			if (!b->Class->IsWall && *b != STRUCT_APMINE && *b != STRUCT_AVMINE) {
+				if (!Special.ModernBalance || (*b != STRUCT_SHIP_YARD && *b != STRUCT_FAKE_YARD && *b != STRUCT_SUB_PEN && *b != STRUCT_FAKE_PEN)) {
+					if (!b->IsInLimbo && b->Strength > 0) {
+						any_good_buildings = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	if (!any_good_buildings) {
+		for (int index = 0; index < Units.Count(); index++) {
+			UnitClass * unit = Units.Ptr(index);
+
+			if (unit && unit->IsActive && *unit == UNIT_MCV && unit->House == this) {
+				if (!unit->IsInLimbo && unit->Strength > 0) {
+					any_good_buildings = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!any_good_buildings) {
+		Flag_To_Die();
+	}
+}
+
+
+
+
+
+/***********************************************************************************************
+ * HouseClass::Init_Unit_Trackers -- Allocate the unit trackers for the house                  *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   4/23/2020 11:06PM ST : Created.                                                           *
+ *=============================================================================================*/
+void HouseClass::Init_Unit_Trackers(void)
+{		
+	if (Session.Type == GAME_INTERNET || Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		AircraftTotals = new UnitTrackerClass( (int) AIRCRAFT_COUNT);
+		InfantryTotals = new UnitTrackerClass( (int) INFANTRY_COUNT);
+		UnitTotals = new UnitTrackerClass ( (int) UNIT_COUNT);
+		BuildingTotals = new UnitTrackerClass ( (int) STRUCT_COUNT);
+		VesselTotals = new UnitTrackerClass ( (int) VESSEL_COUNT);
+
+		DestroyedAircraft = new UnitTrackerClass ( (int) AIRCRAFT_COUNT);
+		DestroyedInfantry = new UnitTrackerClass( (int) INFANTRY_COUNT);
+		DestroyedUnits = new UnitTrackerClass ( (int) UNIT_COUNT);
+		DestroyedBuildings = new UnitTrackerClass ( (int) STRUCT_COUNT);
+		DestroyedVessels = new UnitTrackerClass ( (int) VESSEL_COUNT);
+
+		CapturedBuildings = new UnitTrackerClass ( (int) STRUCT_COUNT);
+		TotalCrates = new UnitTrackerClass ( CRATE_COUNT );
+	} else {
+		
+		AircraftTotals = NULL;
+		InfantryTotals = NULL;
+		UnitTotals = NULL;
+		BuildingTotals = NULL;
+		VesselTotals = NULL;
+
+		DestroyedAircraft = NULL;
+		DestroyedInfantry = NULL;
+		DestroyedUnits = NULL;
+		DestroyedBuildings = NULL;
+		DestroyedVessels = NULL;
+
+		CapturedBuildings = NULL;
+		TotalCrates = NULL;
+	}	
+}
+
+
+
+/***********************************************************************************************
+ * HouseClass::Free_Unit_Trackers -- Free the unit trackers for the house                      *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   4/23/2020 11:06PM ST : Created.                                                           *
+ *=============================================================================================*/
+void HouseClass::Free_Unit_Trackers(void)
+{		
+	if (AircraftTotals) {
+		delete AircraftTotals;
+		AircraftTotals = NULL;
+	}
+
+	if (InfantryTotals) {
+		delete InfantryTotals;
+		InfantryTotals = NULL;
+	}
+
+	if (UnitTotals) {
+		delete UnitTotals;
+		UnitTotals = NULL;
+	}
+
+	if (BuildingTotals) {
+		delete BuildingTotals;
+		BuildingTotals = NULL;
+	}
+
+	if (VesselTotals) {
+		delete VesselTotals;
+		VesselTotals = NULL;
+	}
+
+	if (DestroyedAircraft) {
+		delete DestroyedAircraft;
+		DestroyedAircraft = NULL;
+	}
+
+	if (DestroyedInfantry) {
+		delete DestroyedInfantry;
+		DestroyedInfantry = NULL;
+	}
+
+	if (DestroyedUnits) {
+		delete DestroyedUnits;
+		DestroyedUnits = NULL;
+	}
+
+	if (DestroyedBuildings) {
+		delete DestroyedBuildings;
+		DestroyedBuildings = NULL;
+	}
+
+	if (DestroyedVessels) {
+		delete DestroyedVessels;
+		DestroyedVessels = NULL;
+	}
+
+	if (CapturedBuildings) {
+		delete CapturedBuildings;
+		CapturedBuildings = NULL;
+	}
+
+	if (TotalCrates) {
+		delete TotalCrates;
+		TotalCrates = NULL;
+	}
 }

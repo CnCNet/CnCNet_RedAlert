@@ -60,7 +60,6 @@
 #include	"cdfile.h"
 extern MFCD temp;
 
-
 //template<class T> int Compare(T const *obj1, T const *obj2) {
 //	if (*obj1 < *obj2) return(-1);
 //	if (*obj1 > *obj2) return(1);
@@ -75,6 +74,7 @@ extern MFCD temp;
 template<class T>
 List<MixFileClass<T> > MixFileClass<T>::List;
 
+template class MixFileClass<CCFileClass>;
 
 /***********************************************************************************************
  * MixFileClass::Free -- Uncaches a cached mixfile.                                            *
@@ -176,13 +176,17 @@ MixFileClass<T>::MixFileClass(char const * filename, PKey const * key) :
 	HeaderBuffer(0),
 	Data(0)
 {
+	if (filename == NULL) return;	// ST - 5/9/2019
+
 	/*
 	**	Check to see if the file is available. If it isn't, then
 	**	no further processing is needed or possible.
 	*/
 	if (!Force_CD_Available(RequiredCD)) {
-		//Prog_End();
-		Emergency_Exit(EXIT_FAILURE);
+		Prog_End("MixFileClass Force_CD_Available failed", true);
+		if (!RunningAsDLL) {	//PG
+			Emergency_Exit(EXIT_FAILURE);
+		}
 	}
 
 	T file(filename);		// Working file object.
@@ -523,7 +527,7 @@ int compfunc(void const * ptr1, void const * ptr2)
  *   10/17/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
 template<class T>
-bool MixFileClass<T>::Offset(char const * filename, void ** realptr, MixFileClass ** mixfile, long * offset, long * size) const
+bool MixFileClass<T>::Offset(char const * filename, void ** realptr, MixFileClass ** mixfile, long * offset, long * size) 
 {
 	MixFileClass<T> * ptr;
 
@@ -535,7 +539,12 @@ assert(filename != NULL);//BG
 	/*
 	**	Create the key block that will be used to binary search for the file.
 	*/
-	long crc = Calculate_CRC(strupr((char *)filename), strlen(filename));
+	// Can't call strupr on a const string. ST - 5/20/2019
+	//long crc = Calculate_CRC(strupr((char *)filename), strlen(filename));
+	char filename_upper[_MAX_PATH];
+	strcpy(filename_upper, filename);
+	strupr(filename_upper);
+	long crc = Calculate_CRC(strupr(filename_upper), strlen(filename_upper));
 	SubBlock key;
 	key.CRC = crc;
 
@@ -578,3 +587,15 @@ assert(1);//BG
 	return(false);
 }
 
+
+
+// ST - 12/18/2019 11:36AM
+template<class T>
+void MixFileClass<T>::Free_All(void)
+{
+	MixFileClass<T> * ptr = List.First();
+	while (ptr->Is_Valid()) {
+		delete ptr;
+		ptr = List.First();
+	}
+}

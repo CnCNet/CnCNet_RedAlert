@@ -654,7 +654,7 @@ void Window_Print(char const string[], ...)
 				Line[Pos++] = c;
 				Line[Pos] = '\0';
 
-				if (WinCx + PPos > WindowWidth) {
+				if (WinCx + PPos > (unsigned)WindowWidth) {
 					Flush_Line();
 				}
 				break;
@@ -761,9 +761,9 @@ PRIVATE void Flush_Line(void)
 	** beyond the bottom of the window.  If this is the case, then scroll the
 	**	window and proceed with the line flush.
 	*/
-	while (WinCy >= WindowLines /*&& Pos > 0*/) {
+	while (WinCy >= (unsigned)WindowLines /*&& Pos > 0*/) {
 		Scroll_Window();
-		if (WinCy >= WindowLines) WinCy--;
+		if (WinCy >= (unsigned)WindowLines) WinCy--;
 	}
 	//if (WinCy >= WindowLines) WinCy = WindowLines-1;
 
@@ -781,7 +781,7 @@ PRIVATE void Flush_Line(void)
 	*/
 	breakpoint = Pos;
 	breaksize = PPos;
-	if (WinCx + breaksize > breakwidth) {
+	if (WinCx + breaksize > (unsigned)breakwidth) {
 
 		/*
 		**	Since the text WILL spill past the edge of the window, determine the
@@ -856,7 +856,7 @@ PRIVATE void Flush_Line(void)
 	**	not been completed.  Scroll to next line and repeat the text flushing
 	**	process.
 	*/
-	if (Pos || WinCx >= WindowWidth) {
+	if (Pos || WinCx >= (unsigned)WindowWidth) {
 		WinCx = WPos = 0;
 		#if(FALSE)
 			if (WinCy >= WindowLines-1) {

@@ -39,7 +39,7 @@
 ; used.  SKB 4/21/94.  Tested on 486 66mhz.  Copied by PWG 6/7/04.
 OPTIMAL_BYTE_COPY	equ	14
 
-STRUC GraphicViewPort
+GraphicViewPort struct
 GVPOffset		DD		?		; offset to virtual viewport
 GVPWidth			DD		?		; width of virtual viewport
 GVPHeight		DD		?		; height of virtual viewport
@@ -48,4 +48,4 @@ GVPXPos			DD		?		; x pos relative to Graphic Buff
 GVPYPos			DD		?		; y pos relative to Graphic Buff
 GVPPitch		dd		?		; modulo of graphic view port
 GVPBuffPtr		DD		?		; ptr to associated Graphic Buff
-ENDS
+GraphicViewPort ends

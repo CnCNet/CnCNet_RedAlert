@@ -96,6 +96,11 @@ class ObjectClass : public AbstractClass
 		*/
 		unsigned IsSelected:1;
 
+		//Added a mask instead of bool for selecting players. This is because we must now support multiplayer.
+		// - 6/26/2019
+		// Needs more than 16 bits since RA has more than 16 factions. ST - 8/14/2019 12:15PM
+		unsigned int IsSelectedMask;
+
 		/*
 		**	If an animation is attached to this object, then this flag will be true.
 		*/
@@ -125,6 +130,11 @@ class ObjectClass : public AbstractClass
 		**	This is the current strength of this object.
 		*/
 		short Strength;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[16];
 
 		/*-----------------------------------------------------------------------------------
 		**	Constructor & destructors.
@@ -157,6 +167,8 @@ class ObjectClass : public AbstractClass
 		virtual int Full_Name(void) const;
 		virtual bool Can_Repair(void) const;
 		virtual bool Can_Demolish(void) const;
+		virtual bool Can_Demolish_Unit(void) const;
+		virtual bool Can_Capture(void) const;
 		virtual bool Can_Player_Fire(void) const;
 		virtual bool Can_Player_Move(void) const;
 
@@ -169,6 +181,7 @@ class ObjectClass : public AbstractClass
 		virtual COORDINATE Center_Coord(void) const;
 		virtual COORDINATE Render_Coord(void) const;
 		virtual COORDINATE Sort_Y(void) const;
+		virtual FireDataType Fire_Data(int which) const;
 		virtual COORDINATE Fire_Coord(int which) const;
 		virtual COORDINATE Exit_Coord(void) const;
 
@@ -208,9 +221,17 @@ class ObjectClass : public AbstractClass
 		*/
 		virtual void Active_Click_With(ActionType , ObjectClass *);
 		virtual void Active_Click_With(ActionType , CELL );
-		virtual void Clicked_As_Target(int = 7);
-		virtual bool Select(void);
+		virtual void Clicked_As_Target(HousesType house, int = 7); // 2019/09/20 JAS - Added record of who clicked on the object
+		virtual bool Select(bool allow_mixed = false);
 		virtual void Unselect(void);
+
+		//These selection functions were added to handle the fact that we now need to support 
+		//client-server multiplayer. - JAS 6/26/2019
+		virtual void Unselect_All_Players(void);
+		virtual void Unselect_All_Players_Except_Owner(void);
+		virtual bool Is_Selected_By_Player(HouseClass *player = NULL) const;
+		virtual void Set_Selected_By_Player(HouseClass *player = NULL);
+		virtual void Set_Unselected_By_Player(HouseClass *player = NULL);
 
 		/*
 		**	Combat related.
@@ -250,6 +271,7 @@ class ObjectClass : public AbstractClass
 		virtual void Move(FacingType);
 
 		enum {FLIGHT_LEVEL=256};
+
 };
 
 #endif

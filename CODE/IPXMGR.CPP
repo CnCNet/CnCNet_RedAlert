@@ -69,8 +69,8 @@
 
 #include	"function.h"
 #include <stdio.h>
-#include <mem.h>
-#include <i86.h>
+//#include <mem.h> PG
+//#include <i86.h> PG
 #include "ipxmgr.h"
 #include "wwlib32.h"	// to enable mono output
 
@@ -91,9 +91,9 @@
 #endif	//WINSOCK_IPX
 
 // Turn off "expression is not meaningful".
-#pragma warning 628 9
+//#pragma warning 628 9
 
-#include "WolDebug.h"
+//#include "WolDebug.h"
 
 /***************************************************************************
  * IPXManagerClass::IPXManagerClass -- class constructor                   *
@@ -267,7 +267,7 @@ IPXManagerClass::~IPXManagerClass()
 #ifdef FIXIT_CSII	//	checked - ajw 9/28/98
 #ifdef WIN32
 #ifndef WINSOCK_IPX
-	Unload_IPX_Dll();
+//PG	Unload_IPX_Dll();
 #endif
 #endif
 #endif
@@ -1134,7 +1134,7 @@ int IPXManagerClass::Service(void)
 
 		}
 	} else {
-
+#if(0)//PG
 		while (IPX_Get_Outstanding_Buffer95(&temp_receive_buffer[0])) {
 
 			CurHeaderBuf = (IPXHEADER*)&temp_receive_buffer[0];
@@ -1178,6 +1178,7 @@ int IPXManagerClass::Service(void)
 				}
 			}
 		}
+#endif
 	}
 
 

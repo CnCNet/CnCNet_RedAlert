@@ -629,7 +629,7 @@ void Simple_Text_Print(char const * text, unsigned x, unsigned y, RemapControlTy
 				break;
 		}
 
-		if ((unsigned)x < LogicPage->Get_Width() && (unsigned)y < LogicPage->Get_Height()) {
+		if (x < (unsigned)LogicPage->Get_Width() && y < (unsigned)LogicPage->Get_Height()) {
 			LogicPage->Print(text, x, y, forecolor, back);
 //			LogicPage->Print(text, x, y, fore->Color, back);
 		}
@@ -790,12 +790,13 @@ void Conquer_Clip_Text_Print(char const * text, unsigned x, unsigned y, RemapCon
 		**	Set the font and spacing characteristics according to the flag
 		**	value passed in.
 		*/
-		Simple_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, flag);
+		//PG_TO_FIX
+		//Simple_Text_Print(TXT_NONE, 0, 0, TBLACK, TBLACK, flag);
 
 		char * source = &buffer[0];
 		unsigned offset = 0;
 		int processing = true;
-		while (processing && offset < width) {
+		while (processing && offset < (unsigned) width) {
 			char * ptr = strchr(source, '\t');
 
 			/*
@@ -815,13 +816,13 @@ void Conquer_Clip_Text_Print(char const * text, unsigned x, unsigned y, RemapCon
 				char * bptr = source;
 				do {
 					w += Char_Pixel_Width(*bptr++);
-				} while (*bptr && offset+w < width);
+				} while (*bptr && offset+w < (unsigned)width);
 
 				/*
 				**	If the maximum width has been exceeded, then remove the last
 				**	character and signal that further processing is not necessary.
 				*/
-				if (offset+w >= width) {
+				if (offset+w >= (unsigned)width) {
 					bptr--;
 					w -= Char_Pixel_Width(*bptr);
 					*bptr = '\0';
@@ -841,7 +842,7 @@ void Conquer_Clip_Text_Print(char const * text, unsigned x, unsigned y, RemapCon
 			*/
 			if (ptr) {
 				if (tabs) {
-					while (offset > *tabs) {
+					while ((int)offset > *tabs) {
 						tabs++;
 					}
 					offset = *tabs;

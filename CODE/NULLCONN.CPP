@@ -46,7 +46,7 @@
 #include "wincomm.h"
 #endif	//WIN32
 #include <stdio.h>
-#include <mem.h>
+//#include <mem.h>
 #include "nullconn.h"
 
 
@@ -162,6 +162,8 @@ void NullModemConnClass::Init (PORT *port)
  *=========================================================================*/
 int NullModemConnClass::Send (char *buf, int buflen, void *, int )
 {
+	return 0;
+#if (0)//PG
 	int *ibuf;
 	SerialHeaderType *header;
 	unsigned long sendlen;
@@ -213,7 +215,7 @@ int NullModemConnClass::Send (char *buf, int buflen, void *, int )
 		return(0);
 	}
 #endif	//WIN32
-
+#endif//PG
 }	/* end of Send */
 
 

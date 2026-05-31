@@ -228,11 +228,29 @@ class TechnoClass :	public RadioClass,
 		int Ammo;
 
 		/*
+		**	Used by the tesla to handle electric zap
+		*/
+		int ElectricZapDelay;
+		COORDINATE ElectricZapTarget;
+		int ElectricZapWhich;
+
+		/*
 		**	This is the amount of money spent to produce this object. This value really
 		**	only comes into play for the case of buildings that have special "free"
 		**	objects available when purchased at the more expensive rate.
 		*/
 		int PurchasePrice;
+
+		/*
+		**	Per-player view of whether a techno object is discovered. One bit for each house type. ST - 3/6/2019 11:15AM
+		*/
+		unsigned int IsDiscoveredByPlayerMask;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[16];
+
 
 		/*---------------------------------------------------------------------
 		**	Constructors, Destructors, and overloaded operators.
@@ -256,18 +274,18 @@ class TechnoClass :	public RadioClass,
 		bool Is_Ready_To_Cloak(void) const;
 		virtual int How_Many_Survivors(void) const;
 		virtual DirType Turret_Facing(void) const {return(PrimaryFacing.Current());}
-		CELL Nearby_Location(TechnoClass const * from=NULL) const;
+		CELL Nearby_Location(TechnoClass const * from=NULL, int locationmod=0) const;
 		TechnoTypeClass * Techno_Type_Class(void) const {return((TechnoTypeClass *)&Class_Of());};
 		bool Is_Visible_On_Radar(void) const;
 		int Anti_Air(void) const;
 		int Anti_Armor(void) const;
 		int Anti_Infantry(void) const;
-		int Time_To_Build(void) const;
 		int What_Weapon_Should_I_Use(TARGET target) const;
 		virtual ActionType What_Action(CELL cell) const;
 		virtual ActionType What_Action(ObjectClass const * target) const;
 		virtual BuildingClass * Find_Docking_Bay(StructType b, bool friendly) const;
 		virtual CELL Find_Exit_Cell(TechnoClass const * techno) const;
+		virtual FireDataType Fire_Data(int) const;
 		virtual COORDINATE Fire_Coord(int which) const;
 		virtual DirType Desired_Load_Dir(ObjectClass * , CELL & moveto) const;
 		virtual DirType Fire_Direction(void) const;
@@ -290,8 +308,8 @@ class TechnoClass :	public RadioClass,
 		/*
 		**	User I/O.
 		*/
-		virtual void Clicked_As_Target(int count=7);
-		virtual bool Select(void);
+		virtual void Clicked_As_Target(HousesType house, int count = 7); // 2019/09/20 JAS - Added record of who clicked on the object
+		virtual bool Select(bool allow_mixed = false);
 		virtual void Response_Select(void);
 		virtual void Response_Move(void);
 		virtual void Response_Attack(void);
@@ -308,8 +326,8 @@ class TechnoClass :	public RadioClass,
 		virtual bool Target_Something_Nearby(ThreatType threat=THREAT_NORMAL);
 		virtual void Stun(void);
 		virtual bool In_Range(COORDINATE coord, int which=0) const;
-		virtual bool In_Range(TARGET target, int which=0) const;
-		virtual bool In_Range(ObjectClass const * target, int which=0) const;
+		virtual bool In_Range(TARGET target, int which=0, bool reciprocal_check = true) const;
+		virtual bool In_Range(ObjectClass const * target, int which=0, bool reciprocal_check = true) const;
 		virtual void Death_Announcement(TechnoClass const * source=0) const = 0;
 		virtual FireErrorType Can_Fire(TARGET target, int which=0) const;
 		virtual TARGET Greatest_Threat(ThreatType threat) const;
@@ -323,7 +341,10 @@ class TechnoClass :	public RadioClass,
 		bool Evaluate_Cell(ThreatType method, int mask, CELL cell, int range, TechnoClass const ** object, int & value, int zone=0) const;
 		bool Evaluate_Object(ThreatType method, int mask, int range, TechnoClass const * object, int & value, int zone=-1) const;
 		int Evaluate_Just_Cell(CELL cell) const;
-		virtual bool Electric_Zap (TARGET target, int which, COORDINATE target_coord=0L, unsigned char * remap=NULL);
+		virtual bool Electric_Zap (COORDINATE target_coord, int which, WindowNumberType window, COORDINATE source_coord=0L, unsigned char * remap=NULL) const;
+		bool Is_Cloaked(HousesType house, bool check_invisible=false) const;
+		bool Is_Cloaked(HouseClass const * house, bool check_invisible=false) const;
+		bool Is_Cloaked(ObjectClass const * object, bool check_invisible=false) const;
 
 		/*
 		**	AI.
@@ -354,6 +375,10 @@ class TechnoClass :	public RadioClass,
 		virtual void const * Remap_Table(void) const;
 		VisualType Visual_Character(bool raw = false) const;
 		void Techno_Draw_Object(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, DirType rotation=DIR_N, int scale=0x0100) const;
+
+		// Added. ST - 8/1/2019 5:37PM
+		void Techno_Draw_Object_Virtual(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, DirType rotation=DIR_N, int scale=0x0100, const char *shape_name = NULL) const;
+
 		virtual void Draw_It(int x, int y, WindowNumberType window) const;
 		virtual void Draw_Pips(int x, int y, WindowNumberType window) const;
 		virtual void Hidden(void);
@@ -378,6 +403,16 @@ class TechnoClass :	public RadioClass,
 		*/
 		virtual bool Unlimbo(COORDINATE , DirType facing=DIR_N);
 		virtual void Detach(TARGET target, bool all);
+
+		/*
+		** New functions for per-player discovery for multiplayer. ST - 3/6/2019 11:17AM
+		*/
+		bool Is_Discovered_By_Player(HouseClass *player = NULL) const;
+		void Set_Discovered_By_Player(HouseClass *player = NULL);
+		void Clear_Discovered_By_Players();
+		bool Is_Owned_By_Player(HouseClass *player = NULL) const;
+
+		virtual unsigned Spied_By() const;
 
 		/*
 		**	Facing translation tables that fix the flaw with 3D studio when

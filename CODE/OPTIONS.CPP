@@ -504,7 +504,7 @@ fixed OptionsClass::Get_Tint(void) const
  *=============================================================================================*/
 void OptionsClass::Adjust_Palette(PaletteClass const & oldpal, PaletteClass & newpal, fixed brightness, fixed color, fixed tint, fixed contrast) const
 {
-	if (!oldpal || !newpal) return;
+	//if (!oldpal || !newpal) return;	Can't be NULL... ST - 5/9/2019
 
 	/*
 	**	Adjust for palette.

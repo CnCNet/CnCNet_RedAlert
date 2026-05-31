@@ -41,7 +41,7 @@
 /*
 **	TeamMissionType: the various missions that a team can have.
 */
-typedef enum TeamMissionType {
+typedef enum TeamMissionType : char {
 	TMISSION_NONE=-1,
 	TMISSION_ATTACK,					// Attack specified quarry type.
 	TMISSION_ATT_WAYPT,				// Attack specified waypoint
@@ -272,6 +272,11 @@ class TeamTypeClass : public AbstractTypeClass
 		*/
 		int ClassCount;
 		TeamMemberClass Members[MAX_TEAM_CLASSCOUNT];
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 
 		static char const * TMissions[TMISSION_COUNT];
 };

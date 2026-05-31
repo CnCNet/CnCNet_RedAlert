@@ -188,7 +188,7 @@ void * VesselClass::operator new(size_t)
 {
 	void * ptr = Vessels.Alloc();
 	if (ptr != NULL) {
-		((VesselClass *)ptr)->IsActive = true;
+		((VesselClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -302,7 +302,7 @@ MoveType VesselClass::Can_Enter_Cell(CELL cell, FacingType ) const
 		}
 
 		TechnoClass * techno = cellptr->Cell_Techno();
-		if (techno != NULL && techno->Cloak == CLOAKED && !House->Is_Ally(techno)) {
+		if (techno != NULL && techno->Is_Cloaked(this)) {
 			return(MOVE_CLOAK);
 		}
 
@@ -396,10 +396,16 @@ void VesselClass::Draw_It(int x, int y, WindowNumberType window) const
 	if (shapefile == NULL) return;
 
 	/*
+	** Need to know the shape name for the overlay now. ST - 8/19/2019 1:37PM
+	*/
+	const char *turret_shape_name = NULL;
+
+	/*
 	**	If drawing of this unit is not explicitly prohibited, then proceed
 	**	with the render process.
 	*/
-	if (Visual_Character() != VISUAL_HIDDEN) {
+	const bool is_hidden = (Visual_Character() == VISUAL_HIDDEN) && (window != WINDOW_VIRTUAL);
+	if (!is_hidden) {
 		int			facing = Dir_To_32(PrimaryFacing);
 		int			tfacing = Dir_To_32(SecondaryFacing);
 		DirType		rotation = DIR_N;
@@ -427,10 +433,13 @@ void VesselClass::Draw_It(int x, int y, WindowNumberType window) const
 
 			switch (Class->Type) {
 				case VESSEL_CA:
+					turret_shape_name = "TURR";
 					shapefile = Class->TurretShapes;
 					shapenum = TechnoClass::BodyShape[Dir_To_32(SecondaryFacing)];
 					Class->Turret_Adjust(turdir, xx, yy);
-					Techno_Draw_Object(shapefile, shapenum, xx, yy, window);
+					// Add shape file name forl new shape draw intercept. ST - 8/19/2019 1:42PM
+					//Techno_Draw_Object(shapefile, shapenum, xx, yy, window);
+					Techno_Draw_Object_Virtual(shapefile, shapenum, xx, yy, window, DIR_N, 0x0100, turret_shape_name);
 					xx = x;
 					yy = y;
 					turdir = DirType(Dir_To_16(PrimaryFacing+DIR_S)*16);
@@ -438,12 +447,14 @@ void VesselClass::Draw_It(int x, int y, WindowNumberType window) const
 					break;
 
 				case VESSEL_DD:
+					turret_shape_name = "SSAM";
 					shapefile = Class->SamShapes;
 					shapenum = TechnoClass::BodyShape[Dir_To_32(SecondaryFacing)];
 					Class->Turret_Adjust(turdir, xx, yy);
 					break;
 
 				case VESSEL_PT:
+					turret_shape_name = "MGUN";
 					shapefile = Class->MGunShapes;
 					shapenum = TechnoClass::BodyShape[Dir_To_32(SecondaryFacing)];
 					Class->Turret_Adjust(turdir, xx, yy);
@@ -458,7 +469,12 @@ void VesselClass::Draw_It(int x, int y, WindowNumberType window) const
 			/*
 			**	Actually perform the draw. Overlay an optional shimmer effect as necessary.
 			*/
-			Techno_Draw_Object(shapefile, shapenum, xx, yy, window);
+			// Add shape file name forl new shape draw intercept. ST - 8/19/2019 1:42PM
+			if (turret_shape_name) {
+				Techno_Draw_Object_Virtual(shapefile, shapenum, xx, yy, window, DIR_N, 0x0100, turret_shape_name);
+			} else {
+				Techno_Draw_Object(shapefile, shapenum, xx, yy, window);
+			}
 		}
 	}
 
@@ -468,8 +484,13 @@ void VesselClass::Draw_It(int x, int y, WindowNumberType window) const
 	** Patch so the transport will draw its passengers on top of itself.
 	*/
 	if (!Is_Door_Closed() && IsTethered && In_Radio_Contact() && !Contact_With_Whom()->IsInLimbo) {
-		assert(Contact_With_Whom()->IsActive);
-		Contact_With_Whom()->Render(true);
+		TechnoClass * contact = Contact_With_Whom();
+		assert(contact->IsActive);
+
+		int xxx = x + ((int)Lepton_To_Pixel((int)Coord_X(contact->Render_Coord())) - (int)Lepton_To_Pixel((int)Coord_X(Render_Coord())));
+		int yyy = y + ((int)Lepton_To_Pixel((int)Coord_Y(contact->Render_Coord())) - (int)Lepton_To_Pixel((int)Coord_Y(Render_Coord())));
+		contact->Draw_It(xxx, yyy, window);
+		contact->IsToDisplay = false;
 	}
 }
 
@@ -594,7 +615,7 @@ void VesselClass::AI(void)
 	}
 
 #ifndef CLIPDRAW
-	if (Map.In_View(Coord_Cell(Center_Coord())) && Visual_Character() != VISUAL_HIDDEN && Visual_Character() != VISUAL_NORMAL) {
+	if (Map.In_View(Coord_Cell(Center_Coord()))) {
 		Mark(MARK_CHANGE);
 	}
 #endif
@@ -706,7 +727,11 @@ void VesselClass::Per_Cell_Process(PCPType why)
 				SmartPtr<BuildingClass> whom;
 				whom = Map[cell].Cell_Building();
 				if (whom != NULL && ((*whom == STRUCT_SHIP_YARD) || (*whom == STRUCT_SUB_PEN)) ) {
-					if (IsOwnedByPlayer) Speak(VOX_REPAIRING);
+
+					// MBL 04.27.2020: Make only audible to the correct player
+					// if (IsOwnedByPlayer) Speak(VOX_REPAIRING);
+					if (IsOwnedByPlayer) Speak(VOX_REPAIRING, House);
+
 					IsSelfRepairing = true;
 					IsToSelfRepair = false;
 					break;
@@ -767,10 +792,12 @@ ActionType VesselClass::What_Action(ObjectClass const * object) const
 			for (FacingType face = FACING_N; face < FACING_COUNT && !found; face++) {
 				CELL cellnum = Adjacent_Cell(Coord_Cell(Coord), face);
 				CellClass * cell = &Map[cellnum];
-				if (Map.In_Radar(cellnum) && Ground[cell->Land_Type()].Cost[SPEED_FOOT] == 0 || cell->Flag.Occupy.Building || cell->Flag.Occupy.Vehicle || cell->Flag.Occupy.Monolith || (cell->Flag.Composite & 0x01F) == 0x01F) {
-					continue;
-				} else {
-					found = true;
+				if (Map.In_Radar(cellnum)) {
+					if (Ground[cell->Land_Type()].Cost[SPEED_FOOT] == 0 || cell->Flag.Occupy.Building || cell->Flag.Occupy.Vehicle || cell->Flag.Occupy.Monolith || (cell->Flag.Composite & 0x01F) == 0x01F) {
+						continue;
+					} else {
+						found = true;
+					}
 				}
 			}
 			if (!found) {
@@ -916,7 +943,7 @@ void VesselClass::Active_Click_With(ActionType action, CELL cell)
  * HISTORY:                                                                                    *
  *   05/13/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-ResultType VesselClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType VesselClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(Vessels.ID(this) == ID);
 	assert(IsActive);
@@ -941,7 +968,11 @@ ResultType VesselClass::Take_Damage(int & damage, int distance, WarheadType warh
 			**	screen when they are destroyed.
 			*/
 			if (Class->MaxStrength > 400) {
-				Shake_The_Screen(Class->MaxStrength / 150);
+				int shakes = Class->MaxStrength / 150;
+				Shake_The_Screen(shakes, Owner());
+				if (source && Owner() != source->Owner()) {
+					Shake_The_Screen(shakes, source->Owner());
+				}
 			}
 		}
 
@@ -1155,6 +1186,32 @@ Mono_Set_Cursor(0,0);
  * HISTORY:                                                                                    *
  *   05/13/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
+FireDataType VesselClass::Fire_Data(int which) const
+{
+	assert(Vessels.ID(this) == ID);
+	assert(IsActive);
+
+	COORDINATE coord = Center_Coord();
+
+	if (*this == VESSEL_CA) {
+		if (IsSecondShot) {
+			coord = Coord_Move(coord, PrimaryFacing + DIR_S, 0x0100);
+		} else {
+			coord = Coord_Move(coord, PrimaryFacing, 0x0100);
+		}
+		coord = Coord_Move(coord, DIR_N, 0x0030);
+		return{coord,0x0040};
+	}
+
+	if (*this == VESSEL_PT) {
+		coord = Coord_Move(coord, PrimaryFacing, 0x0080);
+		coord = Coord_Move(coord, DIR_N, 0x0020);
+		return{coord,0x0010};
+	}
+
+	return(DriveClass::Fire_Data(which));
+}
+
 COORDINATE VesselClass::Fire_Coord(int which) const
 {
 	assert(Vessels.ID(this) == ID);
@@ -1796,13 +1853,16 @@ int VesselClass::Mission_Unload(void)
 								**	Tell everyone around the transport to scatter.
 								*/
 								for (FacingType face = FACING_N; face < FACING_COUNT; face++) {
-									CellClass * cellptr = &Map[Coord].Adjacent_Cell(face);
-									if (cellptr->Is_Clear_To_Move(SPEED_TRACK, true, true)) {
+									CellClass * cellptr = Map[Coord].Adjacent_Cell(face);
+									if (cellptr && cellptr->Is_Clear_To_Move(SPEED_TRACK, true, true)) {
 										cellptr->Incoming(0, true);
 									}
 								}
 
 //								Status = CLOSING_DOOR;
+							}
+							else {
+								passenger->Look(false);
 							}
 						}
 					} else {
@@ -1877,6 +1937,39 @@ void VesselClass::Assign_Destination(TARGET target)
 	}
 
 	DriveClass::Assign_Destination(target);
+}
+
+
+/***********************************************************************************************
+ * VesselClass::Pip_Count -- Fetches the number of pips to display on vessel.                  *
+ *                                                                                             *
+ *    This routine is used to fetch the number of "fullness" pips to display on the vessel.    *
+ *    This will be the number of passengers on a transport.                                    *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  Returns with the number of pips to draw on this unit.                              *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   06/25/1995 JLB : Created.                                                                 *
+ *=============================================================================================*/
+int VesselClass::Pip_Count(void) const
+{
+	if (Techno_Type_Class()->Max_Passengers() > 0) {
+		int passengers = 0;
+		ObjectClass const * object = Attached_Object();
+		for (int index = 0; index < Class_Of().Max_Pips(); index++) {
+			if (object != NULL) {
+				passengers++;
+				object = object->Next;
+			}
+		}
+		return passengers;
+	}
+
+	return 0;
 }
 
 
@@ -1987,49 +2080,51 @@ void VesselClass::Read_INI(CCINIClass & ini)
 
 			if (classid != VESSEL_NONE) {
 
-				vessel = new VesselClass(classid, inhouse);
-				if (vessel != NULL) {
-
-					/*
-					**	Read the raw data.
-					*/
-					int strength = atoi(strtok(NULL, ",\r\n"));
-
-					CELL cell = atoi(strtok(NULL, ",\r\n"));
-
-					COORDINATE coord = Cell_Coord(cell);
-
-					DirType dir = (DirType)atoi(strtok(NULL, ",\r\n"));
-					MissionType mission = MissionClass::Mission_From_Name(strtok(NULL, ",\n\r"));
-
-					vessel->Trigger = NULL;
-					TriggerTypeClass * tp = TriggerTypeClass::From_Name(strtok(NULL, ",\r\n"));
-					if (tp != NULL) {
-						TriggerClass * tt = Find_Or_Make(tp);
-						if (tt != NULL) {
-							tt->AttachCount++;
-							vessel->Trigger = tt;
-						}
-					}
-
-					if (vessel->Unlimbo(coord, dir)) {
-						vessel->Strength = vessel->Class->MaxStrength * fixed(strength, 256);
-						if (vessel->Strength > vessel->Class->MaxStrength-3) vessel->Strength = vessel->Class->MaxStrength;
-//						vessel->Strength = Fixed_To_Cardinal(vessel->Class->MaxStrength, strength);
-						if (Session.Type == GAME_NORMAL || vessel->House->IsHuman) {
-							vessel->Assign_Mission(mission);
-							vessel->Commence();
-						} else {
-							vessel->Enter_Idle_Mode();
-						}
-
-					} else {
+				if (HouseClass::As_Pointer(inhouse) != NULL) {
+					vessel = new VesselClass(classid, inhouse);
+					if (vessel != NULL) {
 
 						/*
-						**	If the vessel could not be unlimboed, then this is a catastrophic error
-						**	condition. Delete the vessel.
+						**	Read the raw data.
 						*/
-						delete vessel;
+						int strength = atoi(strtok(NULL, ",\r\n"));
+
+						CELL cell = atoi(strtok(NULL, ",\r\n"));
+
+						COORDINATE coord = Cell_Coord(cell);
+
+						DirType dir = (DirType)atoi(strtok(NULL, ",\r\n"));
+						MissionType mission = MissionClass::Mission_From_Name(strtok(NULL, ",\n\r"));
+
+						vessel->Trigger = NULL;
+						TriggerTypeClass * tp = TriggerTypeClass::From_Name(strtok(NULL, ",\r\n"));
+						if (tp != NULL) {
+							TriggerClass * tt = Find_Or_Make(tp);
+							if (tt != NULL) {
+								tt->AttachCount++;
+								vessel->Trigger = tt;
+							}
+						}
+
+						if (vessel->Unlimbo(coord, dir)) {
+							vessel->Strength = (int)vessel->Class->MaxStrength * fixed(strength, 256);
+							if (vessel->Strength > vessel->Class->MaxStrength-3) vessel->Strength = vessel->Class->MaxStrength;
+	//						vessel->Strength = Fixed_To_Cardinal(vessel->Class->MaxStrength, strength);
+							if (Session.Type == GAME_NORMAL || vessel->House->IsHuman) {
+								vessel->Assign_Mission(mission);
+								vessel->Commence();
+							} else {
+								vessel->Enter_Idle_Mode();
+							}
+
+						} else {
+
+							/*
+							**	If the vessel could not be unlimboed, then this is a catastrophic error
+							**	condition. Delete the vessel.
+							*/
+							delete vessel;
+						}
 					}
 				}
 			}
@@ -2302,7 +2397,10 @@ void VesselClass::Repair_AI(void)
 				if (Strength >= Class->MaxStrength) {
 					Strength = Class->MaxStrength;
 					IsSelfRepairing = IsToSelfRepair = false;
-					if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED);
+
+					// MBL 04.27.2020: Make only audible to the correct player
+					// if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED);
+					if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED, House);
 				}
 			}
 		}
@@ -2331,7 +2429,7 @@ void VesselClass::Repair_AI(void)
  *=============================================================================================*/
 BulletClass * VesselClass::Fire_At(TARGET target, int which)
 {
-	assert(Units.ID(this) == ID);
+	//PG assert(Units.ID(this) == ID);
 	assert(IsActive);
 
 	if (*this == VESSEL_CARRIER) {

@@ -332,7 +332,8 @@ static TechnoClass * _Who_Can_Pop_Out_Of(CELL origin)
 	for (int f = -1; f < 8; f++) {
 		CellClass * ptr = cellptr;
 		if (f != -1) {
-			ptr = &ptr->Adjacent_Cell(FacingType(f));
+			ptr = ptr->Adjacent_Cell(FacingType(f));
+			if (!ptr) continue;
 		}
 
 		BuildingClass * building = ptr->Cell_Building();
@@ -487,7 +488,8 @@ bool Do_Reinforcements(TeamTypeClass const * teamtype)
 			**	Could not unlimbo at location specified so find an adjacent location that it can
 			**	be unlimboed at. If this fails, then abort the whole placement process.
 			*/
-			for (FacingType adj = FACING_N; adj < FACING_COUNT; adj++) {
+			FacingType adj;
+			for (adj = FACING_N; adj < FACING_COUNT; adj++) {
 				CELL trycell = Adjacent_Cell(newcell, adj);
 				if (!Map.In_Radar(trycell) && object->Can_Enter_Cell(trycell, adj) == MOVE_OK) {
 					newcell = trycell;
@@ -495,7 +497,7 @@ bool Do_Reinforcements(TeamTypeClass const * teamtype)
 				}
 			}
 			if (adj < FACING_COUNT) continue;
-			newcell = -1;
+			newcell = 0;
 		}
 		ScenarioInit--;
 
@@ -523,7 +525,7 @@ bool Do_Reinforcements(TeamTypeClass const * teamtype)
 	**	Announce when the reinforcements have arrived.
 	*/
 	if (okvoice && teamtype->House == PlayerPtr->Class->House) {
-		Speak(VOX_REINFORCEMENTS);
+		Speak(VOX_REINFORCEMENTS, NULL, newcell ? Cell_Coord(newcell) : 0);
 	}
 
 	return(true);
@@ -658,7 +660,8 @@ int Create_Air_Reinforcement(HouseClass * house, AircraftType air, int number, M
 	** Loop through the number of objects we are supposed to create and
 	** 	create and place them on the map.
 	*/
-	for (int sub = 0; sub < number; sub++) {
+	int sub;
+	for (sub = 0; sub < number; sub++) {
 
 		/*
 		** Create one of the required objects.  If this fails we could have

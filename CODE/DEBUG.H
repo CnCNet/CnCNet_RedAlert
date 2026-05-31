@@ -48,14 +48,14 @@
 #define TXT_REBUILD              	0x405 	// Rebuild
 #define TXT_SPEED_BUILD          	0x406 	// Building constructin time
 #define TXT_SCENARIO_ERRORx      	0x407 	// Scenario authentication
-#define TXT_DEBUG_STRESS         	0x408 	// ÚFrames:ÄÂF/R:ÂCPU:ÄÄÂF/R:ÄÄ
-#define TXT_DEBUG_VEHICLE        	0x409 	// ÚFull
-#define TXT_DEBUG_INFANTRY       	0x40a 	// ÚFull
-#define TXT_DEBUG_SHIP           	0x40b 	// ÚFull
-#define TXT_DEBUG_BUILDING       	0x40c 	// ÚFull
-#define TXT_DEBUG_PERFORMANCE    	0x40d 	//  Game Objects³  Drawing  
-#define TXT_DEBUG_AIRCRAFT       	0x40e 	// ÚFull
-#define TXT_DEBUG_HOUSE          	0x40f 	// ÚFull Name:ÄÄÄÄÄÄÄÄÂAct
+#define TXT_DEBUG_STRESS         	0x408 	// ï¿½Frames:ï¿½ï¿½F/R:ï¿½CPU:ï¿½ï¿½ï¿½F/R:ï¿½ï¿½
+#define TXT_DEBUG_VEHICLE        	0x409 	// ï¿½Full
+#define TXT_DEBUG_INFANTRY       	0x40a 	// ï¿½Full
+#define TXT_DEBUG_SHIP           	0x40b 	// ï¿½Full
+#define TXT_DEBUG_BUILDING       	0x40c 	// ï¿½Full
+#define TXT_DEBUG_PERFORMANCE    	0x40d 	//  Game Objectsï¿½  Drawing  
+#define TXT_DEBUG_AIRCRAFT       	0x40e 	// ï¿½Full
+#define TXT_DEBUG_HOUSE          	0x40f 	// ï¿½Full Name:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Act
 #define TXT_NO_PENTIUM           	0x410 	// ****************************
 #define TXT_SIZE_MAP             	0x411 	// Size Map
 #define TXT_TRUCK_CRATE          	0x412 	// Trucks drop crate when

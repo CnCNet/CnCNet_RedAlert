@@ -154,6 +154,7 @@ BulletClass::~BulletClass(void)
 							dog->Select();
 						}
 						ScenarioInit--;
+
 						unlimbo = true;
 						break;
 					}
@@ -194,7 +195,7 @@ void * BulletClass::operator new(size_t )
 {
 	void * ptr = Bullets.Allocate();
 	if (ptr) {
-		((BulletClass *)ptr)->IsActive = true;
+		((BulletClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -401,12 +402,23 @@ void BulletClass::AI(void)
 		case IMPACT_EDGE:
 			Mark();
 			if (Payback != NULL && Class->Type == BULLET_GPS_SATELLITE) {
-				if (Payback->House == PlayerPtr) {
+				
+				bool reveal = false;
+				if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+					if (Payback->House == PlayerPtr) {
+						reveal = true;
+					}
+				} else {
+					if (Payback->House->IsHuman) {
+						reveal = true;
+					}
+				}
+				if (reveal) {
 					if (!Map.Is_Radar_Active()) {
 						Map.Radar_Activate(1);
 					}
 					for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
-						Map.Map_Cell(cell, PlayerPtr);
+						Map.Map_Cell(cell, Payback->House);
 					}
 					Map.RadarClass::Flag_To_Redraw(true);
 				}
@@ -570,9 +582,11 @@ void BulletClass::Draw_It(int x, int y, WindowNumberType window) const
 	if (Height > 0 && Class->IsShadow) {
 
 		if (Class->IsParachuted) {
-			CC_Draw_Shape(AnimTypeClass::As_Reference(ANIM_PARA_BOMB).Get_Image_Data(), 1, x+Lepton_To_Pixel(Height/2), y+10, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::UnitShadow);
+			// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+			CC_Draw_Shape(this, AnimTypeClass::As_Reference(ANIM_PARA_BOMB).Get_Image_Data(), 1, x+Lepton_To_Pixel(Height/2), y+10, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::UnitShadow);
 		} else {
-			CC_Draw_Shape(shapeptr, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::UnitShadow);
+			// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+			CC_Draw_Shape(this, shapeptr, shapenum, x, y, window, SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::UnitShadow);
 		}
 		y -= Lepton_To_Pixel(Height);
 	}
@@ -584,10 +598,13 @@ void BulletClass::Draw_It(int x, int y, WindowNumberType window) const
 	if (Class->IsTranslucent) {
 		flags = SHAPE_GHOST;
 	}
-	if (Class->IsSubSurface) {
-		CC_Draw_Shape(shapeptr, shapenum, x, y, window, flags|SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::FadingShade);
+	if (Class->IsSubSurface) 
+	{
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, shapeptr, shapenum, x, y, window, flags|SHAPE_PREDATOR|SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_FADING, NULL, DisplayClass::FadingShade);
 	} else {
-		CC_Draw_Shape(shapeptr, shapenum, x, y, window, flags|SHAPE_CENTER|SHAPE_WIN_REL, NULL, DisplayClass::UnitShadow);
+		// Add 'this' parameter to call new shape draw intercept. ST - 5/22/2019
+		CC_Draw_Shape(this, shapeptr, shapenum, x, y, window, flags|SHAPE_CENTER|SHAPE_WIN_REL, NULL, DisplayClass::UnitShadow);
 	}
 }
 
@@ -1037,6 +1054,9 @@ void BulletClass::Bullet_Explodes(bool forced)
 
 	if (anim != ANIM_NONE) {
 		AnimClass * aptr = new AnimClass(anim, Coord);
+		if (aptr) {
+			aptr->Sort_Above(TarCom);
+		}
 		/*
 		** Special case trap: if they're making the nuclear explosion,
 		** and no anim is available, force the nuclear damage anyway
@@ -1044,22 +1064,45 @@ void BulletClass::Bullet_Explodes(bool forced)
 		** and if there's no animation, there won't be any damage.
 		*/
 		if (!aptr && anim == ANIM_ATOM_BLAST) {
+			GlyphX_Debug_Print("FAILED to create ANIM_ATOM_BLAST");
 			HousesType house = HOUSE_NONE;
 			if (Payback) {
 				house = Payback->House->Class->House;
 			}
 			AnimClass::Do_Atom_Damage(house, Coord_Cell(Coord));
 		}
+
+		// MBL 05.20.2020
+		// Fix for Nuke or Atom Bomb killing structures and units during animation sequence and not getting kills tracked
+		// Per https://jaas.ea.com/browse/TDRA-6610
+		//
+		else if (aptr && anim == ANIM_ATOM_BLAST && aptr->OwnerHouse == HOUSE_NONE) {
+			if (Payback && Payback->House && Payback->House->Class) {
+				aptr->Set_Owner(Payback->House->Class->House);
+			}
+		}
 	}
 
 //				if (Payback && Payback->House == PlayerPtr && stricmp(Class->Name(), "GPSSATELLITE") == 0) {
 	if (Payback && Class->Type == BULLET_GPS_SATELLITE) {
-		if (Payback->House == PlayerPtr) {
+		
+		bool reveal = false;
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+			if (Payback->House == PlayerPtr) {
+				reveal = true;
+			}
+		} else {
+			if (Payback->House->IsHuman) {
+				reveal = true;
+			}
+		}
+		
+		if (reveal) {
 			if (!Map.Is_Radar_Active()) {
 				Map.Radar_Activate(1);
 			}
 			for (CELL cell = 0; cell < MAP_CELL_TOTAL; cell++) {
-				Map.Map_Cell(cell, PlayerPtr);
+				Map.Map_Cell(cell, Payback->House);
 			}
 			Map.RadarClass::Flag_To_Redraw(true);
 		}

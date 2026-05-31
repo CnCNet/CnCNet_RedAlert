@@ -48,7 +48,7 @@
  *   RAMFileClass::~RAMFileClass -- Destructor for the RAM file class.                         *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-
+#include "FUNCTION.H"
 #include "ramfile.h"
 #include	<string.h>
 

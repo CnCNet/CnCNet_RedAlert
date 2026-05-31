@@ -123,9 +123,9 @@ class xTargetClass
 
 		TARGET As_Target(void) const {return(Target.Target);}
 		AbstractTypeClass * As_TypeClass(void) const;
-		AbstractClass * As_Abstract(void) const;
-		TechnoClass * As_Techno(void) const;
-		ObjectClass * As_Object(void) const;
+		AbstractClass * As_Abstract(bool check_active = true) const;
+		TechnoClass * As_Techno(bool check_active = true) const;
+		ObjectClass * As_Object(bool check_active = true) const;
 		CellClass * As_Cell(void) const;
 
 		/*
@@ -134,15 +134,15 @@ class xTargetClass
 		*/
 		TriggerTypeClass * As_TriggerType(void) const {if (*this == RTTI_TRIGGERTYPE) return((TriggerTypeClass *)As_TypeClass());return(0);}
 		TeamTypeClass * As_TeamType(void) const {if (*this == RTTI_TEAMTYPE) return((TeamTypeClass *)As_TypeClass());return(0);}
-		TerrainClass * As_Terrain(void) const {if (*this == RTTI_TERRAIN) return((TerrainClass *)As_Abstract());return(0);}
-		BulletClass * As_Bullet(void) const {if (*this == RTTI_BULLET) return((BulletClass *)As_Abstract());return(0);}
-		AnimClass * As_Anim(void) const {if (*this == RTTI_ANIM) return((AnimClass *)As_Abstract());return(0);}
-		TeamClass * As_Team(void) const {if (*this == RTTI_TEAM) return((TeamClass *)As_Abstract());return(0);}
-		InfantryClass * As_Infantry(void) const {if (*this == RTTI_INFANTRY) return((InfantryClass *)As_Techno());return(0);}
-		UnitClass * As_Unit(void) const {if (*this == RTTI_UNIT) return((UnitClass *)As_Techno());return(0);}
-		BuildingClass * As_Building(void) const {if (*this == RTTI_BUILDING) return((BuildingClass *)As_Techno());return(0);}
-		AircraftClass * As_Aircraft(void) const {if (*this == RTTI_AIRCRAFT) return((AircraftClass *)As_Techno());return(0);}
-		VesselClass * As_Vessel(void) const {if (*this == RTTI_VESSEL) return((VesselClass *)As_Techno());return(0);}
+		TerrainClass * As_Terrain(bool check_active = true) const {if (*this == RTTI_TERRAIN) return((TerrainClass *)As_Abstract(check_active));return(0);}
+		BulletClass * As_Bullet(bool check_active = true) const {if (*this == RTTI_BULLET) return((BulletClass *)As_Abstract(check_active));return(0);}
+		AnimClass * As_Anim(bool check_active = true) const {if (*this == RTTI_ANIM) return((AnimClass *)As_Abstract(check_active));return(0);}
+		TeamClass * As_Team(bool check_active = true) const {if (*this == RTTI_TEAM) return((TeamClass *)As_Abstract(check_active));return(0);}
+		InfantryClass * As_Infantry(bool check_active = true) const {if (*this == RTTI_INFANTRY) return((InfantryClass *)As_Techno(check_active));return(0);}
+		UnitClass * As_Unit(bool check_active = true) const {if (*this == RTTI_UNIT) return((UnitClass *)As_Techno(check_active));return(0);}
+		BuildingClass * As_Building(bool check_active = true) const {if (*this == RTTI_BUILDING) return((BuildingClass *)As_Techno(check_active));return(0);}
+		AircraftClass * As_Aircraft(bool check_active = true) const {if (*this == RTTI_AIRCRAFT) return((AircraftClass *)As_Techno(check_active));return(0);}
+		VesselClass * As_Vessel(bool check_active = true) const {if (*this == RTTI_VESSEL) return((VesselClass *)As_Techno(check_active));return(0);}
 };
 
 /*

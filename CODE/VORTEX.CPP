@@ -621,7 +621,7 @@ void ChronalVortexClass::Attack(void)
 	/*
 	** First scan - find any object directly above the vortex.
 	*/
-	for (unsigned i= 0; i < Map.Layer[LAYER_GROUND].Count(); i++) {
+	for (int i= 0; i < Map.Layer[LAYER_GROUND].Count(); i++) {
 		ObjectClass * obj = Map.Layer[LAYER_GROUND][i];
 
 		if ( obj->Is_Techno() && obj->Strength > 0 ) {
@@ -650,7 +650,7 @@ void ChronalVortexClass::Attack(void)
 	int chance = Random_Pick (0, 1000);
 	if (chance > Frame - LastAttackFrame) return;
 
-	for (i= 0; i < Map.Layer[LAYER_GROUND].Count(); i++) {
+	for (int i= 0; i < Map.Layer[LAYER_GROUND].Count(); i++) {
 		ObjectClass * obj = Map.Layer[LAYER_GROUND][i];
 
 		if ( obj && obj->Is_Techno() ) {
@@ -713,7 +713,7 @@ void ChronalVortexClass::Zap_Target (void)
 			ObjectClass * obj = As_Object(TargetObject);
 			TARGET target = As_Target (obj->Center_Coord());
 			Sound_Effect(VOC_TESLA_ZAP, obj->Center_Coord());
-			temptech->Electric_Zap (target, 0, here, LightningRemap);
+			temptech->Electric_Zap (target, 0, WINDOW_TACTICAL, here, LightningRemap);
 			delete temptech;
 
 			/*
@@ -965,6 +965,14 @@ void ChronalVortexClass::Render (void)
 
 							IsTheaterShape = false;
 						}
+
+						/*
+						**	Draw the flag if there is one located at this cell.
+						*/
+						if (cellptr->IsFlagged) {
+							void const * flag_remap = HouseClass::As_Pointer(cellptr->Owner)->Remap_Table(false, REMAP_NORMAL);
+							CC_Draw_Shape(MFCD::Retrieve("FLAGFLY.SHP"), Frame % 14, x+(ICON_PIXEL_W/2), y+(ICON_PIXEL_H/2), WINDOW_TACTICAL, SHAPE_CENTER|SHAPE_GHOST|SHAPE_FADING, flag_remap, DisplayClass::UnitShadow);
+						}
 					}
 				}
 			}
@@ -996,21 +1004,15 @@ void ChronalVortexClass::Render (void)
 			*/
 			COORDINATE render_pos = XY_Coord(xc * CELL_LEPTON_W, yc * CELL_LEPTON_H);	//Coord_Whole(Position);
 
-			int xtac = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(Map.TacticalCoord)));
-			int xoff = Pixel_To_Lepton(Lepton_To_Pixel(Coord_X(render_pos)));
-			xoff -= xtac;
-
-			int ytac = Pixel_To_Lepton(Lepton_To_Pixel(Coord_Y(Map.TacticalCoord)));
-			int yoff = Pixel_To_Lepton(Lepton_To_Pixel(Coord_Y(render_pos)));
-			yoff -= ytac;
-
+			int x, y;
+			Map.Coord_To_Pixel(render_pos, x, y);
 
 			/*
 			** Create a view port to blit to
 			*/
 			GraphicViewPortClass target (LogicPage->Get_Graphic_Buffer(),
 													0,
-													8*RESFACTOR + LogicPage->Get_YPos(),
+													LogicPage->Get_YPos(),
 													Lepton_To_Pixel (Map.TacLeptonWidth),
 													Lepton_To_Pixel (Map.TacLeptonHeight));
 
@@ -1025,8 +1027,8 @@ void ChronalVortexClass::Render (void)
 			int source_width = CELL_PIXEL_W*4;
 			int source_height = CELL_PIXEL_H*4;
 
-			int dest_x = Lepton_To_Pixel (xoff);
-			int dest_y = Lepton_To_Pixel (yoff);
+			int dest_x = x;
+			int dest_y = y;
 			int dest_width = source_width;
 			int dest_height = source_height;
 

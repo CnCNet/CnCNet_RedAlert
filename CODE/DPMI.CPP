@@ -34,7 +34,7 @@
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+#if (0)
 #ifdef __FLAT__
 #pragma inline
 #endif
@@ -166,4 +166,5 @@ void DOSSegmentClass::Copy_From(void *dest, int source, int size)
 	if (!size) return;
 	dss_copy_from(dest, (void *)(Selector + source), size);
 }
+#endif
 #endif

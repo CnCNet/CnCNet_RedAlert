@@ -45,6 +45,45 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"function.h"
+ /*
+ **
+ **
+ ** Win32lib stubs
+ **
+ **
+ **
+ */
+
+
+SFX_Type					SoundType;
+Sample_Type				SampleType;
+
+int File_Stream_Sample(char const *filename, BOOL real_time_start) { return 1; };
+int File_Stream_Sample_Vol(char const *filename, int volume, BOOL real_time_start) { return 1; };
+void __cdecl Sound_Callback(void) {};
+void __cdecl far maintenance_callback(void) {};
+void *Load_Sample(char const *filename) { return NULL; };
+long Load_Sample_Into_Buffer(char const *filename, void *buffer, long size) { return 0; }
+long Sample_Read(int fh, void *buffer, long size) { return 0; };
+void Free_Sample(void const *sample) {};
+BOOL Audio_Init(HWND window, int bits_per_sample, BOOL stereo, int rate, int reverse_channels) { return 0; };
+void Sound_End(void) {};
+void Stop_Sample(int handle) {};
+BOOL Sample_Status(int handle) { return 0; };
+BOOL Is_Sample_Playing(void const * sample) { return 0; };
+void Stop_Sample_Playing(void const * sample) {};
+int Play_Sample(void const *sample, int priority, int volume, signed short panloc) { return 1; };
+int Play_Sample_Handle(void const *sample, int priority, int volume, signed short panloc, int id) { return 1; };
+int Set_Sound_Vol(int volume) { return 0; };
+int Set_Score_Vol(int volume) { return 0; };
+void Fade_Sample(int handle, int ticks) {};
+int Get_Free_Sample_Handle(int priority) { return 1; };
+int Get_Digi_Handle(void) { return 1; }
+long Sample_Length(void const *sample) { return 0; };
+void Restore_Sound_Buffers(void) {};
+BOOL Set_Primary_Buffer_Format(void) { return 0; };
+BOOL Start_Primary_Sound_Buffer(BOOL forced) { return 0; };
+void Stop_Primary_Sound_Buffer(void) {};
 
 
 /***************************************************************************
@@ -55,7 +94,9 @@ typedef enum {
 	IN_VAR				// Infantry variance response modification.
 } ContextType;
 
-static struct {
+// static struct { // MBL 02.21.2019
+// Had to name the struct for VS 2017 distributed build. ST - 4/10/2019 3:59PM
+struct SoundEffectNameStruct {
 	char const *	Name;		// Digitized voice file name.
 	int				Priority;	// Playback priority of this sample.
 	ContextType		Where;		// In what game context does this sample exist.
@@ -243,8 +284,20 @@ static struct {
 	{"MADEXPLO",	20,	IN_NOVAR},	// VOC_MAD_EXPLODE		MAD tank explodes
 	{"SHKTROP1",	20,	IN_NOVAR},	// VOC_SHOCK_TROOP1		Shock Trooper fires
 
+	{"BEACON", 		10,	IN_NOVAR},	// VOC_BEACON			Beacon sound.
+
 #endif
 };
+
+
+//
+// External handlers. MBL 06.17.2019
+//
+extern void On_Sound_Effect(int sound_index, int variation, COORDINATE coord, int house);
+// extern void On_Speech(int speech_index); MBL 02.06.2020
+extern void On_Speech(int speech_index, HouseClass *house);
+extern void On_Ping(const HouseClass* player_ptr, COORDINATE coord);
+
 
 
 /***********************************************************************************************
@@ -329,6 +382,12 @@ char const * Voc_Name(VocType voc)
  *=============================================================================================*/
 void Sound_Effect(VocType voc, COORDINATE coord, int variation, HousesType house)
 {
+	//
+	// Intercept sound effect calls. MBL 06.17.2019
+	//
+	On_Sound_Effect((int)voc, variation, coord, (int)house);
+
+#if 0
 	CELL cell_pos = 0;
 	int pan_value;
 
@@ -359,6 +418,7 @@ void Sound_Effect(VocType voc, COORDINATE coord, int variation, HousesType house
 	}
 
 	Sound_Effect(voc, volume, variation, pan_value, house);
+#endif
 }
 
 
@@ -392,6 +452,14 @@ void Sound_Effect(VocType voc, COORDINATE coord, int variation, HousesType house
  *=============================================================================================*/
 int Sound_Effect(VocType voc, fixed volume, int variation, signed short pan_value, HousesType house)
 {
+	//
+	// Intercept sound effect calls. MBL 06.17.2019
+	//
+	pan_value;
+	COORDINATE coord = 0;
+	On_Sound_Effect((int)voc, variation, coord, (int)house);
+
+#if 0
 	char name[_MAX_FNAME+_MAX_EXT];				// Working filename of sound effect.
 
 	if (Debug_Quiet || Options.Volume == 0 || voc == VOC_NONE || !SoundOn || SampleType == SAMPLE_NONE) {
@@ -465,6 +533,8 @@ int Sound_Effect(VocType voc, fixed volume, int variation, signed short pan_valu
 		volume.Sub_Saturate(1);
 		return(Play_Sample(ptr, SoundEffectName[voc].Priority * volume, volume*256, pan_value));
 	}
+#endif 
+
 	return(-1);
 }
 
@@ -472,7 +542,7 @@ int Sound_Effect(VocType voc, fixed volume, int variation, signed short pan_valu
 /*
 **	This elaborates all the EVA speech voices.
 */
-static char const * Speech[VOX_COUNT] =  {
+/*static PG*/ char const * Speech[VOX_COUNT] =  {
 	"MISNWON1",		//	VOX_ACCOMPLISHED					mission accomplished
 	"MISNLST1",		//	VOX_FAIL								your mission has failed
 	"PROGRES1",		//	VOX_NO_FACTORY						unable to comply, building in progress
@@ -640,12 +710,31 @@ char const * Speech_Name(VoxType speech)
  * HISTORY:                                                                                    *
  *   11/12/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-void Speak(VoxType voice)
+// void Speak(VoxType voice) // MBL 02.06.2020
+void Speak(VoxType voice, HouseClass *house, COORDINATE coord)
 {
+	// MBL 06.17.2019
+	if (voice == VOX_NONE)
+	{
+		return;
+	}
+
+	//
+	// Intercept speech calls. MBL 06.17.2019
+	//
+
+	// On_Speech((int)voice); // MBL 02.06.2020
+	On_Speech((int)voice, house);
+	if (coord) {
+		On_Ping(house, coord);
+	}
+
+#if 0
 	if (!Debug_Quiet && Options.Volume != 0 && SampleType != 0 && voice != VOX_NONE && voice != SpeakQueue && voice != CurrentVoice && SpeakQueue == VOX_NONE) {
 		SpeakQueue = voice;
 		Speak_AI();
 	}
+#endif
 }
 
 
@@ -668,6 +757,8 @@ void Speak(VoxType voice)
  *=============================================================================================*/
 void Speak_AI(void)
 {
+// MBL 06.17.2019 KO
+#if 0
 	static int _index = 0;
 	if (Debug_Quiet || SampleType == 0) return;
 
@@ -711,6 +802,15 @@ void Speak_AI(void)
 
 			SpeakQueue = VOX_NONE;
 		}
+	}
+#endif
+
+	// MBL 06.18.2019
+	if (SpeakQueue != VOX_NONE) 
+	{
+		// On_Speech((int)SpeakQueue); // MBL 02.06.2020
+		On_Speech((int)SpeakQueue, NULL);
+		SpeakQueue = VOX_NONE;
 	}
 }
 

@@ -56,7 +56,7 @@ typedef int bool;
 #endif
 
 
-#pragma warn -inl
+//#pragma warn -inl
 
 /*
 **	This is a doubly linked list node. Typical use of this node is to derive

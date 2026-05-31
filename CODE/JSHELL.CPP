@@ -149,10 +149,12 @@ void Fatal(char const * message, ...)
 	va_list	va;
 
 	va_start(va, message);
-	//Prog_End();
+	Prog_End(message, true);
 	vfprintf(stderr, message, va);
 	Mono_Printf(message);
-	Emergency_Exit(EXIT_FAILURE);
+	if (!RunningAsDLL) {	//PG
+		Emergency_Exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -357,7 +359,7 @@ void * Build_Translucent_Table(PaletteClass const & palette, TLucentType const *
 	unsigned char	const *table;		// Remap table pointer.
 	int			index;		// Working color index.
 
-	if (count && control && palette) {
+	if (count && control/* && palette*/) {		// palette can't be NULL... ST - 5/9/2019
 		if (!buffer) {
 			buffer = new char [Translucent_Table_Size(count)];
 		}
@@ -371,7 +373,7 @@ void * Build_Translucent_Table(PaletteClass const & palette, TLucentType const *
 			*/
 			for (index = 0; index < count; index++) {
 				((unsigned char*)buffer)[control[index].SourceColor] = index;
-				Build_Fading_Table(palette, (void*)table, control[index].DestColor, control[index].Fading);
+				Build_Fading_Table(palette.Get_Data(), (void*)table, control[index].DestColor, control[index].Fading);
 				table = (unsigned char*)table + 256;
 			}
 		}

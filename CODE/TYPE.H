@@ -295,7 +295,7 @@ class ObjectTypeClass : public AbstractTypeClass
 		virtual void Dimensions(int &width, int &height) const;
 		virtual bool Create_And_Place(CELL , HousesType =HOUSE_NONE) const = 0;
 		virtual int Cost_Of(void) const;
-		virtual int Time_To_Build(void) const;
+		virtual int Time_To_Build(HousesType house) const;
 		virtual ObjectClass * Create_One_Of(HouseClass *) const = 0;
 		virtual short const * Occupy_List(bool placement=false) const;
 		virtual short const * Overlap_List(void) const;
@@ -526,6 +526,7 @@ class TechnoTypeClass : public ObjectTypeClass
 		**	'tip of the barrel' for the weapon. This is used for generating the bullet
 		**	at the proper location.
 		*/
+		int HorizontalOffset;		// Distance to move east (compensates for offsets in animation from center coordinate).
 		int VerticalOffset;			// Distance to move north (compensates for perspective).
 		int PrimaryOffset;			// Offset along turret centerline and facing.
 		int PrimaryLateral;			// Sideways offset from turret centerline and facing.
@@ -562,7 +563,8 @@ class TechnoTypeClass : public ObjectTypeClass
 				bool is_remappable,
 				bool is_footprint,
 				int rotation,
-				SpeedType speed
+				SpeedType speed,
+				int horizontaloffset=0
 				);
 
 		bool Is_Two_Shooter(void) const;
@@ -573,7 +575,7 @@ class TechnoTypeClass : public ObjectTypeClass
 		virtual int Repair_Step(void) const;
 		virtual void const * Get_Cameo_Data(void) const;
 		virtual int Cost_Of(void) const;
-		virtual int Time_To_Build(void) const;
+		virtual int Time_To_Build(HousesType house) const;
 		virtual int Get_Ownable(void) const;
 		virtual bool Read_INI(CCINIClass & ini);
 
@@ -1189,6 +1191,13 @@ class InfantryTypeClass : public TechnoTypeClass
 		DoInfoStruct const * DoControls;
 
 		/*
+		**	Alternate animation info for the 'virtual' window which gets rendered on the GlyphX client.
+		** The infantry frames here map to the original TD infantry frames, so a different set is needed depending on whether
+		** we are rendering in legacy mode or on the GlyphX client. ST - 9/5/2019 12:17PM
+		*/
+		DoInfoStruct const * DoControlsVirtual;
+
+		/*
 		**	There are certain units with special animation sequences built into the
 		**	shape file. These values tell how many frames are used for the firing animation.
 		*/
@@ -1220,9 +1229,11 @@ class InfantryTypeClass : public TechnoTypeClass
 						bool is_theater,
 						PipEnum pip,
 						DoInfoStruct const * controls,
+						DoInfoStruct const * virtual_controls,
 						int firelaunch,
 						int pronelaunch,
-						unsigned char const * override_remap);
+						unsigned char const * override_remap,
+						int horizontaloffset=0);
 
 		static void * operator new(size_t);
 		static void * operator new(size_t , void * ptr) {return(ptr);};
@@ -1781,7 +1792,7 @@ class AnimTypeClass : public ObjectTypeClass
 		**	This is the normal loop count for this animation. Usually this is one, but
 		**	for some animations, it may be larger.
 		*/
-		unsigned Loops;
+		int Loops;
 
 		/*
 		**	This is the sound effect to play when this animation starts. Usually, this
@@ -1794,6 +1805,27 @@ class AnimTypeClass : public ObjectTypeClass
 		**	the secondary animation will be defined here.
 		*/
 		AnimType ChainTo;
+
+		/*
+		**	The number of virtual animation stages. Keeps the animation alive longer for the purpose
+		**  of 4K rendering, but is ignored by legacy rendering.
+		*/
+		int VirtualStages;
+
+		/*
+		**	The scale of the virtual animation. Allows for higher-resolution art to appear larger.
+		*/
+		int VirtualScale;
+
+		/*
+		**	The shape name to used for 4K virtual rendering, overrides the INI name
+		*/
+		char const * VirtualName;
+
+		/*
+		**	Animation data to use specifically for virtual rendering (implies this animation only for legacy).
+		*/
+		AnimType VirtualAnim;
 
 		//---------------------------------------------------------------------------
 		AnimTypeClass(NoInitClass const & x) : ObjectTypeClass(x) {}
@@ -1818,7 +1850,11 @@ class AnimTypeClass : public ObjectTypeClass
 							int stages,
 							int loops,
 							VocType sound,
-							AnimType chainto);
+							AnimType chainto,
+							int virtualstages=-1,
+							int virtualscale=0x100,
+							char const * virtualname=NULL,
+							AnimType virtualanim=ANIM_NONE);
 
 		static void Init_Heap(void);
 		static void * operator new(size_t);

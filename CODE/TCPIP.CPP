@@ -66,7 +66,7 @@
 ** Nasty globals
 */
 #ifndef WOLAPI_INTEGRATION
-BOOL					Server;			//Is this player acting as client or server
+bool					Server;			//Is this player acting as client or server
 #endif
 TcpipManagerClass	Winsock;			//The object for interfacing with Winsock
 

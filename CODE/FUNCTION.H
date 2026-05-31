@@ -41,82 +41,82 @@
 /*
 **	!!!DEFINE!!!  "NDEBUG" if the assertion code is to be !!!REMOVED!!! from the project.
 */
-#define	NDEBUG
+//#define	NDEBUG		// ST - 5/13/2019
 
-#pragma warn -hid
+//#pragma warn -hid
 
 #ifdef NEVER
 Map (screen) class heirarchy.
 
  MapeditClass (most derived class) -- scenario editor
-        ³
+        ï¿½
    MouseClass -- handles mouse animation and display control
-        ³
+        ï¿½
   ScrollClass -- map scroll handler
-        ³
+        ï¿½
     HelpClass -- pop-up help text handler
-        ³
+        ï¿½
      TabClass -- file folder tab screen mode control dispatcher
-        ³
+        ï¿½
  SidebarClass -- displays and controls construction list sidebar
-        ³
+        ï¿½
    PowerClass -- display power production/consumption bargraph
-        ³
+        ï¿½
    RadarClass -- displays and controls radar map
-        ³
+        ï¿½
  DisplayClass -- general tactical map display handler
-        ³
+        ï¿½
      MapClass -- general tactical map data handler
-        ³
+        ï¿½
  GScreenClass (pure virtual base class) -- generic screen control
 
                           AbstractClass
-                                  ³
-                                  ³
-                                  ³
-                                  ³
+                                  ï¿½
+                                  ï¿½
+                                  ï¿½
+                                  ï¿½
                             ObjectClass
-                                  ³
-       ÚÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄ¿
-   AnimClass  ³  TemplateClass    ³        ÃÄ FuseClass     ³    TerrainClass
-              ³                   ³        ÃÄ FlyClass      ³
-              ³                   ³  BulletClass            ³
+                                  ï¿½
+       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+   AnimClass  ï¿½  TemplateClass    ï¿½        ï¿½ï¿½ FuseClass     ï¿½    TerrainClass
+              ï¿½                   ï¿½        ï¿½ï¿½ FlyClass      ï¿½
+              ï¿½                   ï¿½  BulletClass            ï¿½
        OverlayClass        MissionClass               SmudgeClass
-                                  ³
+                                  ï¿½
                              RadioClass
-                                  ³
-                                  ÃÄ CrewClass
-                                  ÃÄ FlasherClass
-                                  ÃÄ StageClass
-                                  ÃÄ CargoClass
+                                  ï¿½
+                                  ï¿½ï¿½ CrewClass
+                                  ï¿½ï¿½ FlasherClass
+                                  ï¿½ï¿½ StageClass
+                                  ï¿½ï¿½ CargoClass
                             TechnoClass
-                                  ³
-                       ÚÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+                                  ï¿½
+                       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
                    FootClass                           BuildingClass
-                       ³
-         ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÁÂÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-    DriveClass  InfantryClass         ÃÄ FlyClass
-         ³                      AircraftClass
-       ÚÄÁÄÄÄÄÄÄÄÄÄ¿
-       ³           ³
-       ³     VesselClass
-       ³
+                       ï¿½
+         ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+    DriveClass  InfantryClass         ï¿½ï¿½ FlyClass
+         ï¿½                      AircraftClass
+       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+       ï¿½           ï¿½
+       ï¿½     VesselClass
+       ï¿½
     UnitClass
 
 
                             AbstractTypeClass
-                                    ³
+                                    ï¿½
                               ObjectTypeClass
-                                    ³
-             ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-             ³                      ³            ³                 ³
-       TechnoTypeClass              ³            ³                 ³
-             ³                BulletTypeClass    ³                 ³
-             ³                           TemplateTypeClass         ³
-    ÚÄÄÄÄÄÄÄÄÁÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄ¿    TerrainTypeClass
-    ³              ³           ³              ³        ³
-UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
-                   ³                          ³
+                                    ï¿½
+             ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
+             ï¿½                      ï¿½            ï¿½                 ï¿½
+       TechnoTypeClass              ï¿½            ï¿½                 ï¿½
+             ï¿½                BulletTypeClass    ï¿½                 ï¿½
+             ï¿½                           TemplateTypeClass         ï¿½
+    ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿    TerrainTypeClass
+    ï¿½              ï¿½           ï¿½              ï¿½        ï¿½
+UnitTypeClass      ï¿½   BuildingTypeClass      ï¿½  VesselTypeClass
+                   ï¿½                          ï¿½
            AircraftTypeClass          InfantryTypeClass
 #endif
 
@@ -142,6 +142,7 @@ UnitTypeClass      ³   BuildingTypeClass      ³  VesselTypeClass
 **	November of '94. Until the compiler supports this, use the following
 **	definition.
 */
+#if (0)
 #ifndef __BORLANDC__
 #ifndef TRUE_FALSE_DEFINED
 #define TRUE_FALSE_DEFINED
@@ -149,7 +150,7 @@ enum {false=0,true=1};
 typedef int bool;
 #endif
 #endif
-
+#endif
 
 #ifndef BITMAPCLASS
 #define BITMAPCLASS
@@ -251,14 +252,14 @@ typedef struct {
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<stddef.h>
-#include	<mem.h>
-#include	<dos.h>
+//#include	<mem.h>
+//#include	<dos.h>
 #include	<direct.h>
 #include	<stdarg.h>
 #include	<ctype.h>
 #include	<assert.h>
 #include	<process.h>
-#include	<new.h>
+//#include	<new.h>
 
 
 
@@ -271,8 +272,8 @@ typedef struct {
 /*
 **	VQ player specific includes.
 */
-#include <vqa32\vqaplay.h>
-#include <vqa32\vqafile.h>
+//#include <vqa32\vqaplay.h>
+//#include <vqa32\vqafile.h>
 
 extern bool GameActive;
 extern long LParam;
@@ -283,7 +284,7 @@ extern long LParam;
 #include	"ccfile.h"
 #include	"monoc.h"
 #include	"conquer.h"
-#include	"debug.h"
+//#include	"debug.h"
 #include "special.h"
 #include	"defines.h"
 #include	"ccini.h"
@@ -293,8 +294,8 @@ extern long LParam;
 /*
 **	Greenleaf specific includes.
 */
-#include <modem.h>
-#include <fast.h>
+//#include <modem.h>
+//#include <fast.h>
 
 
 extern long Frame;
@@ -316,6 +317,7 @@ CELL Coord_Cell(COORDINATE coord);
 #include	"hsv.h"
 #include	"rgb.h"
 #include	"palette.h"
+#include	"palettec.h" //ST 5/13/2019
 #include "version.h"
 #include	"facing.h"
 #include	"ftimer.h"
@@ -389,14 +391,14 @@ CELL Coord_Cell(COORDINATE coord);
 #include	"scenario.h"
 #include "msglist.h"			// Multiplayer chat message system
 #include "session.h"			// Multiplayer session class
-#include "phone.h"			// Phone list manager
+//#include "phone.h"			// Phone list manager
 #include "ipxmgr.h"			// IPX connection manager
-#include	"nullmgr.h"			// Modem connection manager
+//#include	"nullmgr.h"			// Modem connection manager
 #include	"readline.h"
 #include	"vortex.h"
 #include "egos.h"
 #ifdef WIN32
-#include	"pcx.h"
+//#include	"pcx.h"
 #endif
 
 #if(TEN)
@@ -475,7 +477,8 @@ VocType Voc_From_Name(char const * name);
 char const * Speech_Name(VoxType speech);
 char const * Voc_Name(VocType voc);
 int Sound_Effect(VocType voc, fixed volume=1, int variation=1, signed short panvalue=0, HousesType house=HOUSE_NONE);
-void Speak(VoxType voice);
+// void Speak(VoxType voice); // MBL 02.06.2020
+void Speak(VoxType voice, HouseClass *house=NULL, COORDINATE coord=0);
 void Speak_AI(void);
 void Stop_Speaking(void);
 void Sound_Effect(VocType voc, COORDINATE coord, int variation=1, HousesType house=HOUSE_NONE);
@@ -521,6 +524,8 @@ void Ten_Call_Back(void);
 void MPATH_Call_Back(void);
 #endif	// MPATH
 
+#define ALWAYS_RELOAD_CD 1000
+
 void Center_About_Objects(void);
 bool Force_CD_Available(int cd);
 void Handle_View(int view, int action=0);
@@ -528,8 +533,9 @@ void Handle_Team(int team, int action=0);
 TechnoTypeClass const * Fetch_Techno_Type(RTTIType type, int id);
 char const * Fading_Table_Name(char const * base, TheaterType theater);
 void Unselect_All(void);
-void Play_Movie(char const * name, ThemeType theme=THEME_NONE, bool clrscrn=true);
-void Play_Movie(VQType name, ThemeType theme=THEME_NONE, bool clrscrn=true);
+void Unselect_All_Except(ObjectClass* object);
+void Play_Movie(char const * name, ThemeType theme=THEME_NONE, bool clrscrn=true, bool immediate = false);
+void Play_Movie(VQType name, ThemeType theme=THEME_NONE, bool clrscrn=true, bool immediate=false);
 bool Main_Loop(void);
 TheaterType Theater_From_Name(char const * name);
 void Main_Game(int argc, char * argv[]);
@@ -540,9 +546,18 @@ SourceType Source_From_Name(char const * name);
 char const *Name_From_Source(SourceType source);
 FacingType KN_To_Facing(int input);
 void const *Get_Radar_Icon(void const * shapefile, int shapenum, int frames, int zoomfactor);
-void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata=0, void const * ghostdata=0, DirType rotation=DIR_N, long scale=0x0100);
+//void CC_Draw_Shape(ObjectClass *object, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata=0, void const * ghostdata=0, DirType rotation=DIR_N, long scale=0x0100);
+void CC_Draw_Shape(void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata = 0, void const * ghostdata = 0, DirType rotation = DIR_N);
+
+// Added for draw intercept. ST - 1/17/2019 12:31PM
+void CC_Draw_Shape(const ObjectClass *object, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata = 0, void const * ghostdata = 0, DirType rotation = DIR_N, long virtualscale = 0x0100, int width = 0, int height = 0);
+void CC_Draw_Shape(const ObjectClass *object, const char *shape_file_name, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata = 0, void const * ghostdata = 0, DirType rotation = DIR_N, long virtualscale = 0x0100, char override_owner = HOUSE_NONE);
+
+// Added for pip draw intercept - SKY
+void CC_Draw_Pip(const ObjectClass *object, void const * shapefile, int shapenum, int x, int y, WindowNumberType window, ShapeFlags_Type flags, void const * fadingdata = 0, void const * ghostdata = 0, DirType rotation = DIR_N);
+
 void Go_Editor(bool flag);
-long MixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
+//long MixFileHandler(VQAHandle * vqa, long action, void * buffer, long nbytes);
 char *CC_Get_Shape_Filename(void const * shapeptr );
 void CC_Add_Shape_To_Global(void const * shapeptr, char * filename, char code );
 void Bubba_Print(char * format,...);
@@ -550,7 +565,7 @@ void Heap_Dump_Check(char * string );
 void Dump_Heap_Pointers(void);
 unsigned long Disk_Space_Available(void);
 void * Hires_Load(char * name);
-void Shake_The_Screen(int shakes);
+void Shake_The_Screen(int shakes, HousesType house = HOUSE_NONE);
 
 /*
 **	COORD.CPP
@@ -595,6 +610,17 @@ void Plain_Text_Print(char const *text, unsigned x, unsigned y, unsigned fore, u
 /*
 **	DISPLAY.CPP
 */
+ObjectClass* Best_Object_With_Action(DynamicVectorClass<ObjectClass*>& objects, const ObjectClass* object);
+ObjectClass* Best_Object_With_Action(DynamicVectorClass<ObjectClass*>& objects, CELL cell);
+
+ActionType Best_Object_Action(DynamicVectorClass<ObjectClass*>& objects, const ObjectClass* object);
+ActionType Best_Object_Action(DynamicVectorClass<ObjectClass*>& objects, CELL cell);
+
+ObjectClass* Best_Object_With_Action(const ObjectClass* object);
+ObjectClass* Best_Object_With_Action(CELL cell);
+
+ActionType Best_Object_Action(const ObjectClass* object);
+ActionType Best_Object_Action(CELL cell);
 
 /*
 **	ENDING.CPP
@@ -698,6 +724,8 @@ unsigned short Get_Build_Frame_Y(void const *dataptr);
 unsigned short Get_Build_Frame_Width(void const *dataptr);
 unsigned short Get_Build_Frame_Height(void const *dataptr);
 bool Get_Build_Frame_Palette(void const *dataptr, void *palette);
+int Get_Last_Frame_Length(void);
+
 
 /*
 **	MAP.CPP
@@ -853,6 +881,11 @@ int Create_Air_Reinforcement(HouseClass *house, AircraftType air, int number, Mi
 int Rotate_Bitmap(GraphicViewPortClass *srcvp,GraphicViewPortClass *destvp,int angle);
 
 /*
+**	RULES.CPP
+*/
+bool Is_MCV_Deploy();
+
+/*
 **	SAVELOAD.CPP
 */
 bool Load_Misc_Values(Straw & file);
@@ -861,8 +894,11 @@ bool Load_MPlayer_Values(Straw & file);
 bool Save_MPlayer_Values(Pipe & file);
 bool Get_Savefile_Info(int id, char * buf, unsigned * scenp, HousesType * housep);
 bool Load_Game(int id);
-bool Read_Object (void * ptr, int base_size, int class_size, FileClass & file, void * vtable);
+bool Load_Game(const char *file_name);
+//bool Read_Object (void * ptr, int base_size, int class_size, FileClass & file, void * vtable);  // Original Read_Object prototype. ST - 9/17/2019 12:50PM		
+bool Read_Object(void *ptr, int class_size, FileClass & file, bool has_vtable);
 bool Save_Game(int id, char const * descr, bool bargraph=false);
+bool Save_Game(const char *file_name, const char *descr);
 bool Write_Object (void * ptr, int class_size, FileClass & file);
 void Code_All_Pointers(void);
 void Decode_All_Pointers(void);
@@ -876,6 +912,7 @@ void Post_Load_Game(int load_net);
 bool End_Game(void);
 bool Read_Scenario(char *root);
 bool Start_Scenario(char *root, bool briefing=true);
+void Set_Scenario_Difficulty(int difficulty);
 HousesType Select_House(void);
 void Clear_Scenario(void);
 void Do_Briefing(char const * text);
@@ -920,22 +957,22 @@ void Emergency_Exit ( int code );
 */
 TechnoTypeClass const * As_TechnoType(TARGET target);
 COORDINATE As_Movement_Coord(TARGET target);
-AircraftClass * As_Aircraft(TARGET target);
-AnimClass * As_Animation(TARGET target);
-BuildingClass * As_Building(TARGET target);
-BulletClass * As_Bullet(TARGET target);
+AircraftClass * As_Aircraft(TARGET target, bool check_active = true);
+AnimClass * As_Animation(TARGET target, bool check_active = true);
+BuildingClass * As_Building(TARGET target, bool check_active = true);
+BulletClass * As_Bullet(TARGET target, bool check_active = true);
 CELL As_Cell(TARGET target);
 COORDINATE As_Coord(TARGET target);
-InfantryClass * As_Infantry(TARGET target);
-TeamClass * As_Team(TARGET target);
+InfantryClass * As_Infantry(TARGET target, bool check_active = true);
+TeamClass * As_Team(TARGET target, bool check_active = true);
 TeamTypeClass * As_TeamType(TARGET target);
-TechnoClass * As_Techno(TARGET target);
-TriggerClass * As_Trigger(TARGET target);
+TechnoClass * As_Techno(TARGET target, bool check_active = true);
+TriggerClass * As_Trigger(TARGET target, bool check_active = true);
 TriggerTypeClass * As_TriggerType(TARGET target);
-UnitClass * As_Unit(TARGET target);
-VesselClass * As_Vessel(TARGET target);
-inline bool Target_Legal(TARGET target) {return(target != TARGET_NONE);};
-ObjectClass * As_Object(TARGET target);
+UnitClass * As_Unit(TARGET target, bool check_active = true);
+VesselClass * As_Vessel(TARGET target, bool check_active = true);
+bool Target_Legal(TARGET target);
+ObjectClass * As_Object(TARGET target, bool check_active = true);
 
 /*
 **	TEAMTYPE.CPP
@@ -978,6 +1015,16 @@ void Load_Title_Screen(char *name, GraphicViewPortClass *video_page, unsigned ch
 */
 void Show_Who_Was_Responsible (void);
 
+
+//
+// We need to know when the visible page changes
+// ST - 1/4/2019 10:31AM
+//
+void Blit_Hid_Page_To_Seen_Buff(void);
+extern bool RunningAsDLL;
+extern bool RunningFromEditor;
+
+
 #include	"inline.h"
 
 /*
@@ -988,7 +1035,7 @@ void Show_Who_Was_Responsible (void);
 **	names ever created, however there are other objects of this type (with different names) that
 **	are created.
 */
-extern CCPtr<AircraftClass> y1;
+extern CCPtr<AircraftClass> _wefwefy1;		// Previus definition was function???
 extern CCPtr<AnimClass> y2;
 extern CCPtr<BuildingClass> y3;
 extern CCPtr<BulletClass> y4;
@@ -1015,17 +1062,30 @@ extern CCPtr<TemplateTypeClass>	y24;
 extern CCPtr<TerrainTypeClass>	y25;
 extern CCPtr<OverlayTypeClass>	y26;
 extern CCPtr<SmudgeTypeClass>		y27;
-class DynamicVectorClass<CCPtr<TeamTypeClass> >;
+template <> class DynamicVectorClass<CCPtr<TeamTypeClass> >;
 extern DynamicVectorClass<CCPtr<TeamTypeClass> > y002;
-class DynamicVectorClass<CCPtr<TriggerTypeClass> >;
+template <>class DynamicVectorClass<CCPtr<TriggerTypeClass> >;
 extern DynamicVectorClass<CCPtr<TriggerTypeClass> > y001;
-class DynamicVectorClass<TeamMissionClass *>;
+template <>class DynamicVectorClass<TeamMissionClass *>;
 extern DynamicVectorClass<TeamMissionClass *> xxx1;
-class DynamicVectorClass<EventChoiceClass *>;
+template <>class DynamicVectorClass<EventChoiceClass *>;
 extern DynamicVectorClass<EventChoiceClass *> xxx2;
-class DynamicVectorClass<ActionChoiceClass *>;
+template <>class DynamicVectorClass<ActionChoiceClass *>;
 extern DynamicVectorClass<ActionChoiceClass *> xxx3;
-class DynamicVectorClass<EgoClass *>;
+template <>class DynamicVectorClass<EgoClass *>;
 extern DynamicVectorClass<EgoClass *> whatever;
+
+/*
+** Debug output. ST - 6/27/2019 10:00PM
+*/
+void GlyphX_Debug_Print(const char *debug_text);
+
+void Disable_Uncompressed_Shapes (void);
+void Enable_Uncompressed_Shapes (void);
+
+/*
+** Achievement event. ST - 11/11/2019 11:39AM
+*/
+void On_Achievement_Event(const HouseClass* player_ptr, const char *achievement_type, const char *achievement_reason);
 
 #endif

@@ -100,6 +100,16 @@ class InfantryClass : public FootClass
 		*/
 		FearType Fear;
 
+		/*
+		** Track when movement last stopped.
+		*/
+		long StopDriverFrame;
+
+		/*
+		** Track the last cell we looked from.
+		*/
+		CELL LookCell;
+
 		/*---------------------------------------------------------------------
 		**	Constructors, Destructors, and overloaded operators.
 		*/
@@ -123,7 +133,7 @@ class InfantryClass : public FootClass
 		*/
 		virtual bool Is_Ready_To_Random_Animate(void) const;
 		void const * Get_Image_Data(void) const;
-		int Shape_Number(void) const;
+		int Shape_Number(WindowNumberType window = WINDOW_MAIN) const;
 		virtual ObjectTypeClass const & Class_Of(void) const;
 		virtual int Full_Name(void) const;
 
@@ -159,6 +169,7 @@ class InfantryClass : public FootClass
 		virtual BulletClass * Fire_At(TARGET target, int which);
 		virtual ResultType Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source=0, bool forced=false);
 		virtual FireErrorType Can_Fire(TARGET target, int which) const;
+		virtual COORDINATE Fire_Coord(int which) const;
 		virtual void Assign_Target(TARGET);
 		void Set_Occupy_Bit(COORDINATE coord) {Set_Occupy_Bit(Coord_Cell(coord), CellClass::Spot_Index(coord));};
 		void Set_Occupy_Bit(CELL cell, int spot_index);
@@ -209,6 +220,7 @@ class InfantryClass : public FootClass
 		virtual void Per_Cell_Process(PCPType why);
 		virtual void Enter_Idle_Mode(bool initial=false);
 		virtual void Scatter(COORDINATE threat, bool forced=false, bool nokidding=false);
+		virtual void Look(bool incremental=false);
 
 		/*
 		**	Translation table to convert facing into infantry shape number. This special
@@ -220,6 +232,11 @@ class InfantryClass : public FootClass
 	private:
 
 		static DoStruct const MasterDoControls[DO_COUNT];
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
 };
 
 #endif

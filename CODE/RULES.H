@@ -533,11 +533,6 @@ class RulesClass {
 		unsigned IsExplosiveHarvester:1;
 
 		/*
-		**	Show the health bar on the enemy units?
-		*/
-		unsigned IsHealthBar:1;
-
-		/*
 		**	If this flag is true, then the construction yard can undeploy back into an MCV.
 		*/
 		unsigned IsMCVDeploy:1;
@@ -879,6 +874,25 @@ class RulesClass {
 		*/
 		LEPTON TiberiumShortScan;
 		LEPTON TiberiumLongScan;
+
+		/*
+		**	Health bar display mode
+		*/
+		enum eHealthBarDisplayMode
+		{
+			HB_DAMAGED = 0,
+			HB_ALWAYS,
+			HB_SELECTED
+		} HealthBarDisplayMode;
+
+		/*
+		**	Resource bar display mode
+		*/
+		enum eResourceBarDisplayMode
+		{
+			RB_SELECTED = 0,
+			RB_ALWAYS,
+		} ResourceBarDisplayMode;
 };
 
 

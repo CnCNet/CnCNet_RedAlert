@@ -140,7 +140,8 @@ ObjectClass::ObjectClass(RTTIType rtti, int id) :
 	Riser(0),
 	Next(0),
 	Trigger(NULL),
-	Strength(255)
+	Strength(255),
+	IsSelectedMask(0)		// Mask showing who has selected this object
 {
 }
 
@@ -424,6 +425,24 @@ bool ObjectClass::Can_Demolish(void) const
 }
 
 
+bool ObjectClass::Can_Demolish_Unit(void) const
+{
+	assert(this != 0);
+	assert(IsActive);
+
+	return(false);
+}
+
+
+bool ObjectClass::Can_Capture(void) const
+{
+	assert(this != 0);
+	assert(IsActive);
+
+	return(false);
+}
+
+
 /***********************************************************************************************
  * ObjectClass::Can_Player_Fire -- Can the player give this object an attack mission?          *
  *                                                                                             *
@@ -619,6 +638,14 @@ COORDINATE ObjectClass::Sort_Y(void) const
  * HISTORY:                                                                                    *
  *   09/21/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
+FireDataType ObjectClass::Fire_Data(int which) const
+{
+	assert(this != 0);
+	assert(IsActive);
+
+	return{Fire_Coord(which),0};
+}
+
 COORDINATE ObjectClass::Fire_Coord(int ) const
 {
 	assert(this != 0);
@@ -814,7 +841,7 @@ void ObjectClass::Active_Click_With(ActionType , CELL )
  * HISTORY:                                                                                    *
  *   09/21/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-void ObjectClass::Clicked_As_Target(int)
+void ObjectClass::Clicked_As_Target(HousesType house, int) // 2019/09/20 JAS - Added record of who clicked on the object
 {
 	assert(this != 0);
 	assert(IsActive);
@@ -1086,6 +1113,9 @@ void ObjectClass::Move(FacingType facing)
 }
 
 
+// Object selection list is switched with player context for GlyphX. ST - 4/17/2019 9:42AM
+extern void Logic_Switch_Player_Context(ObjectClass *object);
+
 /***********************************************************************************************
  * ObjectClass::Unselect -- This will un-select the object if it was selected.                 *
  *                                                                                             *
@@ -1106,14 +1136,94 @@ void ObjectClass::Unselect(void)
 	assert(this != 0);
 	assert(IsActive);
 
-	if (IsSelected) {
-		CurrentObject.Delete(this);
+	//if (IsSelected) { 
+	// Updated to function for multiplayer - 6/26/2019 JAS
+	if (Is_Selected_By_Player()) {
+		
 		if (In_Which_Layer() == LAYER_GROUND) Mark(MARK_OVERLAP_UP);
+		
 		IsSelected = false;
+		
+		// Updated to function for multiplayer - 6/26/2019 JAS
+		Set_Unselected_By_Player();
+		
 		if (In_Which_Layer() == LAYER_GROUND) Mark(MARK_OVERLAP_DOWN);
 	}
 }
 
+
+/***********************************************************************************************
+ * ObjectClass::Unselect_All_Players --	This will un-select the object if it was selected    *
+ *											from all players															  *
+ *                                                                                             *
+ *    This routine brings a currently selected object into an unselected state for all players.*
+ *		This is needed when  the object is destroyed.														  *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   06/25/2019 JAS : Created.                                                                 *
+ *=============================================================================================*/
+void ObjectClass::Unselect_All_Players(void)
+{
+	CurrentObject.Delete_All(this);
+
+	if (In_Which_Layer() == LAYER_GROUND) {
+		Mark(MARK_OVERLAP_UP);
+	}
+
+	IsSelected = false;
+	IsSelectedMask = 0;
+
+	if (In_Which_Layer() == LAYER_GROUND) {
+		Mark(MARK_OVERLAP_DOWN);
+	}
+}
+
+/***********************************************************************************************
+ * ObjectClass::Unselect_All_Players_Except_Owner --	This will un-select the object if it was *
+ *											selected for all players except for the object's owner		  *
+ *                                                                                             *
+ *    This routine brings a currently selected object into an unselected state for all players.*
+ *		This is needed when the object cloaks.																	  *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   06/28/2019 JAS : Created.                                                                 *
+ *=============================================================================================*/
+void ObjectClass::Unselect_All_Players_Except_Owner(void)
+{
+	CurrentObject.Delete_All_Except(this, Owner());
+
+	if (In_Which_Layer() == LAYER_GROUND) {
+		Mark(MARK_OVERLAP_UP);
+	}
+
+	int owner_mask = 1 << Owner();
+	if (IsSelectedMask & owner_mask)
+	{
+		IsSelected = true;
+		IsSelectedMask = owner_mask;
+	}
+	else
+	{
+		IsSelected = false;
+		IsSelectedMask = 0;
+	}
+
+	if (In_Which_Layer() == LAYER_GROUND) {
+		Mark(MARK_OVERLAP_DOWN);
+	}
+}
 
 /***********************************************************************************************
  * ObjectClass::Select -- Try to make this object the "selected" object.                       *
@@ -1122,7 +1232,7 @@ void ObjectClass::Unselect(void)
  *    object usually displays a floating bar graph and is available to be given orders from    *
  *    the player's I/O.                                                                        *
  *                                                                                             *
- * INPUT:   none                                                                               *
+ * INPUT:   allow_mixed -- Allow a mix of player and non-player controlled units?              *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -1133,12 +1243,16 @@ void ObjectClass::Unselect(void)
  *   06/12/1995 JLB : Cannot select a loaner object.                                           *
  *   07/23/1995 JLB : Adds to head or tail depending on leader type flag.                      *
  *=============================================================================================*/
-bool ObjectClass::Select(void)
+bool ObjectClass::Select(bool allow_mixed)
 {
 	assert(this != 0);
 	assert(IsActive);
 
-	if (!Debug_Map && (IsSelected || !Class_Of().IsSelectable)) {
+	//if (!Debug_Map && (IsSelected || !Class_Of().IsSelectable)) {
+	//	return(false);
+	//}
+	// Updated to function for multiplayer - 6/26/2019 JAS
+	if (!Debug_Map && (Is_Selected_By_Player() || !Class_Of().IsSelectable)) {
 		return(false);
 	}
 
@@ -1160,27 +1274,30 @@ bool ObjectClass::Select(void)
 		return(false);
 	}
 
-	/*
-	**	If selecting an object of a different house than the player's, make sure that
-	**	the entire selection list is cleared.
-	*/
-	if (CurrentObject.Count() > 0) {
-		HouseClass * tryhptr = HouseClass::As_Pointer(Owner());
-		HouseClass * oldhptr = HouseClass::As_Pointer(CurrentObject[0]->Owner());
-//		if (Owner() != CurrentObject[0]->Owner() || CurrentObject[0]->Owner() != PlayerPtr->Class->House) {
-		if (oldhptr->IsPlayerControl != tryhptr->IsPlayerControl || !oldhptr->IsPlayerControl) {
-			Unselect_All();
+	if (!allow_mixed) {
+		/*
+		**	If selecting an object of a different house than the player's, make sure that
+		**	the entire selection list is cleared.
+		*/
+		for (int i = 0; i < CurrentObject.Count(); i++) {
+			HouseClass * tryhptr = HouseClass::As_Pointer(Owner());
+			HouseClass * oldhptr = HouseClass::As_Pointer(CurrentObject[i]->Owner());
+	//		if (Owner() != CurrentObject[0]->Owner() || CurrentObject[0]->Owner() != PlayerPtr->Class->House) {
+			if (oldhptr->IsPlayerControl != tryhptr->IsPlayerControl) {
+				Unselect_All();
+				break;
+			}
 		}
-	}
-	if (((TechnoTypeClass const &)Class_Of()).IsLeader) {
-		CurrentObject.Add_Head(this);
-	} else {
-		CurrentObject.Add(this);
 	}
 
 	if (In_Which_Layer() == LAYER_GROUND) Mark(MARK_OVERLAP_UP);
-	IsSelected = true;
+
+	//IsSelected = true;
+	// Updated to function for multiplayer - 6/26/2019 JAS
+	Set_Selected_By_Player();
+	
 	if (In_Which_Layer() == LAYER_GROUND) Mark(MARK_OVERLAP_DOWN);
+	
 	return(true);
 }
 
@@ -1212,7 +1329,7 @@ bool ObjectClass::Render(bool forced) const
 	CELL cell = Coord_Cell(coord);
 
 	if (Debug_Map || Debug_Unshroud || ((forced || IsToDisplay) && IsDown && !IsInLimbo)) {
-		IsToDisplay = false;
+		const_cast<ObjectClass*>(this)->IsToDisplay = false;		// added const_cast ST - 5/9/2019
 
 		if (Map.Coord_To_Pixel(coord, x, y)) {
 
@@ -1272,7 +1389,8 @@ void ObjectClass::Debug_Dump(MonoClass * mono) const
 	mono->Fill_Attrib(1, 14, 12, 1, IsToDamage ? MonoClass::INVERSE : MonoClass::NORMAL);
 	mono->Fill_Attrib(1, 15, 12, 1, IsToDisplay ? MonoClass::INVERSE : MonoClass::NORMAL);
 	mono->Fill_Attrib(1, 16, 12, 1, IsInLimbo ? MonoClass::INVERSE : MonoClass::NORMAL);
-	mono->Fill_Attrib(1, 17, 12, 1, IsSelected ? MonoClass::INVERSE : MonoClass::NORMAL);
+	// Updated to function for multiplayer - 6/26/2019 JAS
+	mono->Fill_Attrib(1, 17, 12, 1, Is_Selected_By_Player() ? MonoClass::INVERSE : MonoClass::NORMAL);
 	mono->Fill_Attrib(14, 13, 12, 1, IsAnimAttached ? MonoClass::INVERSE : MonoClass::NORMAL);
 	mono->Set_Cursor(23, 14);mono->Printf("%d", Riser);
 	mono->Fill_Attrib(14, 12, 14, 1, IsFalling ? MonoClass::INVERSE : MonoClass::NORMAL);
@@ -1344,7 +1462,10 @@ bool ObjectClass::Limbo(void)
 
 	if (GameActive && !IsInLimbo) {
 
-		Unselect();
+		//Unselect();
+		// Updated to function for multiplayer - 6/26/2019 JAS
+		Unselect_All_Players();
+
 		Detach_All();
 		Mark(MARK_UP);
 
@@ -1471,9 +1592,21 @@ void ObjectClass::Detach_All(bool all)
 	/*
 	**	Unselect this object if it was selected.
 	*/
-	if (all || Owner() != PlayerPtr->Class->House) {
-		Unselect();
+	//if (all || Owner() != PlayerPtr->Class->House) {
+	//	Unselect();
+	//}
+
+	//Added some error handling incase there was an issue removing the object - JAS 6/28/2019
+	if (all) {
+		//Unselect();
+		// Updated to function for multiplayer - 6/28/2019 JAS
+		Unselect_All_Players();
 	}
+	else
+	{
+		Unselect_All_Players_Except_Owner();
+	}
+	//End of change - JAS 6/28/2019
 
 	Map.Detach(this);
 
@@ -1556,7 +1689,7 @@ RadioMessageType ObjectClass::Receive_Message(RadioClass *, RadioMessageType mes
  *   12/27/1994 JLB : Trigger event processing for attacked or destroyed.                      *
  *   01/01/1995 JLB : Reduces damage greatly depending on range.                               *
  *=============================================================================================*/
-ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(this != 0);
 	assert(IsActive);
@@ -1599,7 +1732,7 @@ ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warh
 #else
 			if (What_Am_I() == RTTI_INFANTRY) {
 #endif
-				Clicked_As_Target(7);
+				Clicked_As_Target(PlayerPtr->Class->House, 7); // 2019/09/20 JAS - Added record of who clicked on the object
 				Strength -= damage;
 				if (Strength > maxstrength) {
 					Strength = maxstrength;
@@ -1669,7 +1802,9 @@ ResultType ObjectClass::Take_Damage(int & damage, int distance, WarheadType warh
 		**	If any damage was assessed and this object is selected, then flag
 		**	the object to be redrawn so that the health bar will be updated.
 		*/
-		if (result != RESULT_NONE && IsSelected) {
+		//if (result != RESULT_NONE && IsSelected) {
+		// Updated to function for multiplayer - 6/26/2019 JAS
+		if (result != RESULT_NONE && Is_Selected_By_Player()) {			
 			Mark(MARK_CHANGE);
 		}
 	}
@@ -1781,6 +1916,9 @@ bool ObjectClass::Mark(MarkType mark)
 			if (tech && Session.Type == GAME_NORMAL && In_Which_Layer() == LAYER_GROUND) {
 				Map[cell].Adjust_Threat(house, -threat);
 			}
+			if (Class_Of().IsFootprint) {
+				Map.Overlap_Up(Coord_Cell(Coord), this);
+			}
 			IsDown = false;
 			return(true);
 		}
@@ -1806,7 +1944,7 @@ bool ObjectClass::Mark(MarkType mark)
  *=============================================================================================*/
 void ObjectClass::Init(void)
 {
-	CurrentObject.Clear();
+	CurrentObject.Clear_All();
 }
 
 
@@ -1832,6 +1970,101 @@ bool ObjectClass::Revealed(HouseClass * house)
 
 	return(house != NULL);
 }
+
+
+
+
+/***********************************************************************************************
+ * ObjectClass::Set_Selected_By_Player -- Set this object as selected by the given player or   *
+ *														the default player.											  *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   6/25/2019 - JAS																									  *
+ *=============================================================================================*/
+void ObjectClass::Set_Selected_By_Player(HouseClass *player)
+{
+	if (!player || !player->Class) {
+		player = PlayerPtr;
+	}
+
+	HousesType house = player->Class->House;
+	if (((TechnoTypeClass const &)Class_Of()).IsLeader) {
+		CurrentObject.Add_Head(house, this);
+	}
+	else {
+		CurrentObject.Add(house, this);
+	}
+
+	int shift = (int)house;
+	IsSelectedMask |= (1 << shift);
+
+	if (Session.Type == GAME_NORMAL && player == PlayerPtr) {
+		IsSelected = true;
+	}
+}
+
+/***********************************************************************************************
+ * ObjectClass::Set_Unselected_By_Player -- Set this object as unselected by the given player  *
+ *														orthe default player.										  *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   6/25/2019 - JAS																									  *
+ *=============================================================================================*/
+void ObjectClass::Set_Unselected_By_Player(HouseClass *player)
+{
+	if (!player || !player->Class) {
+		player = PlayerPtr;
+	}
+
+	HousesType house = player->Class->House;
+	CurrentObject.Delete(house, this);
+
+	int shift = (int)house;
+	IsSelectedMask &= ~(1 << shift);
+
+	if (Session.Type == GAME_NORMAL && player == PlayerPtr) {
+		IsSelected = false;
+	}
+}
+
+/***********************************************************************************************
+ * ObjectClass::Is_Selected_By_Player -- Has this object been selected by the given player	  *
+ *                                                                                             *
+ * INPUT:   Player pointer                                                                     *
+ *                                                                                             *
+ * OUTPUT:  True if selected by that player                                                    *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   6/25/2019	- JAS 																								  *
+ *=============================================================================================*/
+bool ObjectClass::Is_Selected_By_Player(HouseClass *player) const
+{
+	if (player && player->Class) {
+		int shift = (int)player->Class->House;
+		return (IsSelectedMask & (1 << shift)) ? true : false;
+	}
+	else {
+		int shift = (int)PlayerPtr->Class->House;
+		return (IsSelectedMask & (1 << shift)) ? true : false;
+	}
+	return false;
+}
+
+
 
 
 /***********************************************************************************************
@@ -1965,6 +2198,11 @@ ObjectTypeClass::ObjectTypeClass(
 	ImageData(0),
 	RadarIcon(0)
 {
+	/*
+	** Init the DimensionData rect. Not sure how this was ever working before without being allocated. It was just trashing
+	** memory later on when the pointer was being dereferenced and written to without being initialized. ST - 8/14/2019 3:15PM
+	*/
+	DimensionData = NULL;
 }
 
 
@@ -2051,7 +2289,7 @@ int ObjectTypeClass::Cost_Of(void) const
  * HISTORY:                                                                                    *
  *   07/19/1995 JLB : Created.                                                                 *
  *=============================================================================================*/
-int ObjectTypeClass::Time_To_Build(void) const
+int ObjectTypeClass::Time_To_Build(HousesType ) const
 {
 	return(0);
 }
@@ -2187,6 +2425,36 @@ void ObjectTypeClass::One_Time(void)
 BuildingClass * ObjectTypeClass::Who_Can_Build_Me(bool intheory, bool legal, HousesType house) const
 {
 	BuildingClass * anybuilding = NULL;
+
+	if (!intheory && What_Am_I() == RTTI_AIRCRAFTTYPE && ((AircraftTypeClass*)this)->IsFixedWing) {
+		int num_builders = 0, num_fixed_wings = 0;
+		for (int index = 0; index < Buildings.Count(); index++) {
+			BuildingClass * building = Buildings.Ptr(index);
+			assert(building != NULL);
+
+			if (	!building->IsInLimbo &&
+					building->House->Class->House == house &&
+					building->Class->ToBuild == RTTI &&
+					building->Mission != MISSION_DECONSTRUCTION && building->MissionQueue != MISSION_DECONSTRUCTION &&
+					((1L << building->ActLike) & Get_Ownable()) &&
+					(!legal || building->House->Can_Build(this, building->ActLike))) {
+				num_builders++;
+			}
+		}
+		for (int index = 0; index < Aircraft.Count(); index++) {
+			AircraftClass * aircraft = Aircraft.Ptr(index);
+			assert(aircraft != NULL);
+
+			if (	!aircraft->IsInLimbo &&
+					aircraft->House->Class->House == house &&
+					aircraft->Class->IsFixedWing) {
+				num_fixed_wings++;
+			}
+		}
+		if (num_fixed_wings >= num_builders) {
+			return NULL;
+		}
+	}
 
 	for (int index = 0; index < Buildings.Count(); index++) {
 		BuildingClass * building = Buildings.Ptr(index);

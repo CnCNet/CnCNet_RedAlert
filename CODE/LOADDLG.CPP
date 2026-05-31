@@ -591,7 +591,7 @@ void LoadOptionsClass::Clear_List(ListClass * list)
 	/*
 	** Clear the array of game numbers
 	*/
-	for (i = 0; i < Files.Count(); i++) {
+	for (int i = 0; i < Files.Count(); i++) {
 		delete Files[i];
 	}
 	Files.Clear();
@@ -616,6 +616,7 @@ void LoadOptionsClass::Clear_List(ListClass * list)
  *=============================================================================================*/
 void LoadOptionsClass::Fill_List(ListClass * list)
 {
+#if(0)		//PG
 	FileEntryClass * fdata;	// for adding entries to 'Files'
 	char descr[DESCRIP_MAX+32];
 	unsigned scenario;			// scenario #
@@ -727,6 +728,7 @@ void LoadOptionsClass::Fill_List(ListClass * list)
 	for (int i = 0; i < Files.Count(); i++) {
 		list->Add_Item(Files[i]->Descr);
 	}
+#endif
 }
 
 

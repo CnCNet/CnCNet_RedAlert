@@ -109,7 +109,7 @@ RadarClass::RadarClass(void) :
 	IsRadarActive(false),
 	IsRadarActivating(false),
 	IsRadarDeactivating(false),
-	IsRadarJammed(false),
+	IsRadarJammedByPlayerMask(0U),
 	SpecialRadarFrame(0),
 	RadarAnimFrame(0),
 	RadarX(0),
@@ -270,7 +270,7 @@ bool RadarClass::Radar_Activate(int control)
 		case 0:
 			if (Map.IsSidebarActive) {
 				if (IsRadarActive && !IsRadarDeactivating) {
-					Sound_Effect(VOC_RADAR_OFF);
+					// Sound_Effect(VOC_RADAR_OFF); // MBL 07.20.2020: These are never being sent to the client, so handled there; Disabling here for good measure.
 					IsRadarDeactivating = true;
 					IsRadarActive = false;
 					if (IsRadarActivating == true) {
@@ -287,7 +287,7 @@ bool RadarClass::Radar_Activate(int control)
 		case 1:
 			if (Map.IsSidebarActive) {
 				if (!IsRadarActivating && !IsRadarActive) {
-					Sound_Effect(VOC_RADAR_ON);
+					// Sound_Effect(VOC_RADAR_ON); // MBL 07.20.2020: These are never being sent to the client, so handled there; Disabling here for good measure.
 					IsRadarActivating = true;
 					if (IsRadarDeactivating == true) {
 						IsRadarDeactivating = false;
@@ -366,6 +366,8 @@ bool RadarClass::Radar_Activate(int control)
 void RadarClass::Draw_It(bool forced)
 {
 	DisplayClass::Draw_It(forced);
+
+#if (0)	                               // Legacy radar rendering not used. ST - 2/26/2020 3:53PM
 
 	static char * _hiresradarnames[]={
 		"natoradr.shp",	//HOUSE_SPAIN,
@@ -478,6 +480,11 @@ void RadarClass::Draw_It(bool forced)
 
 	if (Map.IsSidebarActive) {
 		if (IsRadarActive) {
+			
+			if (RunningAsDLL) {
+				BEnd(BENCH_RADAR);
+				return;
+			}
 
 			/*
 			**	If only a few of the radar pixels need to be redrawn, then find and redraw
@@ -492,7 +499,7 @@ void RadarClass::Draw_It(bool forced)
 					**	Render all pixels in the "to redraw" stack.
 					*/
 					if (LogicPage->Lock()) {
-						for (int index = 0; index < PixelPtr; index++) {
+						for (int index = 0; index < (int)PixelPtr; index++) {
 							CELL cell = PixelStack[index];
 					  		if (Cell_On_Radar(cell)) {
 								(*this)[cell].IsPlot = false;
@@ -542,7 +549,7 @@ void RadarClass::Draw_It(bool forced)
 				CC_Draw_Shape(RadarFrame, 1, RadX, RadY+(1 * RESFACTOR), WINDOW_MAIN, SHAPE_NORMAL);
 				if (BaseX || BaseY) {
 
-					if (!IsZoomed && BaseX && BaseY && RadarWidth< (RadIWidth-1) && RadarHeight < (RadIHeight-1)) {
+					if (!IsZoomed && BaseX && BaseY && (int)RadarWidth< (RadIWidth-1) && (int)RadarHeight < (RadIHeight-1)) {
 #ifdef WIN32
 						LogicPage->Draw_Rect(RadX + RadOffX + BaseX -1,
 													RadY + RadOffY + BaseY -1,
@@ -603,6 +610,11 @@ void RadarClass::Draw_It(bool forced)
 			FullRedraw = false;
 			IsToRedraw = false;
 
+			if (RunningAsDLL) {
+				BEnd(BENCH_RADAR);
+				return;
+			}
+
 			/*
 			**	Display the country name on the cover plate when in multi play only.
 			*/
@@ -618,6 +630,7 @@ void RadarClass::Draw_It(bool forced)
 
 	}
 	BEnd(BENCH_RADAR);
+#endif
 }
 
 
@@ -1184,7 +1197,7 @@ int RadarClass::Click_In_Radar(int &ptr_x, int &ptr_y, bool change) const
 
 	x -= (RadX + RadOffX);
 	y -= (RadY + RadOffY);
-	if ((unsigned)x < RadIWidth && (unsigned)y < RadIHeight) {
+	if (x < RadIWidth && y < RadIHeight) {
 		x -= BaseX;
 		y -= BaseY;
 
@@ -1254,9 +1267,9 @@ CELL RadarClass::Click_Cell_Calc(int x, int y) const
  * HISTORY:                                                                                    *
  *   12/22/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool RadarClass::Map_Cell(CELL cell, HouseClass * house)
+bool RadarClass::Map_Cell(CELL cell, HouseClass * house, bool check_radar_spied, bool and_for_allies)
 {
-	if (DisplayClass::Map_Cell(cell, house)) {
+	if (DisplayClass::Map_Cell(cell, house, check_radar_spied, and_for_allies)) {
 		Radar_Pixel(cell);
 		return(true);
 	}
@@ -1388,7 +1401,23 @@ bool RadarClass::Jam_Cell(CELL cell, HouseClass * house/*KO, bool shadeit*/)
 {
 	unsigned short jam = 1 << house->Class->House;
 	(*this)[cell].Jammed |= jam;
-	if (house != PlayerPtr) Shroud_Cell(cell/*KO, shadeit*/);
+	
+	/*
+	** Updated for client/server multiplayer. ST - 8/12/2019 11:00AM
+	*/
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+		if (house != PlayerPtr) Shroud_Cell(cell, PlayerPtr/*KO, shadeit*/);
+	
+	} else {
+		
+		for (int i = 0; i < Session.Players.Count(); i++) {
+			HouseClass *player_house = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+			if (player_house->IsHuman && player_house != house && !house->Is_Ally(player_house)) {
+				Shroud_Cell(cell, player_house);
+			}
+		}
+	}	
+
 	Radar_Pixel(cell);
 	return(true);
 }
@@ -1439,11 +1468,11 @@ bool RadarClass::UnJam_Cell(CELL cell, HouseClass * house)
  *   05/22/1991 JLB : Created.                                                                 *
  *   11/17/1995 PWG : Created.                                                                 *
  *=============================================================================================*/
-#pragma argsused
+//#pragma argsused
 void RadarClass::Radar_Cursor(int forced)
 {
-	static 					_last_pos = -1;
-	static 					_last_frame = -1;
+	static 					int _last_pos = -1;
+	static 					int _last_frame = -1;
 #ifdef WIN32
 	GraphicViewPortClass 	* oldpage;
 #else
@@ -1673,7 +1702,7 @@ void RadarClass::AI(KeyNumType & input, int x, int y)
 	** Check here to see if radar is being jammed, so we can update the
 	** animation with snow.
 	*/
-	if (!IsRadarActivating && !IsRadarDeactivating && IsRadarJammed) {
+	if (!IsRadarActivating && !IsRadarDeactivating) {
 		RadarAnimFrame++;
 		if (RadarAnimFrame < RADAR_ACTIVATED_FRAME) RadarAnimFrame = RADAR_ACTIVATED_FRAME;
 		if (RadarAnimFrame > (3 + RADAR_ACTIVATED_FRAME)) RadarAnimFrame = RADAR_ACTIVATED_FRAME;
@@ -1825,7 +1854,7 @@ int RadarClass::RTacticalClass::Action(unsigned flags, KeyNumType & key)
 				** we can't move there.
 				**/
 				if (action == ACTION_NONE) {
-					if (object && object->IsSelected) {
+					if (object && object->Is_Selected_By_Player()) {
 						object = NULL;
 					} else {
 						action = ACTION_NOMOVE;
@@ -2047,7 +2076,7 @@ void RadarClass::Set_Radar_Position(CELL cell)
 						max = radx;
 					}
 					for (int x = min; x < max; x++ ) {
-						for (int y = 0; y < RadarCellHeight; y++ ) {
+						for (int y = 0; y < (int)RadarCellHeight; y++ ) {
 							Radar_Pixel(XY_Cell(newx + x, newy + y));
 						}
 					}
@@ -2063,7 +2092,7 @@ void RadarClass::Set_Radar_Position(CELL cell)
 						max = rady;
 					}
 					for (int y = min; y < max; y++ ) {
-						for ( int x = 0; x < RadarCellWidth; x++ ) {
+						for ( int x = 0; x < (int)RadarCellWidth; x++ ) {
 							Radar_Pixel(XY_Cell(newx + x, newy + y));
 						}
 					}
@@ -2559,6 +2588,26 @@ bool RadarClass::Is_Radar_Active(void)
 
 
 /***********************************************************************************************
+ * RadarClass::Is_Radar_Activating -- Determines if the radar map is being activated.          *
+ *                                                                                             *
+ *    Determines if the radar map is being activated.                                          *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  bool; Is the radar map currently being activated?                                  *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   07/26/2019 SKY : Created.                                                                 *
+ *=============================================================================================*/
+bool RadarClass::Is_Radar_Activating(void)
+{
+	return IsRadarActivating;
+}
+
+
+/***********************************************************************************************
  * RadarClass::Is_Radar_Existing -- Queries to see if radar map is available.                  *
  *                                                                                             *
  *    This will determine if the radar map is available. If available, the radar will show     *
@@ -2593,12 +2642,42 @@ bool RadarClass::Is_Radar_Existing(void)
  * HISTORY:                                                                                    *
  *   08/12/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-bool RadarClass::Get_Jammed(void)
+bool RadarClass::Get_Jammed(HousesType house) const
 {
-	if(PlayerPtr->IsGPSActive) return(false);
-	return(IsRadarJammed);
+	for (int i = 0; i < Houses.Count(); ++i) {
+		HouseClass* player = Houses.Ptr(i);
+		if (player && player->Class->House == house) {
+			return Get_Jammed(player);
+		}
+	}
+	return false;
 }
 
+bool RadarClass::Get_Jammed(HouseClass *player) const
+{
+	assert(player);
+	if (player->IsGPSActive) return(false);
+	int shift = (int)player->Class->House;
+	return (IsRadarJammedByPlayerMask & (1 << shift)) ? true : false;
+}
+
+void RadarClass::Set_Jammed(HousesType house, bool jam)
+{
+	int shift = (int)house;
+	if (jam) {
+		IsRadarJammedByPlayerMask |= (1 << shift);
+	}
+	else {
+		IsRadarJammedByPlayerMask &= ~(1 << shift);
+	}
+}
+
+void RadarClass::Set_Jammed(HouseClass *player, bool jam)
+{
+	if (player && player->Class) {
+		Set_Jammed(player->Class->House, jam);
+	}
+}
 
 void RadarClass::Flag_Cell(CELL cell)
 {

@@ -53,7 +53,8 @@
 **	This is the holding buffer for the text overlap list. This buffer must be in the near
 **	data segment. It will be filled in by the Set_Text() function.
 */
-short const HelpClass::OverlapList[60] = {
+//short const HelpClass::OverlapList[60] = {  // Can't be const - it's expected to be written to. ST - 2/7/2019 5:16PM		
+short HelpClass::OverlapList[60] = {
 	REFRESH_EOL
 };
 

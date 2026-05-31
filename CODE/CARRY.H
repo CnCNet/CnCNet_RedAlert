@@ -46,7 +46,7 @@ class CarryoverClass : public LinkClass {
 
 		bool Create(void) const;
 
-	protected:
+	//protected:
 		/*
 		**	What type of object this is.
 		*/

@@ -43,7 +43,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 #include "function.h"
 #include <stdio.h>
-#include <mem.h>
+//#include <mem.h>
 #include "ipxgconn.h"
 
 
@@ -224,7 +224,7 @@ int IPXGlobalConnClass::Receive_Packet (void * buf, int buflen,
 			//..................................................................
 			resend = 0;
 			for (i = 0; i < 4; i++) {
-				if (i >= Queue->Receive_Total()) {
+				if ((unsigned int)i >= Queue->Receive_Total()) {
 					break;
 				}
 				if ((*address)==LastAddress[i] &&

@@ -214,7 +214,7 @@ static BuildingTypeClass const ClassAVMine(
 	"MINV",							// NAME:			Short name of the structure.
 	FACING_NONE,					// Foundation direction from center of building.
 	XYP_COORD(0,0),				// Exit point for produced units.
-	REMAP_NONE,						// Sidebar remap logic.
+	REMAP_NORMAL,					// Sidebar remap logic.
 	0x0000,							//	Vertical offset.
 	0x0000,							// Primary weapon offset along turret centerline.
 	0x0000,							// Primary weapon lateral offset along turret centerline.
@@ -244,7 +244,7 @@ static BuildingTypeClass const ClassAPMine(
 	"MINP",							// NAME:			Short name of the structure.
 	FACING_NONE,					// Foundation direction from center of building.
 	XYP_COORD(0,0),				// Exit point for produced units.
-	REMAP_NONE,						// Sidebar remap logic.
+	REMAP_NORMAL,					// Sidebar remap logic.
 	0x0000,							//	Vertical offset.
 	0x0000,							// Primary weapon offset along turret centerline.
 	0x0000,							// Primary weapon lateral offset along turret centerline.
@@ -3093,12 +3093,13 @@ void BuildingTypeClass::One_Time(void)
 		{STRUCT_FAKEWEAP,			BSTATE_IDLE,	0,	1,	0},
 		{STRUCT_IRON_CURTAIN,	BSTATE_ACTIVE,	0,	11,3},
 		{STRUCT_TESLA,				BSTATE_ACTIVE,	0,	10,2},
+		{STRUCT_AIRSTRIP,			BSTATE_IDLE,	0,	8,	3}
 	};
 
-	for (StructType sindex = STRUCT_FIRST; sindex < STRUCT_COUNT; sindex++) {
+	for (int sindex = STRUCT_FIRST; sindex < STRUCT_COUNT; sindex++) {
 		char	fullname[_MAX_FNAME+_MAX_EXT];
 		char	buffer[_MAX_FNAME];
-		BuildingTypeClass const & building = As_Reference(sindex);
+		BuildingTypeClass const & building = As_Reference((StructType)sindex);
 		/*
 		**	Fetch the sidebar cameo image for this building.
 		*/
@@ -3175,9 +3176,9 @@ void BuildingTypeClass::One_Time(void)
 StructType BuildingTypeClass::From_Name(char const * name)
 {
 	if (name != NULL) {
-		for (StructType classid = STRUCT_FIRST; classid < STRUCT_COUNT; classid++) {
-			if (stricmp(As_Reference(classid).IniName, name) == 0) {
-				return(classid);
+		for (int classid = STRUCT_FIRST; classid < STRUCT_COUNT; classid++) {
+			if (stricmp(As_Reference((StructType)classid).IniName, name) == 0) {
+				return((StructType)classid);
 			}
 		}
 	}
@@ -3352,8 +3353,8 @@ void BuildingTypeClass::Init(TheaterType theater)
 	if (theater != LastTheater) {
 		char fullname[_MAX_FNAME+_MAX_EXT];
 
-		for (StructType sindex = STRUCT_FIRST; sindex < STRUCT_COUNT; sindex++) {
-			BuildingTypeClass const * classptr = &As_Reference(sindex);
+		for (int sindex = STRUCT_FIRST; sindex < STRUCT_COUNT; sindex++) {
+			BuildingTypeClass const * classptr = &As_Reference((StructType)sindex);
 
 			if (classptr->IsTheater) {
 				_makepath(fullname, NULL, NULL, classptr->Graphic_Name(), Theaters[theater].Suffix);

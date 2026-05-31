@@ -120,7 +120,7 @@ void LayerClass::Sort(void)
  *=============================================================================================*/
 int LayerClass::Sorted_Add(ObjectClass const * const object)
 {
-	if (ActiveCount >= Length()) {
+	if ((unsigned)ActiveCount >= Length()) {
 		if ((IsAllocated || !VectorMax) && GrowthStep > 0) {
 			if (!Resize(Length() + GrowthStep)) {
 
@@ -143,7 +143,8 @@ int LayerClass::Sorted_Add(ObjectClass const * const object)
 	/*
 	**	There is room for the new object now. Add it to the right sorted position.
 	*/
-	for (int index = 0; index < ActiveCount; index++) {
+	int index;
+	for (index = 0; index < ActiveCount; index++) {
 		if ((*(*this)[index]) > (*object)) {
 			break;
 		}

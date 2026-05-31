@@ -362,9 +362,9 @@ char WWKeyboardClass::To_ASCII(unsigned short key)
  * HISTORY:                                                                                    *
  *   09/30/1996 JLB : Created.                                                                 *
  *=============================================================================================*/
-WWKeyboardClass::Down(unsigned short key)
+bool WWKeyboardClass::Down(unsigned short key)
 {
-	return(GetAsyncKeyState(key & 0xFF));
+	return(GetAsyncKeyState(key & 0xFF) == 0 ? false : true);
 }
 
 
@@ -590,6 +590,8 @@ void WWKeyboardClass::Clear(void)
  *=============================================================================================*/
 bool WWKeyboardClass::Message_Handler(HWND window, UINT message, UINT wParam, LONG lParam)
 {
+// ST - 5/13/2019
+#if (0)
 	bool processed = false;
 
 	/*
@@ -720,6 +722,7 @@ bool WWKeyboardClass::Message_Handler(HWND window, UINT message, UINT wParam, LO
 		DefWindowProc(window, message, wParam, lParam);
 		return(true);
 	}
+#endif
 	return(false);
 }
 

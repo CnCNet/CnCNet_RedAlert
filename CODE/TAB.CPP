@@ -96,6 +96,8 @@ void TabClass::Draw_It(bool complete)
 		return;
 	}
 
+// Disable tab drawing for menu, credits buttons etc. ST - 5/27/2019
+#if (0)
 	/*
 	**	Redraw the top bar imagery if flagged to do so or if the entire display needs
 	**	to be redrawn.
@@ -137,6 +139,7 @@ void TabClass::Draw_It(bool complete)
 		LogicPage->Unlock();
 	}
 	Credits.Graphic_Logic(complete || IsToRedraw);
+#endif
 	IsToRedraw = false;
 }
 
@@ -153,7 +156,7 @@ void TabClass::Draw_Credits_Tab(void)
 #endif
 
 	if (Scen.MissionTimer.Is_Active()) {
-		bool light = (Scen.MissionTimer < TICKS_PER_MINUTE * Rule.TimerWarning) || Map.FlasherTimer > 0;
+		bool light = ((int)Scen.MissionTimer < TICKS_PER_MINUTE * Rule.TimerWarning) || Map.FlasherTimer > 0;
 #ifdef WIN32
 		CC_Draw_Shape(TabShape, light ? 4 : 2, 320, 0, WINDOW_MAIN, SHAPE_NORMAL);
 #else

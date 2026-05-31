@@ -199,7 +199,7 @@ int cdecl Extract_Shape_Count(VOID const *buffer)
 VOID * cdecl Extract_Shape(VOID const *buffer, int shape)
 {
 	ShapeBlock_Type *block = (ShapeBlock_Type*) buffer;
-	int numshapes;		// Number of shapes
+//PG	int numshapes;		// Number of shapes
 	long offset;			// Offset of shape data, from start of block
 	char *bytebuf = (char*) buffer;
 

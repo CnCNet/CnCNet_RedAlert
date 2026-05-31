@@ -82,6 +82,15 @@ void FlasherClass::Debug_Dump(MonoClass * mono) const
  *=============================================================================================*/
 bool FlasherClass::Process(void)
 {
+	// 2019/09/20 JAS - Flashing info needs to exist per player
+	for (int i = 0; i < HOUSE_COUNT; i++)
+	{
+		if (FlashCountPerPlayer[i])
+		{
+			FlashCountPerPlayer[i]--;
+		}
+	}
+
 	if (FlashCount) {
 		FlashCount--;
 		IsBlushing = false;
@@ -95,3 +104,30 @@ bool FlasherClass::Process(void)
 }
 
 
+/***********************************************************************************************
+ * FlasherClass::Get_Flashing_Flags --																			  *
+ *                                                                                             *
+ *    Gets the flags tell which players this object should flash for.                          *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  unsigned int; Flag representing the players to flash for                           *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   2019/09/20 JAS : Created.                                                                 *
+ *=============================================================================================*/
+unsigned int FlasherClass::Get_Flashing_Flags() const
+{
+	unsigned flags = 0;
+	for (int i = 0; i < HOUSE_COUNT; ++i)
+	{
+		if (FlashCountPerPlayer[i] > 0)
+		{
+			flags |= (1 << i);
+		}
+	}
+
+	return flags;
+}

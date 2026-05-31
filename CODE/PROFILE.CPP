@@ -331,7 +331,7 @@ char * WWGetPrivateProfileString(char const * section, char const * entry, char 
 			/*
 			**	'next = end of section or end of file.
 			*/
-			next = strchr(workptr, '[');
+			next = (char*)strchr(workptr, '[');
 			for (;;) {
 				if (next) {
 
@@ -405,7 +405,7 @@ char * WWGetPrivateProfileString(char const * section, char const * entry, char 
 						** scanning forward!
 						*/
 						if (workptr) {
-							altworkptr = strchr(workptr, '\r');	// find next newline
+							altworkptr = (char*)strchr(workptr, '\r');	// find next newline
 						}
 
 						/*
@@ -468,7 +468,7 @@ char * WWGetPrivateProfileString(char const * section, char const * entry, char 
 					**	Keep accumulating the identifier strings in the retbuffer.
 					*/
 					while (workptr && workptr < next) {
-						altworkptr = strchr(workptr, '=');		// find '='
+						altworkptr = (char*)strchr(workptr, '=');		// find '='
 
 						if (altworkptr && altworkptr < next) {
 							int	length;								// Length of ID string.

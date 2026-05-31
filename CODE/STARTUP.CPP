@@ -54,6 +54,8 @@
 //#include "WolDebug.h"
 #endif
 
+extern char RedAlertINI[_MAX_PATH];
+
 bool Read_Private_Config_Struct(FileClass & file, NewConfigType * config);
 void Print_Error_End_Exit(char * string);
 void Print_Error_Exit(char * string);
@@ -85,6 +87,67 @@ const char* Game_Registry_Key();
 #define WINDOW_NAME		"Alarmstufe Rot"
 #endif
 
+// Added. ST - 5/14/2019
+bool ProgEndCalled = false;
+
+extern "C"{
+	extern char		*BigShapeBufferStart;
+	extern char		*TheaterShapeBufferStart;
+	extern BOOL		UseBigShapeBuffer;
+	extern bool		IsTheaterShape;
+}
+
+extern void Free_Heaps(void);
+extern void DLL_Shutdown(void);
+
+BOOL WINAPI DllMain(HINSTANCE instance, unsigned int fdwReason, void *lpvReserved)
+{
+	lpvReserved;
+
+	switch (fdwReason) {
+
+	case DLL_PROCESS_ATTACH:
+		ProgramInstance = instance;
+		break;
+
+	case DLL_PROCESS_DETACH:
+		if (WindowsTimer) {
+			delete WindowsTimer;
+			WindowsTimer = NULL;
+		}
+		
+		/*
+		** Red Alert doesn't clean up memory. Do some of that here.
+		*/
+		MFCD::Free_All();
+
+		if (BigShapeBufferStart) {
+			Free(BigShapeBufferStart);
+			BigShapeBufferStart = NULL;
+		}
+
+		if (TheaterShapeBufferStart) {
+			Free(TheaterShapeBufferStart);
+			TheaterShapeBufferStart = NULL;
+		}
+
+		if (_ShapeBuffer) {
+			delete [] _ShapeBuffer;
+			_ShapeBuffer = NULL;
+		}
+
+		DLL_Shutdown();
+		Free_Heaps();
+		break;
+
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+		break;
+	}
+	  
+	return true;
+}
+
 
 
 /***********************************************************************************************
@@ -106,7 +169,9 @@ const char* Game_Registry_Key();
  *=============================================================================================*/
 #ifdef WIN32
 //int PASCAL WinMain(HINSTANCE, HINSTANCE, char *, int )
-int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int command_show )
+//PG int PASCAL WinMain ( HINSTANCE instance , HINSTANCE , char * command_line , int command_show )
+int DLL_Startup(const char * command_line_in)
+
 #else	//WIN32
 int main(int argc, char * argv[])
 #endif	//WIN32
@@ -114,8 +179,16 @@ int main(int argc, char * argv[])
 {
 #ifdef WIN32
 
+	RunningAsDLL = true;
+	int command_show = SW_HIDE;
+	HINSTANCE instance = ProgramInstance;
+	char command_line[1024];
+	strcpy(command_line, command_line_in);
+
+
+
 	#ifndef MPEGMOVIE // Denzil 6/10/98
-	DDSCAPS	surface_capabilities;
+	//PG DDSCAPS	surface_capabilities;
 	#endif
 
 	/*
@@ -123,7 +196,7 @@ int main(int argc, char * argv[])
 	**  and if so, switch to the existing instance and terminate ourselves.
 	*/
 	SpawnedFromWChat = false;
-
+#if (0)//PG
 	if (RA95AlreadyRunning) {	//Set in the DDEServer constructor
 		//MessageBox (NULL, "Error - attempt to restart Red Alert 95 when already running.", "Red Alert", MB_ICONEXCLAMATION|MB_OK);
 
@@ -136,7 +209,7 @@ int main(int argc, char * argv[])
 
 		return (EXIT_SUCCESS);
 	}
-
+#endif
 
 #endif
 //printf("in program.\n");getch();
@@ -231,9 +304,13 @@ int main(int argc, char * argv[])
 			/*
 			** Scan for space character on command line
 			*/
+			bool in_quotes = false;
 			do {
 				command_char = *( command_line+command_scan++ );
-			} while ( command_char!=' ' && command_char != 0 && command_char!=13 );
+				if (command_char == '"') {
+					in_quotes = !in_quotes;
+				}
+			} while ( (in_quotes || command_char!=' ') && command_char != 0 && command_char!=13 );
 		*( command_line+command_scan-1 ) = 0;
 		}
 
@@ -244,8 +321,9 @@ int main(int argc, char * argv[])
 	/*
 	**	Remember the current working directory and drive.
 	*/
+#if (0)//PG
 	unsigned olddrive;
-	char oldpath[PATH_MAX];
+	char oldpath[MAX_PATH];
 	getcwd(oldpath, sizeof(oldpath));
 	_dos_getdrive(&olddrive);
 
@@ -268,6 +346,7 @@ int main(int argc, char * argv[])
 		path[strlen(path)-1] = '\0';
 	}
 	chdir(path);
+#endif
 
 #ifdef WOLAPI_INTEGRATION
 	//	Look for special wolapi install program, used after the patch to version 3, to install "Shared Internet Components".
@@ -348,18 +427,36 @@ int main(int argc, char * argv[])
 #endif	// MPATH
 
 #ifdef WIN32
-		WindowsTimer = new WinTimerClass(60, FALSE);
 
+		WindowsTimer = new WinTimerClass(60, FALSE);
+#if (0)//PG
 		int time_test = WindowsTimer->Get_System_Tick_Count();
 		Sleep (1000);
 		if (WindowsTimer->Get_System_Tick_Count() == time_test){
 			MessageBox(0, TEXT_ERROR_TIMER, TEXT_SHORT_TITLE, MB_OK|MB_ICONSTOP);
 			return(EXIT_FAILURE);
 		}
+#endif
 #else	//WIN32
 		Init_Timer_System(60, true);
 #endif	//WIN32
-		RawFileClass cfile(CONFIG_FILE_NAME);
+
+		////////////////////////////////////////
+		// The editor needs to load the Red Alert ini file from a different location than the real game. - 7/18/2019 JAS 
+		char* red_alert_file_path = nullptr;
+		if (RunningFromEditor)
+		{
+			red_alert_file_path = RedAlertINI;
+		}
+		else
+		{
+			red_alert_file_path = CONFIG_FILE_NAME;
+		}
+
+		RawFileClass cfile(red_alert_file_path);
+		//RawFileClass cfile(CONFIG_FILE_NAME);
+		// end of change - 7/18/2019 JAS
+		////////////////////////////////////////
 
 #ifndef WIN32
 		Install_Keyboard_Interrupt(Get_RM_Keyboard_Address(), Get_RM_Keyboard_Size());
@@ -387,14 +484,16 @@ int main(int argc, char * argv[])
 		if (Disk_Space_Available() < INIT_FREE_DISK_SPACE) {
 
 #ifdef WIN32
+#if (0)//PG
 			char	disk_space_message [512];
-			sprintf (disk_space_message, TEXT_CRITICALLY_LOW, (INIT_FREE_DISK_SPACE) / (1024 * 1024));
+			sprintf(disk_space_message, TEXT_CRITICALLY_LOW);	//PG , (INIT_FREE_DISK_SPACE) / (1024 * 1024));
 			int reply = MessageBox(NULL, disk_space_message, TEXT_SHORT_TITLE, MB_ICONQUESTION|MB_YESNO);
 			if (reply == IDNO) {
 				if ( WindowsTimer )
 					delete WindowsTimer;
 				return (EXIT_FAILURE);
 			}
+#endif
 #else
 			printf(TEXT_INSUFFICIENT);
 			printf(TEXT_MUST_HAVE, INIT_FREE_DISK_SPACE / (1024 * 1024));
@@ -475,6 +574,13 @@ int main(int argc, char * argv[])
 				VisiblePage.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)0);
 				ModeXBuff.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)(GBC_VISIBLE | GBC_VIDEOMEM));
 			} else {
+
+#if (1)	//ST - 1/3/2019 2:11PM
+
+				VisiblePage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)0);
+				HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)0);
+
+#else
 				VisiblePage.Init( ScreenWidth , ScreenHeight , NULL , 0 , (GBC_Enum)(GBC_VISIBLE | GBC_VIDEOMEM));
 
 				/*
@@ -502,7 +608,7 @@ int main(int argc, char * argv[])
 				*/
 				unsigned video_memory = Get_Free_Video_Memory();
 				unsigned video_capabilities = Get_Video_Hardware_Capabilities();
-				if (video_memory < ScreenWidth*ScreenHeight ||
+				if (video_memory < (unsigned int)(ScreenWidth*ScreenHeight) ||
 						(! (video_capabilities & VIDEO_BLITTER)) ||
 						(video_capabilities & VIDEO_NO_HARDWARE_ASSIST) ||
 						!VideoBackBufferAllowed) {
@@ -520,7 +626,7 @@ int main(int argc, char * argv[])
 					if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY) {
 
 						/*
-						** Oh dear, big trub. This must be an IBM crAptiva or something similarly cruddy.
+						** Oh dear, big trub. This must be an IBM Aptiva or something similarly cruddy.
 						** We must redo the Hidden Page as system memory.
 						*/
 						AllSurfaces.Remove_DD_Surface(HiddenPage.Get_DD_Surface());  // Remove the old surface from the AllSurfaces list
@@ -530,16 +636,17 @@ int main(int argc, char * argv[])
 						VisiblePage.Attach_DD_Surface(&HiddenPage);
 					}
 				}
+#endif
 			}
 
-			ScreenHeight = 400;
+			ScreenHeight = 3072;
 
 			if (VisiblePage.Get_Height() == 480) {
-				SeenBuff.Attach(&VisiblePage, 0, 40, 640, 400);
-				HidPage.Attach(&HiddenPage, 0, 40, 640, 400);
+				SeenBuff.Attach(&VisiblePage, 0, 40, 3072, 3072);
+				HidPage.Attach(&HiddenPage, 0, 40, 3072, 3072);
 			} else {
-				SeenBuff.Attach(&VisiblePage, 0, 0, 640, 400);
-				HidPage.Attach(&HiddenPage, 0, 0, 640, 400);
+				SeenBuff.Attach(&VisiblePage, 0, 0, 3072, 3072);
+				HidPage.Attach(&HiddenPage, 0, 0, 3072, 3072);
 			}
 			#endif // MPEGMOVIE - Denzil 6/10/98
 			
@@ -555,10 +662,15 @@ int main(int argc, char * argv[])
 			WindowList[WINDOW_EDITOR][WINDOWWIDTH] = SeenBuff.Get_Width();
 			WindowList[WINDOW_EDITOR][WINDOWHEIGHT]= SeenBuff.Get_Height();
 
-			WWMouse = new WWMouseClass(&SeenBuff, 48, 48);
-			MouseInstalled = TRUE;
+			////////////////////////////////////////
+			// The editor needs to not start the mouse up. - 7/22/2019 JAS 
+			if (!RunningFromEditor)
+			{
+				WWMouse = new WWMouseClass(&SeenBuff, 48, 48);
+				MouseInstalled = TRUE;
+			}
 
-			CDFileClass::Set_CD_Drive (CDList.Get_First_CD_Drive());
+			//PG CDFileClass::Set_CD_Drive (CDList.Get_First_CD_Drive());
 
 #else	//WIN32
 
@@ -628,6 +740,10 @@ int main(int argc, char * argv[])
 
 			Main_Game(argc, argv);
 
+			if (RunningAsDLL) {	//PG
+				return (EXIT_SUCCESS);
+			}
+
 			#ifdef MPEGMOVIE // Denzil 6/15/98
 			if (MpgSettings != NULL)
 				delete MpgSettings;
@@ -673,8 +789,11 @@ int main(int argc, char * argv[])
 			Sound_End();
 #endif	//WIN32
 		} else {
-			puts(TEXT_SETUP_FIRST);
-			Keyboard->Get();
+			if (!RunningFromEditor)
+			{
+				puts(TEXT_SETUP_FIRST);
+				Keyboard->Get();
+			}
 		}
 
 #ifdef WIN32
@@ -702,6 +821,14 @@ int main(int argc, char * argv[])
 /* Initialize DirectDraw and surfaces */
 bool InitDDraw(void)
 	{
+
+	VisiblePage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)(GBC_VISIBLE | GBC_VIDEOMEM));
+	HiddenPage.Init(ScreenWidth, ScreenHeight, NULL, 0, (GBC_Enum)GBC_VIDEOMEM);
+	VisiblePage.Attach_DD_Surface(&HiddenPage);
+	SeenBuff.Attach(&VisiblePage, 0, 0, 3072, 3072);
+	HidPage.Attach(&HiddenPage, 0, 0, 3072, 3072);
+
+#if (0)//PG
 	DDSCAPS	surface_capabilities;
 	BOOL video_success = FALSE;
 
@@ -793,7 +920,7 @@ bool InitDDraw(void)
 			
 			if (surface_capabilities.dwCaps & DDSCAPS_SYSTEMMEMORY)
 				{
-				/* Oh dear, big trub. This must be an IBM crAptiva or something similarly cruddy.
+				/* Oh dear, big trub. This must be an IBM Aptiva or something similarly cruddy.
 				 * We must redo the Hidden Page as system memory.
 				 */
 				AllSurfaces.Remove_DD_Surface(HiddenPage.Get_DD_Surface());  // Remove the old surface from the AllSurfaces list
@@ -811,15 +938,15 @@ bool InitDDraw(void)
 
 	if (VisiblePage.Get_Height() == 480)
 		{
-		SeenBuff.Attach(&VisiblePage, 0, 40, 640, 400);
-		HidPage.Attach(&HiddenPage, 0, 40, 640, 400);
+		SeenBuff.Attach(&VisiblePage, 0, 40, 3072, 3072);
+		HidPage.Attach(&HiddenPage, 0, 40, 3072, 3072);
 		}
 	else
 		{
-		SeenBuff.Attach(&VisiblePage, 0, 0, 640, 400);
-		HidPage.Attach(&HiddenPage, 0, 0, 640, 400);
+		SeenBuff.Attach(&VisiblePage, 0, 0, 3072, 3072);
+		HidPage.Attach(&HiddenPage, 0, 0, 3072, 3072);
 		}
-
+#endif
 	return true;
 	}
 
@@ -830,7 +957,8 @@ bool InitDDraw(void)
  *    This routine should be called before the game terminates. It handles cleaning up         *
  *    library systems so that a graceful return to the host operating system is achieved.      *
  *                                                                                             *
- * INPUT:   none                                                                               *
+ * INPUT:   why - text description of exit reason                                              *
+ *          fatal - indicates a fatal error                                                    *
  *                                                                                             *
  * OUTPUT:  none                                                                               *
  *                                                                                             *
@@ -838,10 +966,24 @@ bool InitDDraw(void)
  *                                                                                             *
  * HISTORY:                                                                                    *
  *   03/20/1995 JLB : Created.                                                                 *
+ *   08/07/2019  ST : Added why and fatal params                                               *
  *=============================================================================================*/
 #ifdef WIN32
-void __cdecl Prog_End(void)
+void __cdecl Prog_End(const char *why, bool fatal)
 {
+	GlyphX_Debug_Print("Prog_End()");
+	
+	if (why) {
+		GlyphX_Debug_Print(why);
+	}
+	if (fatal) {
+		*((int*)0) = 0;
+	}
+
+	if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+		return;
+	}
+
 	Sound_End();
 	if (WWMouse) {
 		delete WWMouse;
@@ -851,6 +993,8 @@ void __cdecl Prog_End(void)
 		 delete WindowsTimer;
 		 WindowsTimer = NULL;
 	}
+
+	ProgEndCalled = true;
 }
 #else	//WIN32
 
@@ -871,16 +1015,22 @@ void Prog_End(void)
 
 void Print_Error_End_Exit(char * string)
 {
-	Prog_End();
+	Prog_End(string, true);
 	printf( "%s\n", string );
-	exit(1);
+	if (!RunningAsDLL) {
+		exit(1);
+	}
 }
 
 
 void Print_Error_Exit(char * string)
 {
+	GlyphX_Debug_Print(string);
+	
 	printf( "%s\n", string );
-	exit(1);
+	if (!RunningAsDLL) {
+		exit(1);
+	}
 }
 
 
@@ -905,6 +1055,9 @@ void Print_Error_Exit(char * string)
  *=============================================================================================*/
 void Emergency_Exit ( int code )
 {
+	if (RunningAsDLL) {	//PG
+		return;
+	}
 
 #ifdef WIN32
 
@@ -987,7 +1140,7 @@ void Read_Setup_Options( RawFileClass *config_file )
 		*/
 		VideoBackBufferAllowed = ini.Get_Bool("Options", "VideoBackBuffer", true);
 		AllowHardwareBlitFills = ini.Get_Bool("Options", "HardwareFills", true);
-		ScreenHeight = ini.Get_Bool("Options", "Resolution", false) ? 480 : 400;
+		ScreenHeight = ini.Get_Bool("Options", "Resolution", false) ? 3072 : 3072;
 
 		/*
 		** See if an alternative socket number has been specified
@@ -1044,8 +1197,8 @@ void Read_Setup_Options( RawFileClass *config_file )
 
 void Get_OS_Version (void)
 {
-
-	WindowsNT = ((GetVersion() & 0x80000000) == 0) ? true : false;
+	//PG
+	//WindowsNT = ((GetVersion() & 0x80000000) == 0) ? true : false;
 
 #if (0)
 	OSVERSIONINFO	osversion;
@@ -1054,9 +1207,9 @@ void Get_OS_Version (void)
 		OutputDebugString ("RA95 - Got OS version\n");
 	}else{
 		OutputDebugString ("RA95 - Failed to get OS version\n");
-		char fuck [128];
-		sprintf (fuck,"RA95 - Error code is %d\n", GetLastError());
-		OutputDebugString (fuck);
+		char debugstr [128];
+		sprintf (debugstr, "RA95 - Error code is %d\n", GetLastError());
+		OutputDebugString (debugstr);
 
 	}
 #endif	//(0)
@@ -1065,5 +1218,3 @@ void Get_OS_Version (void)
 
 
 #endif	//WIN32
-
-

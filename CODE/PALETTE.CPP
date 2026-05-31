@@ -77,6 +77,7 @@ class TPoint2D
 #include	"function.h"
 #include	"watcom.h"
 #include	"palette.h"
+#include	"palettec.h"
 #include	"ftimer.h"
 //#define TIMER_H
 #include	"wwlib32.h"

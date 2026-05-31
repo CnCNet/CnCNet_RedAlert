@@ -43,19 +43,28 @@
 /*
 --------------------------- Shape creation flags ----------------------------
 */
-typedef enum {
+typedef enum : unsigned short {
 	MAKESHAPE_NORMAL	 = 0x0000,	// 256-color compressed shape
 	MAKESHAPE_COMPACT  = 0x0001,	// 16-color shape (with built-in color table)
 	MAKESHAPE_NOCOMP	 = 0x0002,	// Uncompressed shape
 	MAKESHAPE_VARIABLE =	0x0004	// <16-color shape
 } MakeShapeFlags_Type;
 
+inline MakeShapeFlags_Type operator|(MakeShapeFlags_Type a, MakeShapeFlags_Type b)
+{return static_cast<MakeShapeFlags_Type>(static_cast<int>(a) | static_cast<int>(b));}
+
+inline MakeShapeFlags_Type operator&(MakeShapeFlags_Type a, MakeShapeFlags_Type b)
+{return static_cast<MakeShapeFlags_Type>(static_cast<int>(a) & static_cast<int>(b));}
+
+inline MakeShapeFlags_Type operator~(MakeShapeFlags_Type a)
+{return static_cast<MakeShapeFlags_Type>(~static_cast<int>(a));}
+
 /*---------------------------------------------------------------------------
 Shape drawing flags:
 - The low byte is for coordinate transformations.
 - The high byte is for drawing effects.
 ---------------------------------------------------------------------------*/
-typedef enum {
+typedef enum : unsigned short {
 	SHAPE_NORMAL 			= 0x0000,		// Standard shape
 	SHAPE_HORZ_REV 		= 0x0001,		// Flipped horizontally
 	SHAPE_VERT_REV 		= 0x0002,		// Flipped vertically
@@ -63,6 +72,7 @@ typedef enum {
 	SHAPE_VIEWPORT_REL 	= 0x0010,		// Coords are window-relative
 	SHAPE_WIN_REL 			= 0x0010,		// Coordinates are window relative instead of absolute.
 	SHAPE_CENTER 			= 0x0020,		// Coords are based on shape's center pt
+	SHAPE_BOTTOM			= 0x0040,		// Y coord is based on shape's bottom pt
 	SHAPE_FADING 			= 0x0100,		// Fading effect (void * fading_table,
 													//  WORD fading_num)
 	SHAPE_PREDATOR 		= 0x0200,		// Transparent warping effect
@@ -74,6 +84,15 @@ typedef enum {
 	SHAPE_COLOR 			= 0x8000			// Remap the shape's colors
 													//  (void * color_table)
 } ShapeFlags_Type;
+
+inline ShapeFlags_Type operator|(ShapeFlags_Type a, ShapeFlags_Type b)
+{return static_cast<ShapeFlags_Type>(static_cast<int>(a) | static_cast<int>(b));}
+
+inline ShapeFlags_Type operator&(ShapeFlags_Type a, ShapeFlags_Type b)
+{return static_cast<ShapeFlags_Type>(static_cast<int>(a) & static_cast<int>(b));}
+
+inline ShapeFlags_Type operator~(ShapeFlags_Type a)
+{return static_cast<ShapeFlags_Type>(~static_cast<int>(a));}
 
 /*
 ------------------------------- Shape header --------------------------------
@@ -92,6 +111,7 @@ typedef struct {
 /*
 ------------------------------- Shape block ---------------------------------
 */
+#pragma warning (disable : 4200)
 typedef struct {
 	unsigned short		NumShapes;			// number of shapes in the block
 	long		Offsets[];			// array of offsets to shape data

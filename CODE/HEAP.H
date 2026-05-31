@@ -189,7 +189,7 @@ class TFixedIHeapClass : public FixedIHeapClass
 		virtual void Decode_Pointers(void);
 
 		virtual T * Ptr(int index) const {return (T*)FixedIHeapClass::ActivePointers[index];};
-		virtual T * Raw_Ptr(int index) {return (T*)((*this)[index]);};
+		virtual T * Raw_Ptr(int index) {return (index >= 0 && index < Length()) ? (T*)((*this)[index]) : NULL;};
 };
 
 

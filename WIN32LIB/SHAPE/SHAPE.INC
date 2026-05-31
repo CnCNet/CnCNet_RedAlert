@@ -67,6 +67,7 @@ SHAPE_VERT_REV			EQU	0002h	; reverse vertically
 SHAPE_SCALING			EQU	0004h	; scale
 SHAPE_VIEWPORT_REL	EQU	0010h	; viewport-relative coordinates
 SHAPE_CENTER			EQU	0020h	; use centered coordinates
+SHAPE_BOTTOM			EQU 0040h	; Y coord is based on shape bottom pt
 SHAPE_FADING			EQU	0100h	; fading effect shape
 SHAPE_PREDATOR			EQU	0200h	; predator effect shape
 SHAPE_COMPACT			EQU	0400h	; shape is in 16 colors

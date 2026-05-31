@@ -71,8 +71,8 @@ ECB_CompletionCode	DB ?		; 0 = OK, IPX error otherwise
 ECB_SocketNumber	DW ?		; socket to listen/send on
 ECB_ConnectionID	DW ?
 ECB_RestOfWorkspace	DW ?
-ECB_DriverWorkSpace	DB 12 DUP (0)
-ECB_ImmediateAddress	DB 6 DUP (0)	; bridge address
+ECB_DriverWorkSpace	DB 12 DUP (?)
+ECB_ImmediateAddress	DB 6 DUP (?)	; bridge address
 ECB_PacketCount		DW ?		; # data areas (2)
 ECB_HeaderAddress	DD ?		; ptr to IPX header buffer
 ECB_HeaderLength	DW ?		; length of IPX header buffer

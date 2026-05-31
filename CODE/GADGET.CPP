@@ -212,7 +212,7 @@ int GadgetClass::Clicked_On(KeyNumType & key, unsigned flags, int mousex, int mo
 	*/
 	if (this == StuckOn ||
 		(flags & KEYBOARD) ||
-		(flags && (unsigned)(mousex - X) < Width  && (unsigned)(mousey - Y) < Height)) {
+		(flags && (mousex - X) < Width  && (mousey - Y) < Height)) {
 
 		return(Action(flags, key));
 	}

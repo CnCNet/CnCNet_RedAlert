@@ -100,6 +100,7 @@ class VesselClass : public DriveClass
 		virtual int Mission_Unload(void);
 		void LST_Open_Door(void);
 		void LST_Close_Door(void);
+		virtual FireDataType Fire_Data(int) const;
 		virtual COORDINATE Fire_Coord(int which) const;
 		virtual MoveType Can_Enter_Cell(CELL cell, FacingType from=FACING_NONE) const;
 		virtual void Draw_It(int x, int y, WindowNumberType window) const;
@@ -109,8 +110,9 @@ class VesselClass : public DriveClass
 		virtual void AI(void);
 		virtual void Per_Cell_Process(PCPType why);
 		virtual void Assign_Destination(TARGET target);
+		virtual int Pip_Count(void) const;
 
-		virtual ResultType Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source=0, int forced=false);
+		virtual ResultType Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source=0, bool forced=false);
 		virtual FireErrorType Can_Fire(TARGET target, int which) const;
 
 		virtual void Enter_Idle_Mode(bool initial=false);
@@ -145,6 +147,12 @@ class VesselClass : public DriveClass
 		**	rotated independently of the body it is attached to.
 		*/
 		FacingClass SecondaryFacing;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[32];
+
 };
 
 #endif

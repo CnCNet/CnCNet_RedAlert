@@ -299,6 +299,7 @@ void MessageListClass::Reset(void)
 	IsEdit = 0;
 }
 
+extern void On_Message(const char* message, float timeout_seconds, long long message_id);
 
 /***************************************************************************
  * MessageListClass::Add_Message -- displays the given message             *
@@ -324,23 +325,27 @@ void MessageListClass::Reset(void)
 TextLabelClass * MessageListClass::Add_Message(char const * name, int id, char const * txt,
 	PlayerColorType color, TextPrintType style, int timeout)
 {
-	TextLabelClass * txtlabel;
-	int i;
-	int found;
+	TextLabelClass * txtlabel = NULL;
 	char message[MAX_MESSAGE_LENGTH + 30];
-	char temp[MAX_MESSAGE_LENGTH + 30];
-	int print_this_pass;
-	char save = 0;
-	int mess_start;
 
 	//------------------------------------------------------------------------
 	// Combine the name & message text, if there's a name given
 	//------------------------------------------------------------------------
 	if (name) {
 		sprintf(message, "%s:%s", name, txt);
+		id = -1;
 	} else {
 		strcpy(message, txt);
 	}
+
+#if (0)
+
+	int i;
+	int found;
+	char temp[MAX_MESSAGE_LENGTH + 30];
+	int print_this_pass;
+	char save = 0;
+	int mess_start;
 
 	//------------------------------------------------------------------------
 	//	Check that printing this wont overrun the width of the print area on screen
@@ -359,7 +364,7 @@ TextLabelClass * MessageListClass::Add_Message(char const * name, int id, char c
 		} else {
 			mess_start = 0;
 		}
-		for (int i=1 ; i<strlen(txt) ; i++) {
+		for (int i=1 ; i<(int)strlen(txt) ; i++) {
 			strncpy (&temp[mess_start], txt, i);
 			temp [mess_start + i] = 0;
 			wid = String_Pixel_Width(temp);
@@ -434,7 +439,12 @@ TextLabelClass * MessageListClass::Add_Message(char const * name, int id, char c
 		return (NULL);
 	}
 
-	Sound_Effect(VOC_INCOMING_MESSAGE);
+#endif
+
+	On_Message(message, timeout * 60.0f / TICKS_PER_MINUTE, id);
+	//Sound_Effect(VOC_INCOMING_MESSAGE);
+
+#if (0)
 
 	//------------------------------------------------------------------------
 	//	Attach the message to our list
@@ -459,6 +469,8 @@ TextLabelClass * MessageListClass::Add_Message(char const * name, int id, char c
 		message [print_this_pass] = save;
 		Add_Message (name, id, &message [print_this_pass], color, style, timeout);
 	}
+
+#endif
 
 	return(txtlabel);
 
@@ -605,7 +617,7 @@ int MessageListClass::Concat_Message(char const * name, int id, char const * txt
 	//------------------------------------------------------------------------
 	// If there's room enough in the message, just add the given string
 	//------------------------------------------------------------------------
-	if ( (strlen(msg) + strlen(txt)) < MaxChars) {
+	if ( (int)(strlen(msg) + strlen(txt)) < MaxChars) {
 
 		//---------------------------------------------------------------------
 		// We need to trim the message if there is no room to draw it

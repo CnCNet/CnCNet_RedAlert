@@ -35,6 +35,8 @@
  *   PacketClass::~PacketClass -- destroys a packet class be freeing list  *
  *   PacketClass::Add_Field -- Adds a FieldClass entry to head of packet li*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+#if (0) //PG
+
 #include <stdlib.h>
 #include <mem.h>
 #include <string.h>
@@ -461,3 +463,4 @@ bool PacketClass::Get_Field(char *id, void *data, int &length)
 	}
 	return((field) ? true : false);
 }
+#endif

@@ -116,6 +116,7 @@ void Focus_Restore(void)
 
 void Check_For_Focus_Loss(void)
 {
+#if (0)//PG
 	static BOOL	focus_last_time = 1;
 			 MSG	msg;
 
@@ -156,13 +157,13 @@ void Check_For_Focus_Loss(void)
 	}
 
 	focus_last_time = GameInFocus;
-
+#endif
 }
 
 
 
-extern BOOL InMovie;
-
+extern bool InMovie;
+#if (0)//PG
 long FAR PASCAL _export Windows_Procedure(HWND hwnd, UINT message, UINT wParam, LONG lParam)
 {
 
@@ -227,7 +228,7 @@ long FAR PASCAL _export Windows_Procedure(HWND hwnd, UINT message, UINT wParam, 
 			** Windoze message says we have to shut down. Try and do it cleanly.
 			*/
 		case WM_DESTROY:
-			Prog_End();
+			Prog_End("WM_DESTROY", false);
 			Invalidate_Cached_Icons();
 			VisiblePage.Un_Init();
 			HiddenPage.Un_Init();
@@ -340,7 +341,7 @@ long FAR PASCAL _export Windows_Procedure(HWND hwnd, UINT message, UINT wParam, 
 
 	return DefWindowProc (hwnd, message, wParam, lParam);
 }
-
+#endif
 
 
 
@@ -435,6 +436,9 @@ void WWDebugString (char *string)
 void Create_Main_Window ( HANDLE instance , int command_show , int width , int height )
 
 {
+	MainWindow = NULL;
+	return;
+#if (0)//PG
 	HWND        	hwnd ;
 	WNDCLASS    	wndclass ;
 	//
@@ -491,11 +495,13 @@ width = width; height = height;
 	Misc_Focus_Loss_Function = &Focus_Loss;
 	Misc_Focus_Restore_Function = &Focus_Restore;
 	Gbuffer_Focus_Loss_Function = &Focus_Loss;
+#endif
 }
 
 
 void Window_Dialog_Box(HANDLE  hinst, LPCTSTR  lpszTemplate, HWND  hwndOwner, DLGPROC  dlgprc)
 {
+#if (0)//PG
 	MSG					msg;
 	/*
 	** Get rid of the Westwood mouse cursor because we are showing a
@@ -523,6 +529,7 @@ void Window_Dialog_Box(HANDLE  hinst, LPCTSTR  lpszTemplate, HWND  hwndOwner, DL
 	*/
 	ShowCursor(FALSE);
 	Show_Mouse();
+#endif
 }
 
 
@@ -553,9 +560,10 @@ int	DebugColour=1;
 
 
 extern "C" void Set_Palette_Register(int number, int red, int green, int blue);
-#pragma off (unreferenced)
+//#pragma off (unreferenced)
 void Colour_Debug (int call_number)
 {
+#if (0)//PG
 	//#if 0
 	//if (DebugColour==call_number || !call_number) {
 
@@ -568,9 +576,10 @@ void Colour_Debug (int call_number)
 										ColourLookup[call_number].Blue);
 	//}
 	//#endif
+#endif
 }
 
-#pragma on (unreferenced)
+//#pragma on (unreferenced)
 
 
 
@@ -761,10 +770,10 @@ void Assert_Failure (char *expression, int line, char *file)
 //	WWMessageBox().Process("Red Alert demo timed out - Aborting");
 	//Get_Key();
 
-	Prog_End();
+	Prog_End(assertbuf, false);
 	Invalidate_Cached_Icons();
-	PostQuitMessage( 0 );
-	ExitProcess(0);
+	//PostQuitMessage( 0 );
+	//ExitProcess(0);
 }
 #endif
 
@@ -897,7 +906,7 @@ GraphicBufferClass* Read_PCX_File(char* name, char* palette, void *Buff, long Si
 	if (Buff) {
     	buffer = (char *)Buff;
     	i = Size / width;
-    	height = MIN (i - 1, height);
+    	height = MIN ((int)i - 1, height);
     	pic = new GraphicBufferClass(width, height, buffer, Size);
     	if ( !(pic && pic->Get_Buffer()) ) return NULL ;
 	} else {
@@ -911,8 +920,8 @@ GraphicBufferClass* Read_PCX_File(char* name, char* palette, void *Buff, long Si
 
 	if ( header.byte_per_line != width ) {
 
-		for ( scan_pos = j = 0 ; j < height ; j ++, scan_pos += width ) {
-			for ( i = 0 ; i < width ; ) {
+		for ( scan_pos = j = 0 ; j < (unsigned) height ; j ++, scan_pos += width ) {
+			for ( i = 0 ; i < (unsigned)width ; ) {
 				rle = READ_CHAR ();
 				if ( rle > 192 ) {
 					rle -= 192 ;
@@ -930,7 +939,7 @@ GraphicBufferClass* Read_PCX_File(char* name, char* palette, void *Buff, long Si
 
 	} else {
 
-		for ( i = 0 ; i < width * height ; ) {
+		for ( i = 0 ; i < (unsigned)width * height ; ) {
   			rle = READ_CHAR ();
   			rle &= 0xff;
   			if ( rle > 192 ) {
@@ -945,7 +954,7 @@ GraphicBufferClass* Read_PCX_File(char* name, char* palette, void *Buff, long Si
 	}
 
 	if ( palette ) {
-		file_handle.Seek (- (256 * sizeof ( RGB )) , SEEK_END );
+		file_handle.Seek (- (256 * (int)sizeof ( RGB )) , SEEK_END );
 		file_handle.Read (palette , 256L * sizeof ( RGB ));
 
 		pal = ( RGB * ) palette;

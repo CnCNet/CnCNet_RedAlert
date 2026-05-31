@@ -38,7 +38,7 @@
 #ifndef FLY_H
 #define FLY_H
 
-typedef enum ImpactType {
+typedef enum ImpactType : unsigned char {
 	IMPACT_NONE,		// No movement (of significance) occurred.
 	IMPACT_NORMAL,		// Some (non eventful) movement occurred.
 	IMPACT_EDGE			// The edge of the world was reached.

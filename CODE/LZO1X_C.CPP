@@ -43,7 +43,9 @@
 
 
 #include "lzo1x.h"
+#ifndef NDEBUG
 #define NDEBUG
+#endif
 #include <assert.h>
 #include "lzo_conf.h"
 

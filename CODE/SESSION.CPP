@@ -329,6 +329,7 @@ void SessionClass::Init(void)
  *=========================================================================*/
 int SessionClass::Create_Connections(void)
 {
+#if (0)//PG
 	int i;
 
 	if (Session.Type != GAME_IPX && Session.Type != GAME_INTERNET) {
@@ -353,7 +354,7 @@ int SessionClass::Create_Connections(void)
 			return (0);
 		}
 	}
-
+#endif
 	return (1);
 
 }	// end of Create_Connections
@@ -530,7 +531,7 @@ bool SessionClass::Am_I_Master(void)
  * HISTORY:                                                                *
  *   12/04/1995 BRR : Created.                                             *
  *=========================================================================*/
-SessionClass::Save(Pipe & file) const
+int SessionClass::Save(Pipe & file) const
 {
 #ifdef FIXIT_MULTI_SAVE
 	file.Put(&CommProtocol, sizeof(CommProtocol));
@@ -572,7 +573,7 @@ SessionClass::Save(Pipe & file) const
  * HISTORY:                                                                *
  *   12/04/1995 BRR : Created.                                             *
  *=========================================================================*/
-SessionClass::Load(Straw & file)
+int SessionClass::Load(Straw & file)
 {
 #ifdef FIXIT_MULTI_SAVE
 //	if(GameVersion != 0x0100616D){
@@ -619,7 +620,7 @@ SessionClass::Load(Straw & file)
  * HISTORY:                                                                *
  *   12/04/1995 BRR : Created.                                             *
  *=========================================================================*/
-SessionClass::Save(CCFileClass & file)
+int SessionClass::Save(CCFileClass & file)
 {
 	int i;
 
@@ -666,7 +667,7 @@ SessionClass::Save(CCFileClass & file)
  * HISTORY:                                                                *
  *   12/04/1995 BRR : Created.                                             *
  *=========================================================================*/
-SessionClass::Load(CCFileClass & file)
+int SessionClass::Load(CCFileClass & file)
 {
 	int count;
 	int i;
@@ -718,12 +719,14 @@ SessionClass::Load(CCFileClass & file)
  *=========================================================================*/
 void SessionClass::Read_MultiPlayer_Settings (void)
 {
+#if (0)//PG
 	char *tokenptr;						// ptr to token
 	PhoneEntryClass *phone;				// a phone book entry
 	char *entry;							// a phone book entry
 	char buf[128];							// buffer for parsing INI entry
 	int i;
 	CELL cell;
+
 
 //	CCFileClass file (CONFIG_FILE_NAME);
 
@@ -829,7 +832,7 @@ void SessionClass::Read_MultiPlayer_Settings (void)
 
 		//	Read the entry names in
 		int phonecount = ini.Entry_Count("PhoneBook");
-		for (index = 0; index < phonecount; index++) {
+		for (int index = 0; index < phonecount; index++) {
 			//	Create a new phone book entry
 			phone = new PhoneEntryClass();
 
@@ -1000,6 +1003,7 @@ void SessionClass::Read_MultiPlayer_Settings (void)
 
 		TrapPrintCRC = ini.Get_Int("SyncBug", "PrintCRC", 0x7fffffff);
 	}
+#endif
 }
 
 
@@ -1118,6 +1122,7 @@ void SessionClass::Write_MultiPlayer_Settings (void)
 	file.Close();
 #endif
 
+#if (0)//PG
 	INIClass ini;
 	RawFileClass file(CONFIG_FILE_NAME);
 	if (ini.Load(file)) {
@@ -1182,6 +1187,7 @@ void SessionClass::Write_MultiPlayer_Settings (void)
 		//	Write the INI data out to a file.
 		ini.Save(file);
 	}
+#endif
 }
 
 
@@ -1579,7 +1585,7 @@ void SessionClass::Free_Scenario_Descriptions(void)
 		delete InitStrings[i];
 	}
 	InitStrings.Clear();
-
+#if (0)//PG
 	//------------------------------------------------------------------------
 	//	Clear the dialing entries
 	//------------------------------------------------------------------------
@@ -1587,7 +1593,7 @@ void SessionClass::Free_Scenario_Descriptions(void)
 		delete PhoneBook[i];
 	}
 	PhoneBook.Clear();
-
+#endif
 }	/* end of Free_Scenario_Descriptions */
 
 
@@ -1756,6 +1762,8 @@ void SessionClass::Trap_Object(void)
  *=========================================================================*/
 unsigned long SessionClass::Compute_Unique_ID(void)
 {
+	return 1;//PG
+#if (0) //PG
 	time_t tm;
 	unsigned long id;
 	struct diskfree_t dtable;
@@ -1789,7 +1797,7 @@ unsigned long SessionClass::Compute_Unique_ID(void)
 	}
 
 	return (id);
-
+#endif
 }	// end of Compute_Unique_ID
 
 

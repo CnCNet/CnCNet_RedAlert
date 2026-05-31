@@ -52,5 +52,10 @@ class LogicClass : public LayerClass
 		#ifdef CHEAT_KEYS
 		void Debug_Dump(MonoClass *mono) const;
 		#endif
+		
+		/*
+		** Added. ST - 8/19/2019 5:46PM
+		*/
+		void Clear_Recently_Created_Bits(void);
 };
 #endif

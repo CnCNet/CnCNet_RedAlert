@@ -53,8 +53,10 @@
 /*
 ** Prototypes for linkage to assembly module
 */
+
 extern "C" {
-	bool __cdecl Detect_MMX_Availability (void);
+	bool __cdecl Detect_MMX_Availability(void);
+	void __cdecl Init_MMX(void);
 
 	extern char CPUType;
 	extern char VendorID;

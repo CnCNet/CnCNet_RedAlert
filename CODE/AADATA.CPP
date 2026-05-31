@@ -385,9 +385,9 @@ void AircraftTypeClass::Init_Heap(void)
 AircraftType AircraftTypeClass::From_Name(char const * name)
 {
 	if (name != NULL) {
-		for (AircraftType classid = AIRCRAFT_FIRST; classid < AIRCRAFT_COUNT; classid++) {
-			if (stricmp(As_Reference(classid).IniName, name) == 0) {
-				return(classid);
+		for (int classid = AIRCRAFT_FIRST; classid < AIRCRAFT_COUNT; classid++) {
+			if (stricmp(As_Reference((AircraftType)classid).IniName, name) == 0) {
+				return(AircraftType)classid;
 			}
 		}
 	}
@@ -412,9 +412,9 @@ AircraftType AircraftTypeClass::From_Name(char const * name)
  *=============================================================================================*/
 void AircraftTypeClass::One_Time(void)
 {
-	for (AircraftType index = AIRCRAFT_FIRST; index < AIRCRAFT_COUNT; index++) {
+	for (int index = AIRCRAFT_FIRST; index < AIRCRAFT_COUNT; index++) {
 		char fullname[_MAX_FNAME+_MAX_EXT];
-		AircraftTypeClass	const & uclass = As_Reference(index);
+		AircraftTypeClass	const & uclass = As_Reference((AircraftType)index);
 
 		/*
 		**	Fetch the supporting data files for the unit.
@@ -577,7 +577,10 @@ short const * AircraftTypeClass::Overlap_List(void) const
 int AircraftTypeClass::Max_Pips(void) const
 {
 	if (PrimaryWeapon != NULL) {
-		return(5);
+		// Camera weapon (ex. on the Spy plane) doesn't display any pips
+		if (!PrimaryWeapon->IsCamera) {
+			return(5);
+		}
 	}
 	return(Max_Passengers());
 }

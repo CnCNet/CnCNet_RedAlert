@@ -153,6 +153,11 @@ class FootClass :	public TechnoClass
 		unsigned IsScattering:1;
 
 		/*
+		**	If this object is moving onto a bridge, then this flag will be true.
+		*/
+		unsigned IsMovingOntoBridge:1;
+
+		/*
 		**	This is the "throttle setting" of the unit. It is a fractional value with 0 = stop
 		**	and 255 = full speed.
 		*/
@@ -376,8 +381,12 @@ class FootClass :	public TechnoClass
 		**	next HeadTo coordinate.
 		*/
 		COORDINATE HeadToCoord;
+
+		/*
+		** Some additional padding in case we need to add data to the class and maintain backwards compatibility for save/load
+		*/
+		unsigned char SaveLoadPadding[16];
 };
 
 #endif
-
 

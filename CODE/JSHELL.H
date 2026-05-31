@@ -207,6 +207,13 @@ inline ShapeFlags_Type operator &(ShapeFlags_Type, ShapeFlags_Type);
 inline ShapeFlags_Type operator ~(ShapeFlags_Type);
 
 
+void __cdecl Set_Bit(void * array, int bit, int value);
+int __cdecl Get_Bit(void const * array, int bit);
+int __cdecl First_True_Bit(void const * array);
+int __cdecl First_False_Bit(void const * array);
+int __cdecl Bound(int original, int min, int max);
+
+#if (0)
 void Set_Bit(void * array, int bit, int value);
 #pragma aux Set_Bit parm [esi] [ecx] [eax] \
 	modify [esi ebx] = 			\
@@ -328,6 +335,7 @@ extern void outport(int port, unsigned short data);
 		"out	dx,al"
 #endif
 
+#endif
 
 /*
 **	Timer objects that fetch the appropriate timer value according to

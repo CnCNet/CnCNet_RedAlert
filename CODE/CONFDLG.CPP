@@ -43,10 +43,12 @@
 
 bool ConfirmationClass::Process(int text)
 {
-	return(Process(Text_String(text)));
+	text;
+	return true;
+	//return(Process(Text_String(text)));
 }
 
-
+#if (0) // ST - 5/8/2019
 /***********************************************************************************************
  * ConfirmationClass::Process -- Handles all the options graphic interface.                    *
  *                                                                                             *
@@ -242,3 +244,4 @@ bool ConfirmationClass::Process(char const * string)
 	}
 	return(result);
 }
+#endif

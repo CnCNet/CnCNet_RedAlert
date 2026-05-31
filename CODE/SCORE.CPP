@@ -46,6 +46,7 @@
  *   ScoreClass::Print_Minutes -- Print out hours/minutes up to max                            *
  *   ScoreClass::Pulse_Bar_Graph -- Pulses the bargraph color.                                 *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 #ifndef WIN32
 extern short StreamLowImpact;
 #endif
@@ -95,8 +96,8 @@ void Animate_Score_Objs(void);
 void Cycle_Wait_Click(bool cycle=true);
 
 #ifdef FIXIT_SCORE_CRASH
-void Disable_Uncompressed_Shapes (void);
-void Enable_Uncompressed_Shapes (void);
+//void Disable_Uncompressed_Shapes (void);
+//void Enable_Uncompressed_Shapes (void);
 #endif	//FIXIT
 
 void const * Beepy6;
@@ -351,12 +352,13 @@ int Alloc_Object(ScoreAnimClass *obj)
  * HISTORY:                                                                                    *
  *   05/02/1994     : Created.                                                                 *
  *=============================================================================================*/
-static char const  _bluepal[]={0xC0,0xC1,0xC1,0xC3,0xC2,0xC5,0xC3,0xC7,0xC4,0xC9,0xCA,0xCB,0xCC,0xCD,0xC0,0xCF};
-static char const _greenpal[]={0x70,0x71,0x7C,0x73,0x7D,0x75,0x7E,0x77,0x7F,0x79,0x7A,0x7B,0x7C,0x7D,0x7C,0x7F};
-static char const   _redpal[]={0xD0,0xD1,0xD7,0xD3,0xD9,0xD5,0xDA,0xD7,0xDB,0xD9,0xDA,0xDB,0xDC,0xDD,0xD6,0xDF};
-static char const _yellowpal[]={0x0,0x0,0xEC,0x0,0xEB,0x0,0xEA,0x0,0xE9,0x0,0x0,0x0,0x0,0x0,0xED,0x0};
+static unsigned char const  _bluepal[]={0xC0,0xC1,0xC1,0xC3,0xC2,0xC5,0xC3,0xC7,0xC4,0xC9,0xCA,0xCB,0xCC,0xCD,0xC0,0xCF};
+static unsigned char const _greenpal[]={0x70,0x71,0x7C,0x73,0x7D,0x75,0x7E,0x77,0x7F,0x79,0x7A,0x7B,0x7C,0x7D,0x7C,0x7F};
+static unsigned char const   _redpal[]={0xD0,0xD1,0xD7,0xD3,0xD9,0xD5,0xDA,0xD7,0xDB,0xD9,0xDA,0xDB,0xDC,0xDD,0xD6,0xDF};
+static unsigned char const _yellowpal[]={0x0,0x0,0xEC,0x0,0xEB,0x0,0xEA,0x0,0xE9,0x0,0x0,0x0,0x0,0x0,0xED,0x0};
 void ScoreClass::Presentation(void)
 {
+#if (0)//PG
 #ifdef WIN32
 //	if (Keyboard != NULL) return;
 #endif
@@ -759,6 +761,7 @@ Keyboard->Clear();
 	*/
 	if (hallfame[NUMFAMENAMES-1].score >= total)
 								hallfame[NUMFAMENAMES-1].score = 0;
+	int index;
 	for (index = 0; index < NUMFAMENAMES; index++) {
 		if (total > hallfame[index].score) {
 			if (index < (NUMFAMENAMES-1)) for (i = (NUMFAMENAMES-1); i > index; i--) hallfame[i] = hallfame[i-1];
@@ -867,6 +870,7 @@ Keyboard->Clear();
 #endif	//FIXIT
 
 #endif
+#endif
 }
 
 
@@ -875,14 +879,14 @@ void Cycle_Wait_Click(bool cycle)
 	int counter = 0;
 	int minclicks = 20;
 	unsigned long timingtime = TickCount;
-	SerialPacketType sendpacket;
-	SerialPacketType receivepacket;
-	int packetlen;
+	//PG SerialPacketType sendpacket;
+	//PG SerialPacketType receivepacket;
+	//PG int packetlen;
 
 
 	Keyboard->Clear();
 	while (minclicks || (!Keyboard->Check() && !ControlQ) ) {
-
+#if (0)	//PG
 		if (Session.Type == GAME_NULL_MODEM ||
 			Session.Type == GAME_MODEM) {
 
@@ -906,7 +910,7 @@ void Cycle_Wait_Click(bool cycle)
 
 			NullModem.Service();
 		}
-
+#endif
 		Call_Back_Delay(1);
 		if (minclicks) {
 			minclicks--;
@@ -952,7 +956,8 @@ void ScoreClass::Do_Nod_Buildings_Graph(void)
 	/*
 	** Here's the animation/draw loop for blowing up the factory
 	*/
-	for (int i=0; i<98; i++) {
+	int i;
+	for (i=0; i<98; i++) {
 		HidPage.Blit(HidPage, BUILDING_X, BUILDING_Y, 0, 0, 320-BUILDING_X, 48);
 		shapenum = 0;	// no damage
 		if (i >= 60) {
@@ -1699,6 +1704,8 @@ void Draw_Bar_Graphs(int i, int gkilled, int nkilled)
  *=========================================================================*/
 void Call_Back_Delay(int time)
 {
+	time;
+#if (0)//PG
 	if (time < 0 ) time = 0;
 	if (time > 60) time = 60;
 	CDTimerClass<SystemTimerClass> cd;
@@ -1722,6 +1729,7 @@ void Call_Back_Delay(int time)
 		Animate_Score_Objs();
 	} while (cd);
 	StreamLowImpact = false;
+#endif
 }
 
 
@@ -1771,6 +1779,7 @@ extern int CopyType;
 
 void Multi_Score_Presentation(void)
 {
+#if (0)//PG
 	char remap[16];
 #ifdef WIN32
 	GraphicBufferClass *pseudoseenbuff = new GraphicBufferClass(320, 200, (void*)NULL);
@@ -1915,6 +1924,7 @@ CopyType = 1;
 	FontXSpacing = oldfontxspacing;
 	ControlQ = 0;
 	Show_Mouse();
+#endif
 }
 
 void ScoreClass::Init(void)

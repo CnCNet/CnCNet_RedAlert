@@ -109,6 +109,10 @@
 
 #include	"function.h"
 
+/*
+** New sidebar for GlyphX multiplayer. ST - 8/2/2019 2:35PM
+*/
+#include "SidebarGlyphx.h"
 
 enum SAMState {
 	SAM_READY,					// Launcher can be facing any direction tracking targets.
@@ -172,7 +176,7 @@ RadioMessageType BuildingClass::Receive_Message(RadioClass * from, RadioMessageT
 		case RADIO_CAN_LOAD:
 			TechnoClass::Receive_Message(from, message, param);
 			if (!House->Is_Ally(from)) return(RADIO_STATIC);
-			if (Mission == MISSION_CONSTRUCTION || Mission == MISSION_DECONSTRUCTION || BState == BSTATE_CONSTRUCTION || (!ScenarioInit && In_Radio_Contact() && Contact_With_Whom() != from)) return(RADIO_NEGATIVE);
+			if (Mission == MISSION_CONSTRUCTION || Mission == MISSION_DECONSTRUCTION || BState == BSTATE_CONSTRUCTION || (!ScenarioInit && Class->Type != STRUCT_REFINERY && In_Radio_Contact())) return(RADIO_NEGATIVE);
 			switch (Class->Type) {
 				case STRUCT_AIRSTRIP:
 					if (from->What_Am_I() == RTTI_AIRCRAFT && ((AircraftClass const *)from)->Class->IsFixedWing) {
@@ -199,7 +203,7 @@ RadioMessageType BuildingClass::Receive_Message(RadioClass * from, RadioMessageT
 						*((UnitClass *)from) == UNIT_HARVESTER &&
 						(ScenarioInit || !Is_Something_Attached())) {
 
-						return(RADIO_ROGER);
+						return((Contact_With_Whom() != from) ? RADIO_ROGER : RADIO_NEGATIVE);
 					}
 					break;
 
@@ -264,17 +268,9 @@ RadioMessageType BuildingClass::Receive_Message(RadioClass * from, RadioMessageT
 					if (Transmit_Message(RADIO_ON_DEPOT) == RADIO_ROGER) {
 						if (Transmit_Message(RADIO_NEED_REPAIR) == RADIO_NEGATIVE) {
 							Transmit_Message(RADIO_RUN_AWAY);
+							Transmit_Message(RADIO_OVER_OUT);
 							return(RADIO_ROGER);
 						}
-//					} else {
-//						if (Transmit_Message(RADIO_NEED_TO_MOVE, from) == RADIO_ROGER) {
-//							param = (long)As_Target();
-//							Transmit_Message(RADIO_MOVE_HERE, param, from);
-//						}
-					}
-				} else {
-					if (Transmit_Message(RADIO_NEED_REPAIR) == RADIO_NEGATIVE) {
-						return(RADIO_NEGATIVE);
 					}
 				}
 			}
@@ -365,6 +361,9 @@ RadioMessageType BuildingClass::Receive_Message(RadioClass * from, RadioMessageT
 		*/
 		case RADIO_OVER_OUT:
 			Begin_Mode(BSTATE_IDLE);
+			if (*this == STRUCT_REPAIR) {
+				Assign_Mission(MISSION_GUARD);
+			}
 			TechnoClass::Receive_Message(from, message, param);
 			return(RADIO_ROGER);
 
@@ -484,7 +483,7 @@ void BuildingClass::Draw_It(int x, int y, WindowNumberType window) const
 		/*
 		**	A Tethered object is always rendered AFTER the building.
 		*/
-		if (IsTethered && In_Radio_Contact() && !Contact_With_Whom()->IsInLimbo && Contact_With_Whom()->What_Am_I() != RTTI_BUILDING) {
+		if (*this == STRUCT_WEAP && IsTethered && In_Radio_Contact() && !Contact_With_Whom()->IsInLimbo && Contact_With_Whom()->What_Am_I() != RTTI_BUILDING) {
 			TechnoClass * contact = Contact_With_Whom();
 
 			assert(contact->IsActive);
@@ -500,7 +499,9 @@ void BuildingClass::Draw_It(int x, int y, WindowNumberType window) const
 		if ( (*this == STRUCT_WEAP || *this == STRUCT_FAKEWEAP)) {
 			int shapenum = Door_Stage();
 			if (Health_Ratio() <= Rule.ConditionYellow) shapenum += 4;
-			Techno_Draw_Object(Class->WarFactoryOverlay, shapenum, x, y, window);
+			// Added override shape file name. ST - 8/1/2019 5:24PM
+			//Techno_Draw_Object(Class->WarFactoryOverlay, shapenum, x, y, window);
+			Techno_Draw_Object_Virtual(Class->WarFactoryOverlay, shapenum, x, y, window, DIR_N, 0x0100, "WEAP2");
 		}
 
 		/*
@@ -516,7 +517,7 @@ void BuildingClass::Draw_It(int x, int y, WindowNumberType window) const
 	/*
 	** If this is a factory that we're spying on, show what it's producing
 	*/
-	if (SpiedBy & (1<<(PlayerPtr->Class->House)) && IsSelected) {
+	if ((Spied_By() & (1<<(PlayerPtr->Class->House)) && Is_Selected_By_Player()) || ((window == WINDOW_VIRTUAL) && (Session.Type != GAME_NORMAL))) {
 
 		/*
 		**	Fetch the factory that is associate with this building. For computer controlled buildings, the
@@ -538,7 +539,7 @@ void BuildingClass::Draw_It(int x, int y, WindowNumberType window) const
 			TechnoClass * obj = factory->Get_Object();
 			if (obj != NULL) {
 #ifdef FIXIT_CSII
-				CC_Draw_Shape(obj->Techno_Type_Class()->Get_Cameo_Data(), 0, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_NORMAL, NULL);
+				CC_Draw_Shape(obj, obj->Techno_Type_Class()->Get_Cameo_Data(), 0, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL|SHAPE_NORMAL, NULL);
 #else
 				void const * remapper = obj->House->Remap_Table(false, obj->Techno_Type_Class()->Remap);
 				CC_Draw_Shape(obj->Techno_Type_Class()->Get_Cameo_Data(), 0, x, y, window, SHAPE_CENTER|SHAPE_WIN_REL | ((remapper != NULL) ? SHAPE_FADING : SHAPE_NORMAL), remapper);
@@ -677,14 +678,18 @@ int BuildingClass::Shape_Number(void) const
 					**	building.
 					*/
 					if (Health_Ratio() <= Rule.ConditionYellow) {
-						int last1 = Class->Anims[BSTATE_IDLE].Start + Class->Anims[BSTATE_IDLE].Count;
-						int last2 = Class->Anims[BSTATE_ACTIVE].Start + Class->Anims[BSTATE_ACTIVE].Count;
-						int largest = max(last1, last2);
-						last2 = Class->Anims[BSTATE_AUX1].Start + Class->Anims[BSTATE_AUX1].Count;
-						largest = max(largest, last2);
-						last2 = Class->Anims[BSTATE_AUX2].Start + Class->Anims[BSTATE_AUX2].Count;
-						largest = max(largest, last2);
-						shapenum += largest;
+						if (*this == STRUCT_CHRONOSPHERE) {
+							shapenum += 29;
+						} else {
+							int last1 = Class->Anims[BSTATE_IDLE].Start + Class->Anims[BSTATE_IDLE].Count;
+							int last2 = Class->Anims[BSTATE_ACTIVE].Start + Class->Anims[BSTATE_ACTIVE].Count;
+							int largest = max(last1, last2);
+							last2 = Class->Anims[BSTATE_AUX1].Start + Class->Anims[BSTATE_AUX1].Count;
+							largest = max(largest, last2);
+							last2 = Class->Anims[BSTATE_AUX2].Start + Class->Anims[BSTATE_AUX2].Count;
+							largest = max(largest, last2);
+							shapenum += largest;
+						}
 					}
 				}
 			}
@@ -967,6 +972,18 @@ void BuildingClass::AI(void)
 	**	Check for demolition timeout. When timeout has expired, the building explodes.
 	*/
 	if (IsGoingToBlow && CountDown == 0) {
+
+		/*
+		** Maybe trigger an achivement. ST - 11/14/2019 1:53PM
+		*/
+		TechnoTypeClass const *object_type = Techno_Type_Class();
+		if (object_type) {
+			TechnoClass *saboteur = As_Techno(WhomToRepay);
+			if (saboteur && saboteur->IsActive && saboteur->House && saboteur->House->IsHuman) {
+				On_Achievement_Event(saboteur->House, "BUILDING_DESTROYED_C4", object_type->IniName);
+			}
+		}			
+		
 		int damage = Strength;
 		Take_Damage(damage, 0, WARHEAD_FIRE, As_Techno(WhomToRepay), true);
 		if (!IsActive) {
@@ -1024,6 +1041,13 @@ void BuildingClass::AI(void)
 				break;
 			}
 		}
+	}
+
+	/*
+	** Chronosphere active animation control.
+	*/
+	if (*this == STRUCT_CHRONOSPHERE && BState == BSTATE_ACTIVE && QueueBState == BSTATE_NONE && Scen.FadeTimer == 0) {
+		Begin_Mode(BSTATE_IDLE);
 	}
 }
 
@@ -1134,14 +1158,21 @@ bool BuildingClass::Unlimbo(COORDINATE coord, DirType dir)
 		House->IsRecalcNeeded = true;
 		LastStrength = 0;
 
-		if ((!IsDiscoveredByPlayer && Map[coord].IsVisible) || Session.Type != GAME_NORMAL) {
-			Revealed(PlayerPtr);
+		// Changes to support client/server multiplayer. ST - 8/2/2019 2:36PM
+		//if ((!IsDiscoveredByPlayer && Map[coord].IsVisible) || Session.Type != GAME_NORMAL) {
+		if ((!Is_Discovered_By_Player(House) && Map[coord].Is_Visible(House)) || Session.Type != GAME_NORMAL) {
+			if (House->IsHuman) {
+				//Revealed(PlayerPtr);
+				Revealed(House);
+			}
 		}
 		if (!House->IsHuman) {
 			Revealed(House);
 		}
 
-		if (IsOwnedByPlayer) {
+		// Changes to support client/server multiplayer. ST - 8/2/2019 2:36PM
+		//if (IsOwnedByPlayer) {
+		if (Is_Owned_By_Player()) {
 			Map.PowerClass::IsToRedraw = true;
 			Map.Flag_To_Redraw(false);
 		}
@@ -1191,7 +1222,7 @@ bool BuildingClass::Unlimbo(COORDINATE coord, DirType dir)
  *   11/22/1994 JLB : Shares base damage handler for techno objects.                           *
  *   07/15/1995 JLB : Power ratio gets adjusted.                                               *
  *=============================================================================================*/
-ResultType BuildingClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, int forced)
+ResultType BuildingClass::Take_Damage(int & damage, int distance, WarheadType warhead, TechnoClass * source, bool forced)
 {
 	assert(Buildings.ID(this) == ID);
 	assert(IsActive);
@@ -1274,7 +1305,10 @@ ResultType BuildingClass::Take_Damage(int & damage, int distance, WarheadType wa
 
 				shakes = Class->Cost_Of() / 400;
 				if (shakes) {
-					Shake_The_Screen(shakes);
+					Shake_The_Screen(shakes, Owner());
+					if (source && Owner() != source->Owner()) {
+						Shake_The_Screen(shakes, source->Owner());
+					}
 				}
 				Sound_Effect(VOC_CRUMBLE, Coord);
 				if (Mission == MISSION_DECONSTRUCTION) {
@@ -1367,6 +1401,11 @@ ResultType BuildingClass::Take_Damage(int & damage, int distance, WarheadType wa
 						bullet->Unlimbo(center, DIR_W);
 					}
 				}
+
+				if (House) {
+					House->Check_Pertinent_Structures();
+				}
+
 				break;
 
 			case RESULT_HALF:
@@ -1448,7 +1487,7 @@ ResultType BuildingClass::Take_Damage(int & damage, int distance, WarheadType wa
 			**	house, it might announce this fact.
 			*/
 			if (!Class->IsInsignificant) {
-				House->Attacked();
+				House->Attacked(this);
 			}
 
 			/*
@@ -1509,7 +1548,7 @@ void * BuildingClass::operator new(size_t )
 {
 	void * ptr = Buildings.Allocate();
 	if (ptr) {
-		((BuildingClass *)ptr)->IsActive = true;
+		((BuildingClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -1776,7 +1815,7 @@ void BuildingClass::Active_Click_With(ActionType action, ObjectClass * object)
 		Player_Assign_Mission(MISSION_ATTACK, object->As_Target());
 	}
 
-	if (action == ACTION_SELF && Class->Is_Factory()) {
+	if (action == ACTION_TOGGLE_PRIMARY && Class->Is_Factory()) {
 		OutList.Add(EventClass(EventClass::PRIMARY, TargetClass(this)));
 	}
 }
@@ -1810,8 +1849,11 @@ void BuildingClass::Active_Click_With(ActionType action, CELL cell)
 	}
 
 	if (action == ACTION_MOVE && *this == STRUCT_CONST) {
-		OutList.Add(EventClass(EventClass::ARCHIVE, TargetClass(this), TargetClass(cell)));
+		OutList.Add(EventClass(EventClass::ARCHIVE, TargetClass(this), TargetClass(::As_Target(cell))));
 		OutList.Add(EventClass(EventClass::SELL, TargetClass(this)));
+
+		COORDINATE coord = Map.Pixel_To_Coord(Get_Mouse_X(), Get_Mouse_Y());
+		OutList.Add(EventClass(ANIM_MOVE_FLASH, PlayerPtr->Class->House, coord, 1 << PlayerPtr->Class->House));
 	}
 }
 
@@ -2150,17 +2192,138 @@ void BuildingClass::Update_Buildables(void)
 	assert(Buildings.ID(this) == ID);
 	assert(IsActive);
 
-	if (House == PlayerPtr && !IsInLimbo && IsDiscoveredByPlayer) {
+	/*
+	** Only do this for real human players. ST - 3/22/2019 1:38PM
+	*/
+	if (PlayerPtr != House) {
+		if (Session.Type != GAME_GLYPHX_MULTIPLAYER || House->IsHuman == false) {
+			return;
+		}
+	}
+
+	bool buildable_via_capture = (IsCaptured && ActLike != House->ActLike) ? true : false;
+
+	if (!IsInLimbo && Is_Discovered_By_Player()) {
 		switch (Class->ToBuild) {
-			StructType i;
-			UnitType u;
-			InfantryType f;
-			AircraftType a;
-			VesselType v;
+			int i;
+			int u;
+			int f;
+			int a;
+			int v;
 
 			case RTTI_VESSELTYPE:
 				for (v = VESSEL_FIRST; v < VESSEL_COUNT; v++) {
-					if (PlayerPtr->Can_Build(&VesselTypeClass::As_Reference(v), ActLike)) {
+					if (PlayerPtr->Can_Build(&VesselTypeClass::As_Reference((VesselType)v), ActLike)) {
+						if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+							Sidebar_Glyphx_Add(RTTI_VESSELTYPE, v, House, buildable_via_capture);
+						} else {
+							Map.Add(RTTI_VESSELTYPE, v, buildable_via_capture);
+						}
+					}
+				}
+				break;
+
+			case RTTI_BUILDINGTYPE:
+				for (i = STRUCT_FIRST; i < STRUCT_COUNT; i++) {
+					if (PlayerPtr->Can_Build(&BuildingTypeClass::As_Reference((StructType)i), ActLike)) {
+						if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+							Sidebar_Glyphx_Add(RTTI_BUILDINGTYPE, i, House, buildable_via_capture);
+						} else {
+							Map.Add(RTTI_BUILDINGTYPE, i, buildable_via_capture);
+						}
+					}
+				}
+				break;
+
+			case RTTI_UNITTYPE:
+				for (u = UNIT_FIRST; u < UNIT_COUNT; u++) {
+					if (PlayerPtr->Can_Build(&UnitTypeClass::As_Reference((UnitType)u), ActLike)) {
+						if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+							Sidebar_Glyphx_Add(RTTI_UNITTYPE, u, House, buildable_via_capture);
+						} else {
+							Map.Add(RTTI_UNITTYPE, u, buildable_via_capture);
+						}
+					}
+				}
+				break;
+
+			case RTTI_INFANTRYTYPE:
+				for (f = INFANTRY_FIRST; f < INFANTRY_COUNT; f++) {
+					if (PlayerPtr->Can_Build(&InfantryTypeClass::As_Reference((InfantryType)f), ActLike)) {
+						if (InfantryTypeClass::As_Reference((InfantryType)f).IsDog) {
+							if (*this == STRUCT_KENNEL) {
+								if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+									Sidebar_Glyphx_Add(RTTI_INFANTRYTYPE, f, House, buildable_via_capture);
+								} else {
+									Map.Add(RTTI_INFANTRYTYPE, f, buildable_via_capture);
+								}
+							}
+						} else {
+							if (*this != STRUCT_KENNEL) {
+								if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+									Sidebar_Glyphx_Add(RTTI_INFANTRYTYPE, f, House, buildable_via_capture);
+								} else {
+									Map.Add(RTTI_INFANTRYTYPE, f, buildable_via_capture);
+								}
+							}
+						}
+					}
+				}
+				break;
+
+			case RTTI_AIRCRAFTTYPE:
+				for (a = AIRCRAFT_FIRST; a < AIRCRAFT_COUNT; a++) {
+					if (PlayerPtr->Can_Build(&AircraftTypeClass::As_Reference((AircraftType)a), ActLike)) {
+						if (Session.Type == GAME_GLYPHX_MULTIPLAYER) {
+							Sidebar_Glyphx_Add(RTTI_AIRCRAFTTYPE, a, House, buildable_via_capture);
+						} else {
+							Map.Add(RTTI_AIRCRAFTTYPE, a, buildable_via_capture);
+						}
+					}
+				}
+				break;
+
+			default:
+				break;
+		}
+	}
+}
+
+
+
+#if (0) //Old code for reference. ST - 8/2/2019 2:41PM
+/***********************************************************************************************
+ * BuildingClass::Update_Buildables -- Informs sidebar of additional construction options.     *
+ *                                                                                             *
+ *    This routine will tell the sidebar of objects that can be built. The function is called  *
+ *    whenever a building matures.                                                             *
+ *                                                                                             *
+ * INPUT:   none                                                                               *
+ *                                                                                             *
+ * OUTPUT:  none                                                                               *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   11/11/1994 JLB : Created.                                                                 *
+ *   12/23/1994 JLB : Only updates for PLAYER buildings.                                       *
+ *=============================================================================================*/
+void BuildingClass::Update_Buildables(void)
+{
+	assert(Buildings.ID(this) == ID);
+	assert(IsActive);
+
+	if (House == PlayerPtr && !IsInLimbo && IsDiscoveredByPlayer) {
+		switch (Class->ToBuild) {
+			int i;
+			int u;
+			int f;
+			int a;
+			int v;
+
+			case RTTI_VESSELTYPE:
+				for (v = VESSEL_FIRST; v < VESSEL_COUNT; v++) {
+					if (PlayerPtr->Can_Build(&VesselTypeClass::As_Reference((VesselType)v), ActLike)) {
 						Map.Add(RTTI_VESSELTYPE, v);
 					}
 				}
@@ -2168,7 +2331,7 @@ void BuildingClass::Update_Buildables(void)
 
 			case RTTI_BUILDINGTYPE:
 				for (i = STRUCT_FIRST; i < STRUCT_COUNT; i++) {
-					if (PlayerPtr->Can_Build(&BuildingTypeClass::As_Reference(i), ActLike)) {
+					if (PlayerPtr->Can_Build(&BuildingTypeClass::As_Reference((StructType)i), ActLike)) {
 						Map.Add(RTTI_BUILDINGTYPE, i);
 					}
 				}
@@ -2176,7 +2339,7 @@ void BuildingClass::Update_Buildables(void)
 
 			case RTTI_UNITTYPE:
 				for (u = UNIT_FIRST; u < UNIT_COUNT; u++) {
-					if (PlayerPtr->Can_Build(&UnitTypeClass::As_Reference(u), ActLike)) {
+					if (PlayerPtr->Can_Build(&UnitTypeClass::As_Reference((UnitType)u), ActLike)) {
 						Map.Add(RTTI_UNITTYPE, u);
 					}
 				}
@@ -2184,8 +2347,8 @@ void BuildingClass::Update_Buildables(void)
 
 			case RTTI_INFANTRYTYPE:
 				for (f = INFANTRY_FIRST; f < INFANTRY_COUNT; f++) {
-					if (PlayerPtr->Can_Build(&InfantryTypeClass::As_Reference(f), ActLike)) {
-						if (InfantryTypeClass::As_Reference(f).IsDog) {
+					if (PlayerPtr->Can_Build(&InfantryTypeClass::As_Reference((InfantryType)f), ActLike)) {
+						if (InfantryTypeClass::As_Reference((InfantryType)f).IsDog) {
 							if (*this == STRUCT_KENNEL) {
 								Map.Add(RTTI_INFANTRYTYPE, f);
 							}
@@ -2200,7 +2363,7 @@ void BuildingClass::Update_Buildables(void)
 
 			case RTTI_AIRCRAFTTYPE:
 				for (a = AIRCRAFT_FIRST; a < AIRCRAFT_COUNT; a++) {
-					if (PlayerPtr->Can_Build(&AircraftTypeClass::As_Reference(a), ActLike)) {
+					if (PlayerPtr->Can_Build(&AircraftTypeClass::As_Reference((AircraftType)a), ActLike)) {
 						Map.Add(RTTI_AIRCRAFTTYPE, a);
 					}
 				}
@@ -2211,6 +2374,7 @@ void BuildingClass::Update_Buildables(void)
 		}
 	}
 }
+#endif
 
 
 /***********************************************************************************************
@@ -2411,13 +2575,21 @@ void BuildingClass::Grand_Opening(bool captured)
 				**	to place it in a nearby location.
 				*/
 				if (!unit->Unlimbo(Cell_Coord(cell), DIR_W)) {
-					cell = unit->Nearby_Location(this);
+					/*
+					**	Check multiple times for clear locations.
+					*/
+					for (int i = 0; i < 10; i++) {
+						cell = unit->Nearby_Location(this, i);
+						if (unit->Unlimbo(Cell_Coord(cell), DIR_SW)) {
+							break;
+						}
+					}
 
 					/*
 					**	If the harvester could still not be placed, then refund the money
 					**	to the owner and then bail.
 					*/
-					if (!unit->Unlimbo(Cell_Coord(cell), DIR_SW)) {
+					if (unit->IsInLimbo) {
 						House->Refund_Money(unit->Class->Cost_Of());
 						delete unit;
 					}
@@ -2510,13 +2682,14 @@ void BuildingClass::Repair(int control)
 		} else {
 			soundid = VOC_CLICK;
 			if (House->IsPlayerControl) {
-				Clicked_As_Target();
+				Clicked_As_Target(PlayerPtr->Class->House); // 2019/09/20 JAS - Added record of who clicked on the object
 			}
 			IsWrenchVisible = true;
 		}
 	} else {
 		soundid = VOC_CLICK;
 	}
+	
 	if (House->IsPlayerControl) {
 		Sound_Effect(soundid, Coord);
 	}
@@ -2574,7 +2747,7 @@ void BuildingClass::Sell_Back(int control)
 			Assign_Mission(MISSION_DECONSTRUCTION);
 			Commence();
 			if (House->IsPlayerControl) {
-				Clicked_As_Target();
+				Clicked_As_Target(PlayerPtr->Class->House);
 			}
 		}
 		if (House->IsPlayerControl) {
@@ -2620,7 +2793,7 @@ ActionType BuildingClass::What_Action(ObjectClass const * object) const
 						for (index = 0; index < Buildings.Count(); index++) {
 							BuildingClass *bldg = Buildings.Ptr(index);
 							if (bldg != this && bldg->Owner() == Owner() && *bldg == STRUCT_KENNEL) {
-								action = ACTION_SELF;
+								action = ACTION_TOGGLE_PRIMARY;
 								break;
 							}
 						}
@@ -2628,11 +2801,41 @@ ActionType BuildingClass::What_Action(ObjectClass const * object) const
 						for (index = 0; index < Buildings.Count(); index++) {
 							BuildingClass *bldg = Buildings.Ptr(index);
 							if (bldg != this && bldg->Owner() == Owner() && bldg->Class->ToBuild == RTTI_INFANTRYTYPE && *bldg != STRUCT_KENNEL) {
-								action = ACTION_SELF;
+								action = ACTION_TOGGLE_PRIMARY;
 								break;
 							}
 						}
 					}
+					break;
+
+				case RTTI_AIRCRAFTTYPE:
+				case RTTI_AIRCRAFT:
+					action = ACTION_NONE;
+					if (*this == STRUCT_AIRSTRIP) {
+						for (index = 0; index < Buildings.Count(); index++) {
+							BuildingClass *bldg = Buildings.Ptr(index);
+							if (bldg != this && bldg->Owner() == Owner() && *bldg == STRUCT_AIRSTRIP) {
+								action = ACTION_TOGGLE_PRIMARY;
+								break;
+							}
+						}
+					}
+					else {
+						for (index = 0; index < Buildings.Count(); index++) {
+							BuildingClass *bldg = Buildings.Ptr(index);
+							if (bldg != this && bldg->Owner() == Owner() && bldg->Class->ToBuild == RTTI_AIRCRAFTTYPE && *bldg != STRUCT_AIRSTRIP) {
+								action = ACTION_TOGGLE_PRIMARY;
+								break;
+							}
+						}
+					}
+					break;
+
+				case RTTI_UNITTYPE:
+				case RTTI_UNIT:
+				case RTTI_VESSELTYPE:
+				case RTTI_VESSEL:
+					action = ACTION_TOGGLE_PRIMARY;
 					break;
 
 				case RTTI_NONE:
@@ -2688,7 +2891,7 @@ ActionType BuildingClass::What_Action(CELL cell) const
 
 	ActionType action = TechnoClass::What_Action(cell);
 
-	if (action == ACTION_MOVE && (*this != STRUCT_CONST || !Rule.IsMCVDeploy)) {
+	if (action == ACTION_MOVE && (*this != STRUCT_CONST || !Is_MCV_Deploy())) {
 		action = ACTION_NONE;
 	}
 
@@ -2900,14 +3103,28 @@ bool BuildingClass::Toggle_Primary(void)
 							building->IsLeader = false;
 						}
 					}
+				} else if (Class->ToBuild == RTTI_AIRCRAFTTYPE) {
+					if (*building == STRUCT_AIRSTRIP && *this == STRUCT_AIRSTRIP) {
+						building->IsLeader = false;
+					} else {
+						if (*building != STRUCT_AIRSTRIP && *this != STRUCT_AIRSTRIP) {
+							building->IsLeader = false;
+						}
+					}
 				} else {
 					building->IsLeader = false;
 				}
 			}
 		}
 		IsLeader = true;
-		if ((HouseClass *)House == PlayerPtr) {
-			Speak(VOX_PRIMARY_SELECTED);
+		//
+		// MBL 04.20.2020 - Update so that each player in multiplayer will properly hear this when it applies to them
+		//
+		// if ((HouseClass *)House == PlayerPtr) {
+		// 	Speak(VOX_PRIMARY_SELECTED);
+		// }
+		if ((HouseClass *)House->IsHuman) {
+			Speak(VOX_PRIMARY_SELECTED, House);
 		}
 	}
 	Mark(MARK_CHANGE);
@@ -2938,7 +3155,7 @@ bool BuildingClass::Captured(HouseClass * newowner)
 	assert(Buildings.ID(this) == ID);
 	assert(IsActive);
 
-	if (Class->IsCaptureable && newowner != House) {
+	if (Can_Capture() && newowner != House) {
 #ifdef TOFIX
 		switch (Owner()) {
 			case HOUSE_GOOD:
@@ -2950,6 +3167,20 @@ bool BuildingClass::Captured(HouseClass * newowner)
 				break;
 		}
 #endif
+
+		/*
+		** Maybe trigger an achivement. ST - 11/14/2019 1:53PM
+		*/
+		if (newowner->IsHuman) {
+			TechnoTypeClass const *object_type = Techno_Type_Class();
+			if (object_type) {
+				if (newowner->ActLike != House->ActLike) {
+					On_Achievement_Event(newowner, "OPPOSING_BUILDING_CAPTURED", object_type->IniName);
+				} else {
+					On_Achievement_Event(newowner, "BUILDING_CAPTURED", object_type->IniName);
+				}	
+			}
+		}
 
 		/*
 		** Make sure the capturer isn't spying on his own building, and if
@@ -3057,7 +3288,6 @@ bool BuildingClass::Captured(HouseClass * newowner)
 #endif
 		}
 
-		House->Harvested(booty);
 		House->Stole(Refund_Amount());
 
 		/*
@@ -3067,6 +3297,7 @@ bool BuildingClass::Captured(HouseClass * newowner)
 
 		IsRepairing = false;
 		Grand_Opening(true);
+		House->Harvested(booty);
 
 		Mark(MARK_CHANGE);
 
@@ -3074,8 +3305,12 @@ bool BuildingClass::Captured(HouseClass * newowner)
 		**	Perform a look operation when captured if it was the player
 		**	that performed the capture.
 		*/
-		if (House == PlayerPtr) {
+		if (Session.Type == GAME_GLYPHX_MULTIPLAYER && House->IsHuman) {
 			Look(false);
+		} else {
+			if (House == PlayerPtr) {
+				Look(false);
+			}
 		}
 		/*
 		** If it was spied upon by the player who just captured it, clear the
@@ -3093,6 +3328,11 @@ bool BuildingClass::Captured(HouseClass * newowner)
 			CELL cell = Coord_Cell(Coord) + *offset++;
 			Map.Radar_Pixel(cell);
 		}
+
+		if (oldowner) {
+			oldowner->Check_Pertinent_Structures();
+		}
+
 		return(true);
 	}
 	return(false);
@@ -3122,6 +3362,12 @@ COORDINATE BuildingClass::Sort_Y(void) const
 
 	if (*this == STRUCT_REPAIR) {
 		return(Coord);
+	}
+	if (*this == STRUCT_HELIPAD) {
+		return(Center_Coord());
+	}
+	if (*this == STRUCT_AIRSTRIP) {
+		return(Center_Coord());
 	}
 	if (*this == STRUCT_BARRACKS /*|| *this == STRUCT_POWER*/) {
 		return(Center_Coord());
@@ -3205,6 +3451,27 @@ bool BuildingClass::Can_Demolish(void) const
 		return(true);
 	}
 	return(false);
+}
+
+
+bool BuildingClass::Can_Demolish_Unit(void) const
+{
+	return((*this == STRUCT_REPAIR || *this == STRUCT_AIRSTRIP) && In_Radio_Contact() && Distance(Contact_With_Whom()) < 0x0080);
+}
+
+
+bool BuildingClass::Can_Capture(void) const
+{
+	bool can_capture = Class->IsCaptureable && Mission != MISSION_DECONSTRUCTION;
+
+	// Only allow capturing of multiplayer-owned structures
+	if (Session.Type != GAME_NORMAL) {
+		if (*this == STRUCT_V01) {		// Check to fix exploit in specific map 'Tournament Ore Rift'
+			can_capture = false;
+		}
+	}
+
+	return(can_capture);
 }
 
 
@@ -3406,7 +3673,7 @@ int BuildingClass::Mission_Deconstruction(void)
 			**	it will be sold. If there is nothing on the repair bay, then
 			**	the repair bay itself will be sold.
 			*/
-			if ( (*this == STRUCT_REPAIR || *this == STRUCT_AIRSTRIP) && Transmit_Message(RADIO_NEED_TO_MOVE) == RADIO_ROGER && Distance(Contact_With_Whom()) < 0x0080) {
+			if (Can_Demolish_Unit() && Transmit_Message(RADIO_NEED_TO_MOVE) == RADIO_ROGER) {
 				TechnoClass * tech = Contact_With_Whom();
 				Transmit_Message(RADIO_OVER_OUT);
 				if (IsOwnedByPlayer) Speak(VOX_UNIT_SOLD);
@@ -3446,7 +3713,7 @@ int BuildingClass::Mission_Deconstruction(void)
 				**	members leaving is equal to the unrecovered cost of the building
 				**	divided by 100 (the typical cost of a minigunner infantryman).
 				*/
-				if (!Target_Legal(ArchiveTarget) || !Rule.IsMCVDeploy || *this != STRUCT_CONST) {
+				if (!Target_Legal(ArchiveTarget) || !Is_MCV_Deploy() || *this != STRUCT_CONST) {
 					int count = How_Many_Survivors();
 					bool engine = false;
 
@@ -3470,6 +3737,7 @@ int BuildingClass::Mission_Deconstruction(void)
 							coord = Map[coord].Closest_Free_Spot(coord, false);
 
 							if (infantry->Unlimbo(coord, DIR_N)) {
+								infantry->IsZoneCheat = infantry->Can_Enter_Cell(Coord_Cell(infantry->Center_Coord())) != MOVE_OK;
 								if (infantry->Class->IsNominal) infantry->IsTechnician = true;
 								ScenarioInit--;
 								infantry->Scatter(0, true);
@@ -3484,14 +3752,32 @@ int BuildingClass::Mission_Deconstruction(void)
 					}
 				}
 
-				if (House->IsPlayerControl) {
+				// MBL 07.10.2020 - In 1v1, sometimes both players will hear this SFX, or neither player will hear it
+				// Making it so all players hear it positionally in the map; Per thread discussion in https://jaas.ea.com/browse/TDRA-7245
+				//
+				#if 0
+					if (House->IsPlayerControl) {
+						Sound_Effect(VOC_CASHTURN, Coord);
+					}
+				#else
 					Sound_Effect(VOC_CASHTURN, Coord);
+				#endif
+				
+				/*
+				**	Destroy all attached objects. ST - 4/24/2020 9:38PM
+				*/
+				while (Attached_Object()) {
+					FootClass * obj = Detach_Object();
+
+					Detach_All(true);
+					delete obj;
 				}
+				
+				Transmit_Message(RADIO_OVER_OUT);
 				Status = DURING;
 				Begin_Mode(BSTATE_CONSTRUCTION);
-				Detach_All(true);
-				Transmit_Message(RADIO_OVER_OUT);
 				IsReadyToCommence = false;
+				IsSurvivorless = true;
 				break;
 			}
 			Transmit_Message(RADIO_RUN_AWAY);
@@ -3500,7 +3786,18 @@ int BuildingClass::Mission_Deconstruction(void)
 		case DURING:
 			if (IsReadyToCommence) {
 				House->IsRecalcNeeded = true;
-				if (IsOwnedByPlayer) Speak(VOX_STRUCTURE_SOLD);
+
+  				// MBL 05.06.2020 - "Structure Sold" is being heard when selecting/moving a redepolyable Con Yard to turn back into an MCV (RA only), so moving below
+				#if 0
+				// MBL 04.06.2020: Fix being heard by wrong player
+				// if (IsOwnedByPlayer) Speak(VOX_STRUCTURE_SOLD);
+				if (IsOwnedByPlayer) {
+					if ((HouseClass *)House == PlayerPtr) {
+						Speak(VOX_STRUCTURE_SOLD);
+					}
+				}
+				#endif
+				bool mcv_redeployed = false;
 
 				/*
 				**	Construction yards that deconstruct, really just revert back
@@ -3524,7 +3821,7 @@ int BuildingClass::Mission_Deconstruction(void)
 						delete this;
 
 						if (unit->Unlimbo(place, DIR_SW)) {
-							unit->Strength = unit->Class_Of().MaxStrength * ratio;
+							unit->Strength = (int)unit->Class_Of().MaxStrength * ratio;			// Cast to (int). ST - 5/8/2019
 
 							/*
 							**	Lift the move destination from the building and assign
@@ -3534,6 +3831,8 @@ int BuildingClass::Mission_Deconstruction(void)
 								unit->Assign_Destination(arch);
 								unit->Assign_Mission(MISSION_MOVE);
 							}
+
+							mcv_redeployed = true;
 
 						} else {
 
@@ -3572,11 +3871,27 @@ int BuildingClass::Mission_Deconstruction(void)
 					House->Stole(-Refund_Amount());
 					Limbo();
 
+					if (House) {
+						House->Check_Pertinent_Structures();
+					}
+
 					/*
 					**	Finally, delete the building from the game.
 					*/
 					delete this;
 				}
+
+				// MBL 05.06.2020 - "Structure Sold" was being heard when selecting/moving a redepolyable Con Yard to turn back into an MCV (RA only) above, so moved here
+				#if 1
+				if (!mcv_redeployed) 
+				{
+					if (IsOwnedByPlayer) {
+						if ((HouseClass *)House == PlayerPtr) {
+							Speak(VOX_STRUCTURE_SOLD);
+						}
+					}
+				}
+				#endif
 			}
 			break;
 
@@ -3903,7 +4218,18 @@ int BuildingClass::Mission_Repair(void)
 							Status = INITIAL;
 							IsReadyToCommence = true;
 						} else {
-							if (IsOwnedByPlayer) Speak(VOX_REPAIRING);
+
+							//
+							// MBL 04.27.2020: Legacy VOX_REPAIRING seems to be never called in TD, but only in RA.
+							// It is currently supported as a client GUI event when standard repairing begins, with "REPAIR1" on both TD and RA
+							//
+							// This repairing is in reference to the repair bay
+							// There is a newer bug (https://jaas.ea.com/browse/TDRA-6224) reporting that it is heard in multiplayer by 
+							// other players, from this call, so modifiying the original call here:
+							//
+							// if (IsOwnedByPlayer) Speak(VOX_REPAIRING);
+							if (IsOwnedByPlayer) Speak(VOX_REPAIRING, House);
+
 							Status = DURING;
 							Begin_Mode(BSTATE_ACTIVE);
 							IsReadyToCommence = false;
@@ -3959,7 +4285,11 @@ int BuildingClass::Mission_Repair(void)
 						**	The repair step resulted in a completely repaired unit.
 						*/
 						case RADIO_ALL_DONE:
-							if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED);
+
+							// MBL 04.27.2020: Make only audible to the correct player
+							// if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED);
+							if (IsOwnedByPlayer) Speak(VOX_UNIT_REPAIRED, House);
+
 //							Transmit_Message(RADIO_RUN_AWAY);
 							Begin_Mode(BSTATE_IDLE);
 							Status = IDLE;
@@ -4518,8 +4848,8 @@ int BuildingClass::Mission_Unload(void)
 					**	Scatter everything around the weapon's factory door.
 					*/
 					for (FacingType f = FACING_FIRST; f < FACING_COUNT; f++) {
-						CellClass * cptr = &cellptr->Adjacent_Cell(f);
-						if (cptr->Cell_Building() == NULL) {
+						CellClass * cptr = cellptr->Adjacent_Cell(f);
+						if (cptr && cptr->Cell_Building() == NULL) {
 							cptr->Incoming(coord, true, true);
 						}
 					}
@@ -4877,7 +5207,7 @@ bool BuildingClass::Can_Player_Move(void) const
 	assert(Buildings.ID(this) == ID);
 	assert(IsActive);
 
-	return(*this == STRUCT_CONST);
+	return(*this == STRUCT_CONST && (Mission == MISSION_GUARD) && Special.IsMCVDeploy);
 }
 
 
@@ -4979,7 +5309,7 @@ void BuildingClass::Update_Radar_Spied(void)
 		BuildingClass * obj = Buildings.Ptr(index);
 		if (obj && !obj->IsInLimbo && obj->House == House) {
 			if (*obj == STRUCT_RADAR /* || *obj == STRUCT_EYE */) {
-				House->RadarSpied |= obj->SpiedBy;
+				House->RadarSpied |= obj->Spied_By();
 			}
 		}
 	}
@@ -5071,34 +5401,36 @@ void BuildingClass::Read_INI(CCINIClass & ini)
 				rebuild = atoi(token_pointer);
 			}
 
-			b = new BuildingClass(classid, bhouse);
-			if (b) {
+			if (HouseClass::As_Pointer(bhouse) != NULL) {
+				b = new BuildingClass(classid, bhouse);
+				if (b) {
 
-				TriggerTypeClass * tp = TriggerTypeClass::From_Name(trigname);
-				if (tp) {
-					TriggerClass * tt = Find_Or_Make(tp);
-					if (tt) {
-						tt->AttachCount++;
-						b->Trigger = tt;
+					TriggerTypeClass * tp = TriggerTypeClass::From_Name(trigname);
+					if (tp) {
+						TriggerClass * tt = Find_Or_Make(tp);
+						if (tt) {
+							tt->AttachCount++;
+							b->Trigger = tt;
+						}
 					}
-				}
-				b->IsAllowedToSell = sellable;
-				b->IsToRebuild = rebuild;
-				b->IsToRepair = rebuild || *b == STRUCT_CONST;
+					b->IsAllowedToSell = sellable;
+					b->IsToRebuild = rebuild;
+					b->IsToRepair = rebuild || *b == STRUCT_CONST;
 
-				if (b->Unlimbo(Cell_Coord(cell), facing)) {
-					strength = min(strength, 0x100);
-					strength = b->Class->MaxStrength * fixed(strength, 256);
-					b->Strength = strength;
-					if (b->Strength > b->Class->MaxStrength-3) b->Strength = b->Class->MaxStrength;
-					b->IsALemon = false;
-				} else {
+					if (b->Unlimbo(Cell_Coord(cell), facing)) {
+						strength = min(strength, 0x100);
+						strength = (int)b->Class->MaxStrength * fixed(strength, 256);		// Cast to (int). ST - 5/8/2019
+						b->Strength = strength;
+						if (b->Strength > b->Class->MaxStrength-3) b->Strength = b->Class->MaxStrength;
+						b->IsALemon = false;
+					} else {
 
-					/*
-					**	If the building could not be unlimboed on the map, then this indicates
-					**	a serious error. Delete the building.
-					*/
-					delete b;
+						/*
+						**	If the building could not be unlimboed on the map, then this indicates
+						**	a serious error. Delete the building.
+						*/
+						delete b;
+					}
 				}
 			}
 		}
@@ -5525,7 +5857,7 @@ void BuildingClass::Animation_AI(void)
 			**	the building graphic before the last frame is replaced by the first frame of
 			**	the loop.
 			*/
-			if (Fetch_Stage() == ctrl->Start+ctrl->Count-1  || (!Target_Legal(ArchiveTarget) /*Special.IsMCVDeploy*/ && *this == STRUCT_CONST && Mission == MISSION_DECONSTRUCTION && Fetch_Stage() == (42-19))) {
+			if (Fetch_Stage() == ctrl->Start+ctrl->Count-1  || (!Target_Legal(ArchiveTarget) /*Is_MCV_Deploy()*/ && *this == STRUCT_CONST && Mission == MISSION_DECONSTRUCTION && Fetch_Stage() == (42-19))) {
 				IsReadyToCommence = true;
 			}
 
@@ -5685,9 +6017,27 @@ void BuildingClass::Remove_Gap_Effect(void)
 {
 	// unjam this one's field...
 	Map.UnJam_From(Coord_Cell(Center_Coord()), Rule.GapShroudRadius, House);
-	if (!House->IsPlayerControl && PlayerPtr->IsGPSActive) {
-		Map.Sight_From(Coord_Cell(Center_Coord()), Rule.GapShroudRadius, PlayerPtr);
+	
+	
+	/*
+	** Updated for client/server multiplayer. ST - 8/12/2019 11:14AM
+	*/
+	if (Session.Type != GAME_GLYPHX_MULTIPLAYER) {
+		if (!House->IsPlayerControl && PlayerPtr->IsGPSActive) {
+			Map.Sight_From(Coord_Cell(Center_Coord()), Rule.GapShroudRadius, PlayerPtr);
+		}
+	
+	} else {
+		
+		for (int i = 0; i < Session.Players.Count(); i++) {
+			HouseClass *player_house = HouseClass::As_Pointer(Session.Players[i]->Player.ID);
+			if (player_house->IsGPSActive && player_house != House) {
+				Map.Sight_From(Coord_Cell(Center_Coord()), Rule.GapShroudRadius, player_house);
+			}
+		}
 	}
+
+
 	// and rejam any overlapping buildings' fields
 	for (int index = 0; index < Buildings.Count(); index++) {
 		BuildingClass *obj = Buildings.Ptr(index);
@@ -5702,11 +6052,40 @@ void BuildingClass::Remove_Gap_Effect(void)
 
 short const * BuildingClass::Overlap_List(bool redraw) const
 {
-	if ((SpiedBy & (1 << PlayerPtr->Class->House)) != 0 && IsSelected && (*this == STRUCT_BARRACKS || *this == STRUCT_TENT)) {
-		static short const _list[] = {
-			-1, 2, (MAP_CELL_W*1)-1, (MAP_CELL_W*1)+2, REFRESH_EOL
-		};
-		return(_list);
+	if ((Spied_By() & (1 << PlayerPtr->Class->House)) != 0 && Is_Selected_By_Player()) {
+		if (*this == STRUCT_BARRACKS || *this == STRUCT_TENT) {
+			static short const _list[] = {
+				-1, 2, (MAP_CELL_W*1)-1, (MAP_CELL_W*1)+2, REFRESH_EOL
+			};
+			return(_list);
+		} else if (*this == STRUCT_REFINERY) {
+			static short const _list[] = {
+				0, 2, (MAP_CELL_W*2)+0, (MAP_CELL_W*2)+1, (MAP_CELL_W*2)+2, REFRESH_EOL
+			};
+			return(_list);
+		}
 	}
 	return(TechnoClass::Overlap_List(redraw));
+}
+
+
+unsigned BuildingClass::Spied_By() const
+{
+	unsigned spiedby = TechnoClass::Spied_By();
+
+	/*
+	** If it's an ore refinery or other such storage-capable building,
+	** loop thru all of their buildings to see if ANY of them are spied
+	** upon, 'cause once you spy any money, you've spied all of it.
+	*/
+	if (Class->Capacity) {
+		for (int index = 0; index < Buildings.Count(); index++) {
+			BuildingClass * building = Buildings.Ptr(index);
+			if (building->House == House && building->Class->Capacity) {
+				spiedby |= building->SpiedBy;
+			}
+		}
+	}
+
+	return spiedby;
 }

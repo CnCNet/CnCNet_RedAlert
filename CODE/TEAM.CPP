@@ -244,7 +244,7 @@ void * TeamClass::operator new(size_t)
 {
 	void * ptr = Teams.Allocate();
 	if (ptr != NULL) {
-		((TeamClass *)ptr)->IsActive = true;
+		((TeamClass *)ptr)->Set_Active();
 	}
 	return(ptr);
 }
@@ -1089,7 +1089,7 @@ bool TeamClass::Remove(FootClass * obj, int typeindex)
 	/*
 	**	Decrement the counter for the team class. There is now one less of this object type.
 	*/
-	if ((unsigned)typeindex < Class->ClassCount) {
+	if (typeindex < Class->ClassCount) {
 		Quantity[typeindex]--;
 	}
 
@@ -2488,6 +2488,7 @@ int TeamClass::TMission_Formation(void)
 	int xdir = 0;
 	int ydir = 0;
 	bool evenodd = 1;
+	HousesType house = (member != NULL) ? member->Owner() : HOUSE_NONE;
 
 	/*
 	**	Assign appropriate formation offsets for each of the members
@@ -2609,9 +2610,10 @@ int TeamClass::TMission_Formation(void)
 	/*
 	** Now calculate the group's movement type and speed
 	*/
-	if (Formation != FORMATION_NONE) {
-		TeamSpeed[group] = SPEED_WHEEL;
-		TeamMaxSpeed[group] = MPH_LIGHT_SPEED;
+	if (Formation != FORMATION_NONE && house != HOUSE_NONE) {
+		TeamFormDataStruct& team_form_data = TeamFormData[house];
+		team_form_data.TeamSpeed[group] = SPEED_WHEEL;
+		team_form_data.TeamMaxSpeed[group] = MPH_LIGHT_SPEED;
 		member = Member;
 		while (member != NULL) {
 			RTTIType mytype = member->What_Am_I();
@@ -2637,9 +2639,9 @@ int TeamClass::TMission_Formation(void)
 			}
 
 			if (speedcheck) {
-				if (memmax < TeamMaxSpeed[group]) {
-					TeamMaxSpeed[group] = memmax;
-					TeamSpeed[group] = memspeed;
+				if (memmax < team_form_data.TeamMaxSpeed[group]) {
+					team_form_data.TeamMaxSpeed[group] = memmax;
+					team_form_data.TeamSpeed[group] = memspeed;
 				}
 			}
 			member = member->Member;
@@ -2651,8 +2653,8 @@ int TeamClass::TMission_Formation(void)
 		*/
 		member = Member;
 		while (member != NULL) {
-			member->FormationSpeed = TeamSpeed[group];
-			member->FormationMaxSpeed = TeamMaxSpeed[group];
+			member->FormationSpeed = team_form_data.TeamSpeed[group];
+			member->FormationMaxSpeed = team_form_data.TeamMaxSpeed[group];
 			if (member->What_Am_I() == RTTI_INFANTRY) {
 				member->FormationSpeed = SPEED_FOOT;
 				member->FormationMaxSpeed = MPH_SLOW_ISH;

@@ -337,9 +337,9 @@ int ThemeClass::Play_Song(ThemeType theme)
 		Stop();
 		Score = theme;
 		if (theme != THEME_NONE && theme != THEME_QUIET) {
-			StreamLowImpact = true;
+			//PG StreamLowImpact = true;
 			Current = File_Stream_Sample_Vol(Theme_File_Name(theme), 0xFF, true);
-			StreamLowImpact = false;
+			//PG StreamLowImpact = false;
 		}
 	}
 	return(Current);
@@ -549,7 +549,7 @@ ThemeType ThemeClass::From_Name(char const * name) const
 		**	a substring within the full name of the score. This might
 		**	yield a match, but is not guaranteed to be unique.
 		*/
-		for (theme = THEME_FIRST; theme < THEME_COUNT; theme++) {
+		for (ThemeType theme = THEME_FIRST; theme < THEME_COUNT; theme++) {
 			if (strstr(Text_String(_themes[theme].Fullname), name) != NULL) {
 				return(theme);
 			}

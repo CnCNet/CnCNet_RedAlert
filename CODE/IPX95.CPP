@@ -50,6 +50,21 @@
 
 #include "ipx95.h"
 
+ // Stub in old IPX here ST - 12/20/2018 1:53PM
+extern "C" {
+	extern BOOL __stdcall IPX_Initialise(void) { return 0; }
+	extern BOOL __stdcall IPX_Get_Outstanding_Buffer95(unsigned char *buffer) { return 0; }
+	extern void __stdcall IPX_Shut_Down95(void) {}
+	extern int  __stdcall IPX_Send_Packet95(unsigned char *, unsigned char *, int, unsigned char*, unsigned char*) { return 0; }
+	extern int  __stdcall IPX_Broadcast_Packet95(unsigned char *, int) { return 0; }
+	extern BOOL __stdcall IPX_Start_Listening95(void) { return 0; }
+	extern int  __stdcall IPX_Open_Socket95(int socket) { return 0; }
+	extern void __stdcall IPX_Close_Socket95(int socket) {}
+	extern int  __stdcall IPX_Get_Connection_Number95(void) { return 0; }
+	extern int  __stdcall IPX_Get_Local_Target95(unsigned char *, unsigned char*, unsigned short, unsigned char*) { return 0; }
+}
+
+#if (0)
 /*
 ** Instance handle for the THIPX32 .DLL
 */
@@ -84,6 +99,7 @@ char const *FunctionNames[] = {
 	"_IPX_Get_Local_Target95",
 	NULL
 };
+#endif
 
 extern void Get_OS_Version (void);
 bool				WindowsNT = false;
@@ -106,6 +122,10 @@ bool				WindowsNT = false;
  *=============================================================================================*/
 bool Load_IPX_Dll (void)
 {
+	//ST 5/13/2019
+	return false;
+
+#if (0)
 	Get_OS_Version();
 	if (WindowsNT) return (false);
 
@@ -135,6 +155,7 @@ bool Load_IPX_Dll (void)
 	}else{
 		return (false);
 	}
+#endif
 }
 
 
@@ -155,46 +176,57 @@ bool Load_IPX_Dll (void)
  *=============================================================================================*/
 void Unload_IPX_Dll (void)
 {
+	//ST 5/13/2019
+
+#if (0)
 	if (IpxDllInstance){
 		FreeLibrary (IpxDllInstance);
 		IpxDllInstance = NULL;
 	}
+#endif
 }
 
 
 int IPX_Open_Socket(unsigned short socket)
 {
-	return ( IPX_Open_Socket95((int)socket));
+	return -1;	//ST 5/13/2019
+	//return ( IPX_Open_Socket95((int)socket));
 }
 
 int IPX_Close_Socket(unsigned short socket)
 {
-	IPX_Close_Socket95((int)socket);
+	//ST 5/13/2019 IPX_Close_Socket95((int)socket);
 	return (0);
 }
 
 
 int IPX_Get_Connection_Number(void)
 {
-	return (IPX_Get_Connection_Number95());
+	return -1;//ST 5/13/2019
+	//return (IPX_Get_Connection_Number95());
 }
 
 
 
 int IPX_Broadcast_Packet(unsigned char * buf, int buflen)
 {
-	return(IPX_Broadcast_Packet95(buf, buflen));
+	return 0; //ST 5/13/2019
+	//return(IPX_Broadcast_Packet95(buf, buflen));
 }
 
+#if (0) //ST 5/13/2019
 extern "C"{
 	extern void __cdecl Int3(void);
 }
+#endif
 
 int IPX_Get_Local_Target(unsigned char * dest_network, unsigned char * dest_node,
 	unsigned short dest_socket, unsigned char * bridge_address)
 {
 	//Int3();
-	return (IPX_Get_Local_Target95(dest_network, dest_node, dest_socket, bridge_address));
+	
+	return 0; //ST 5/13/2019
+	//return (IPX_Get_Local_Target95(dest_network, dest_node, dest_socket, bridge_address));
 }
 
 

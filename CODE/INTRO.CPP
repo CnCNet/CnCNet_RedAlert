@@ -38,6 +38,7 @@
 #include	"function.h"
 
 
+#if (0) //PG
 VQAHandle * Open_Movie(char * name);
 VQAHandle * Open_Movie(char * name)
 {
@@ -58,7 +59,7 @@ VQAHandle * Open_Movie(char * name)
 	}
 	return(vqa);
 }
-
+#endif
 
 /***********************************************************************************************
  * Choose_Side -- play the introduction movies, select house                                   *
@@ -77,6 +78,7 @@ void Choose_Side(void)		//	ajw - In RA, all this did was play a movie. Denzil is
 
 	Whom = HOUSE_GOOD;
 
+#if (0)	//PG
 	if (Special.IsFromInstall) {
 		#ifdef DVD // Denzil
 		if( Using_DVD() )
@@ -108,7 +110,7 @@ void Choose_Side(void)		//	ajw - In RA, all this did was play a movie. Denzil is
 		
 		Play_Movie(VQ_INTRO_MOVIE, THEME_NONE, false);
 	}
-
+#endif
 //	Scen.ScenPlayer = SCEN_PLAYER_GREECE;
 
 #ifdef OBSOLETE

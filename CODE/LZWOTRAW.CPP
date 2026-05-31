@@ -39,6 +39,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"lzostraw.h"
+#include	"lzwstraw.h"
 #include	"lzo.h"
 #include	<string.h>
 #include	<assert.h>

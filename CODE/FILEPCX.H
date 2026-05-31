@@ -46,9 +46,9 @@
 
 
 typedef	struct {
-						  unsigned char	red ;
-						  unsigned char	green ;
-						  unsigned char	blue ;
+						  char	red ;
+						  char	green ;
+						  char	blue ;
 					} RGB ;
 
 typedef	struct	{

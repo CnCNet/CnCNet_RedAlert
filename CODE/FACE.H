@@ -39,7 +39,7 @@
 #define FACE_H
 
 // Enumerations of the facing values returned from Desired_Facing().
-typedef enum DirType {
+typedef enum DirType : unsigned char {
 	DIR_MIN=0,
 	DIR_N=0,
 	DIR_NE=1<<5,

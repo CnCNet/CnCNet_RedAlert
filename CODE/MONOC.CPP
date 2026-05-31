@@ -59,6 +59,7 @@
  *   Mono_Y -- Fetches the Y cursor position for current mono page.                            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+//#if (0)//PG
 //#include	"watcom.h"
 #include	"monoc.h"
 
@@ -67,18 +68,18 @@
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<dos.h>
-#include	<mem.h>
+//#include	<mem.h>
 #include	<stdarg.h>
 #include	<string.h>
 
 
-
-extern void output(short port, short data);
-#pragma aux output parm [dx] [ax] =		\
-		"out	dx,al"		\
-		"inc	dx"			\
-		"mov	al,ah"		\
-		"out	dx,al"
+//PG
+//extern void output(short port, short data);
+//#pragma aux output parm [dx] [ax] =		\
+//		"out	dx,al"		\
+//		"inc	dx"			\
+//		"mov	al,ah"		\
+//		"out	dx,al"
 
 
 bool MonoClass::Enabled = 0;
@@ -387,7 +388,7 @@ void MonoClass::Set_Cursor(int x, int y)
 
 	X = x;
 	Y = y;
-
+#if (0)//PG
 	if (!Enabled) return;
 
 	/*
@@ -399,6 +400,7 @@ void MonoClass::Set_Cursor(int x, int y)
 		output(CONTROL_PORT, (short)(0x0E|(pos&0xFF00)));
 		output(CONTROL_PORT, (short)(0x0F|(pos<<8)));
 	}
+#endif
 }
 
 
@@ -458,7 +460,7 @@ void MonoClass::Clear(void)
  *=============================================================================================*/
 void MonoClass::Fill_Attrib(int x, int y, int w, int h, MonoAttribute attrib)
 {
-	if (!w || !h || (unsigned)x >= SubW || (unsigned)h >= SubH || (unsigned)x+w > SubW || (unsigned)y+h > SubH) return;
+	if (!w || !h || x >= SubW || h >= SubH || x+w > SubW || y+h > SubH) return;
 
 	for (int rows = y; rows < y+h; rows++) {
 		for (int cols = x; cols < x+w; cols++) {
@@ -1130,3 +1132,4 @@ int Mono_Printf(int string, ...)
 	return((short)strlen(buffer));
 }
 
+//#endif

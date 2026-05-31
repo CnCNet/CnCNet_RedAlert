@@ -84,7 +84,7 @@
 
 
 // Disable the "temporary object used to initialize a non-constant reference" warning.
-#pragma warning 665 9
+//#pragma warning 665 9
 
 
 /***********************************************************************************************
@@ -986,10 +986,12 @@ int INIClass::Get_String(char const * section, char const * entry, char const * 
 	/*
 	**	Verify that the parameters are nominally legal.
 	*/
-	if (buffer != NULL && size > 0) {
-		buffer[0] = '\0';
+	if (section == NULL || entry == NULL) {
+		if (buffer != NULL && size > 0) {
+			buffer[0] = '\0';
+		}
+		return(0);
 	}
-	if (buffer == NULL || !size || section == NULL || entry == NULL) return(0);
 
 	/*
 	**	Fetch the entry string if it is present. If not, then the normal default
@@ -1005,9 +1007,13 @@ int INIClass::Get_String(char const * section, char const * entry, char const * 
 	/*
 	**	Fill in the buffer with the entry value and return with the length of the string.
 	*/
-	if (defvalue == NULL) {
+	if (buffer == NULL || !size) {
+		return(0);
+	} else if (defvalue == NULL) {
 		buffer[0] = '\0';
 		return(0);
+	} else if (buffer == defvalue) {
+		return(strlen(buffer));
 	} else {
 		strncpy(buffer, defvalue, size);
 		buffer[size-1] = '\0';

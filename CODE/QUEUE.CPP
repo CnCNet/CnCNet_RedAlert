@@ -555,6 +555,8 @@ static void Queue_AI_Multiplayer(void)
 {
 	if(Session.Type == GAME_SKIRMISH) return;
 
+	return;
+#if (0)//PG
 	//........................................................................
 	// Enums:
 	//........................................................................
@@ -603,6 +605,7 @@ static void Queue_AI_Multiplayer(void)
 	//------------------------------------------------------------------------
 	//	Initialize the packet buffer pointer & its max size
 	//------------------------------------------------------------------------
+#if (0)//PG
 	if (Session.Type == GAME_MODEM || Session.Type == GAME_NULL_MODEM) {
 		multi_packet_buf = NullModem.BuildBuf;
 		multi_packet_max = NullModem.MaxLen - sizeof (CommHeaderType);
@@ -612,6 +615,7 @@ static void Queue_AI_Multiplayer(void)
 		multi_packet_max = Session.MetaSize;
 		net = &Ipx;
 	}
+#endif
 #if(TEN)
 	else if (Session.Type == GAME_TEN) {
 		multi_packet_buf = Session.TenPacket;
@@ -876,7 +880,7 @@ static void Queue_AI_Multiplayer(void)
 	if (IsMono) {
 		MonoClass::Disable();
 	}
-
+#endif
 }	// end of Queue_AI_Multiplayer
 
 
@@ -1453,7 +1457,7 @@ static void Generate_Real_Timing_Event(ConnManClass *net, int my_sent)
 	// (Isn't "thrice" a cool word?)
 	//
 	maxahead = ((maxahead + Session.FrameSendRate - 1) / Session.FrameSendRate) * Session.FrameSendRate;
-	maxahead = MAX (maxahead, Session.FrameSendRate * 3);
+	maxahead = MAX (maxahead, (int)Session.FrameSendRate * 3);
 
 	ev.Type = EventClass::TIMING;
 	ev.Data.Timing.DesiredFrameRate = Session.DesiredFrameRate;
@@ -1954,6 +1958,10 @@ static RetcodeType Process_Receive_Packet(ConnManClass *net,
 static RetcodeType Process_Serial_Packet(char *multi_packet_buf,
 	int first_time)
 {
+	multi_packet_buf;
+	first_time;
+	return (RC_NORMAL);
+#if (0) // ST - 5/13/2019
 	SerialPacketType *serial_packet;		// for parsing serial packets
 	int player_gone;
 	EventClass *event;
@@ -2048,7 +2056,7 @@ static RetcodeType Process_Serial_Packet(char *multi_packet_buf,
 	}
 
 	return (RC_NORMAL);
-
+#endif
 }	// end of Process_Serial_Packet
 
 
@@ -2659,7 +2667,7 @@ static int Add_Compressed_Events(void *buf, int bufsize, int frame_delay,
 						prevevent.Data.MegaMission.Target &&
 					OutList.First().Data.MegaMission.Destination ==
 						prevevent.Data.MegaMission.Destination) {
-
+#if (0)//PG
 					if (Debug_Print_Events) {
 						printf("      adding Whom:%x (%x) Mission:%s Target:%x (%x) Dest:%x (%x)\n",
 						OutList.First().Data.MegaMission.Whom.As_TARGET(),
@@ -2670,7 +2678,7 @@ static int Add_Compressed_Events(void *buf, int bufsize, int frame_delay,
 						OutList.First().Data.MegaMission.Destination.As_TARGET(),
 						OutList.First().Data.MegaMission.Destination);
 					}
-
+#endif
 					datasize = sizeof(prevevent.Data.MegaMission.Whom);
 					storedsize = datasize;
 					numunits++;
@@ -3041,7 +3049,7 @@ static int Extract_Compressed_Events(void *buf, int bufsize)
 		size_of(EventClass, Data.FrameInfo)) - sizeof(EventClass::EventType);
 	event = (EventClass *)(((char *)buf) + pos);
 
-	while (leftover >= (datasize + sizeof(EventClass::EventType)) ) {
+	while (leftover >= (datasize + (int)sizeof(EventClass::EventType)) ) {
 
 		Keyboard->Check();
 
@@ -3263,9 +3271,9 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 	//
 	for (j = 0; j < DoList.Count; j++) {
 		if (DoList[j].Type != EventClass::FRAMEINFO &&
-			DoList[j].Frame > NewMaxAheadFrame1 &&
-			DoList[j].Frame < NewMaxAheadFrame2) {
-			DoList[j].Frame = NewMaxAheadFrame2;
+			DoList[j].Frame > (unsigned)NewMaxAheadFrame1 &&
+			DoList[j].Frame < (unsigned)NewMaxAheadFrame2) {
+			DoList[j].Frame = (unsigned)NewMaxAheadFrame2;
 			#ifdef MIRROR_QUEUE
 			MirrorList[j].Frame = NewMaxAheadFrame2;
 			#endif
@@ -3313,14 +3321,14 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 			//	If this event was from the currently-executing player ID, and it's
 			//	time to execute it, execute it.
 			//..................................................................
-			if (DoList[j].ID == hptr->ID && Frame >= DoList[j].Frame &&
+			if (DoList[j].ID == hptr->ID && (unsigned) Frame >= DoList[j].Frame &&
 				!DoList[j].IsExecuted) {
 
 				//...............................................................
 				//	Error if it's too late to execute this packet!
 				// (Hack: disable this check for solo or skirmish mode.)
 				//...............................................................
-				if (Frame > DoList[j].Frame && DoList[j].Type !=
+				if ((unsigned)Frame > DoList[j].Frame && DoList[j].Type !=
 					EventClass::FRAMEINFO && Session.Type != GAME_NORMAL &&
 					Session.Type != GAME_SKIRMISH) {
 
@@ -3396,7 +3404,7 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 					//............................................................
 						if (Session.Type == GAME_MODEM ||
 							Session.Type == GAME_NULL_MODEM) {
-							Destroy_Null_Connection( house, 0 );
+							//PG Destroy_Null_Connection( house, 0 );
 						} else if ((Session.Type == GAME_IPX ||
 							Session.Type == GAME_INTERNET ||
 							Session.Type == GAME_TEN ||
@@ -3469,12 +3477,12 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 #if(MPATH)
 							//Send_MPATH_Out_Of_Sync();
 #endif	// MPATH
-
+#if (0)//PG
 							if (WWMessageBox().Process (TXT_OUT_OF_SYNC,
 								TXT_CONTINUE, TXT_STOP) == 0) {
 								if (Session.Type == GAME_MODEM ||
 									Session.Type == GAME_NULL_MODEM) {
-									Destroy_Null_Connection( house, -1 );
+									//PG Destroy_Null_Connection( house, -1 );
 									Shutdown_Modem();
 									Session.Type = GAME_NORMAL;
 								}
@@ -3504,6 +3512,7 @@ static int Execute_DoList(int max_houses, HousesType base_house,
 							else {
 								return (0);
 							}
+#endif
 							return (1);
 						}
 					}
@@ -3566,7 +3575,7 @@ static void Clean_DoList(ConnManClass *net)
 		//	events lying around in my queue.  They won't have been "executed",
 		//	because his IPX connection was destroyed.)
 		//.....................................................................
-		if ( (DoList.First().IsExecuted) || (Frame > DoList.First().Frame) ) {
+		if ( (DoList.First().IsExecuted) || ((unsigned)Frame > DoList.First().Frame) ) {
 			DoList.Next();
 			#ifdef MIRROR_QUEUE
 			MirrorList.Next();
@@ -3695,7 +3704,7 @@ static void Queue_Playback(void)
 	//------------------------------------------------------------------------
 	if (Frame >= Session.TrapPrintCRC) {
 		Print_CRCs(NULL);
-		//Prog_End();
+		Prog_End("Queue_Playback reached CRC print frame", true);
 		Emergency_Exit(0);
 	}
 
@@ -4538,7 +4547,7 @@ void Check_Mirror(void)
 				DoList.Get_Array() + i,
 				MirrorList.Get_Array() + i);
 			WWMessageBox().Process (txt);
-			//Prog_End();
+			Prog_End("Check_Mirror", true);
 			Emergency_Exit(0);
 		}
 	}

@@ -57,9 +57,12 @@ class PaletteClass
 		int operator == (PaletteClass const & palette) const;
 		int operator != (PaletteClass const & palette) const {return(!(operator ==(palette)));};
 		PaletteClass & operator = (PaletteClass const & palette);
-
-		operator const unsigned char * (void) const {return((const unsigned char *)&Palette[0]);};
-		operator unsigned char * (void) {return((unsigned char *)&Palette[0]);};
+		
+		// Removed these and replaced with function for clarity. ST - 5/9/2019
+		//operator const unsigned char * (void) const {return((const unsigned char *)&Palette[0]);};
+		//operator unsigned char * (void) {return((unsigned char *)&Palette[0]);};
+		const void *Get_Data(void) const { return &Palette[0]; }
+		void *Get_Data(void) { return &Palette[0]; }
 
 		void Adjust(int ratio);
 		void Adjust(int ratio, PaletteClass const & palette);

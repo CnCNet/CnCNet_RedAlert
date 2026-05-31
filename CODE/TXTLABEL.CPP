@@ -86,7 +86,7 @@ TextLabelClass::TextLabelClass(char *txt, int x, int y, RemapControlType * color
  * HISTORY:                                                                                    *
  *   03/24/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
-virtual int TextLabelClass::Draw_Me(int forced)
+int TextLabelClass::Draw_Me(int forced)
 {
 	if (GadgetClass::Draw_Me(forced)) {
 		if (PixWidth == -1) {

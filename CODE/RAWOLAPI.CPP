@@ -992,7 +992,7 @@ bool RAChatEventSink::DownloadUpdates( Update* pUpdateList, int iUpdates )
 	//	First we create a Download and Download Sink interface object, like Chat and ChatSink.
 	bool bReturn = true;
 	//	This is all like WolapiObject::bSetupCOMStuff().
-//debugprint( "Do all the COM crap.\n" );
+//debugprint( "Do all the COM stuff.\n" );
 	IDownload* pDownload;
 	CoCreateInstance( CLSID_Download, NULL, CLSCTX_INPROC_SERVER, IID_IDownload, (void**)&pDownload );
 	_ASSERTE( pDownload );
@@ -1049,8 +1049,8 @@ bool RAChatEventSink::DownloadUpdates( Update* pUpdateList, int iUpdates )
 	}
 	::SetCurrentDirectory( szCurDirSave );
 
-	//	Undo all the COM crap.
-//debugprint( "Undo all the COM crap.\n" );
+	//	Undo all the COM stuff.
+//debugprint( "Undo all the COM stuff.\n" );
 	pConnectionPoint = NULL;
 	pContainer = NULL;
 	hRes = pDownload->QueryInterface( IID_IConnectionPointContainer, (void**)&pContainer );
