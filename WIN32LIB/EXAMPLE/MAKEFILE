@@ -56,11 +56,6 @@
 !error WWFLAT Environment var not configured.
 !endif
 
-
-!ifndef %WWVCS
-!error WWVCS Environment var not configured.
-!endif
-
 !ifndef %WATCOM
 !error WATCOM Environment var not configured.
 !endif
@@ -74,21 +69,21 @@
 # PROJ_DIR = directory containing source & objects
 #---------------------------------------------------------------------------
 PROJ_NAME	= TEST
-PROJ_DIR	= $(%WWFLAT)\example\TEST
-LIB_DIR	        = $(%WWFLAT)\lib
+PROJ_DIR	= $(%WWFLAT)\EXAMPLE\TEST
+LIB_DIR	        = $(%WWFLAT)\LIB
 
-!include $(%WWFLAT)\project.cfg
+!include $(%WWFLAT)\PROJECT.CFG
 
 #---------------------------------------------------------------------------
 # Project-dependent variables
 #---------------------------------------------------------------------------
 OBJECTS = 		   	&
-	main.obj		&
-	startup.obj		&
-	globals.obj
+	MAIN.OBJ		&
+	STARTUP.OBJ		&
+	GLOBALS.OBJ
 
 PROJ_LIBS = 			&
-	    wwflat32.lib
+	    WWFLAT32.LIB
 
 
 #---------------------------------------------------------------------------
@@ -99,8 +94,8 @@ PROJ_LIBS = 			&
 .c:   	 $(PROJ_DIR)
 .cpp:	 $(PROJ_DIR)
 .h:   	 $(PROJ_DIR)
-.obj:	 $(PROJ_DIR)
-.lib:	 $(%WWFLAT)\lib
+.obj:	 $(PROJ_DIR)\OBJ
+.lib:	 $(%WWFLAT)\LIB
 .exe:	 $(PROJ_DIR)
 
 
@@ -121,7 +116,7 @@ ASM_CMD	  	= tasm
 #---------------------------------------------------------------------------
 
 LIBPATH	  	= $(%WWFLAT)\LIB;$(%WATCOM)\LIB
-INCLUDEPATH	= $(%WWFLAT)\INCLUDE;$(%WATCOM)\H
+INCLUDEPATH	= $(%WWFLAT)\INCLUDE;$(%WATCOM)\H;$(%WATCOM)\H\NT
 
 #---------------------------------------------------------------------------
 # Implicit rules
@@ -133,14 +128,20 @@ INCLUDEPATH	= $(%WWFLAT)\INCLUDE;$(%WATCOM)\H
 # 	tasm's cfg file is not invoked as a response file.
 #---------------------------------------------------------------------------
 
-.c.obj:	$(%WWFLAT)\project.cfg .AUTODEPEND
-	$(C_CMD) $(CC_CFG) $<
+.c.obj:	$(%WWFLAT)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	$(C_CMD) $(CC_CFG) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.C
 
-.cpp.obj: $(%WWFLAT)\project.cfg .AUTODEPEND
-	$(CPP_CMD) $(CC_CFG) $(PROJ_DIR)\$^*.cpp
+.cpp.obj: $(%WWFLAT)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	$(CPP_CMD) $(CC_CFG) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.CPP
 
-.asm.obj: $(%WWFLAT)\project.cfg
-	$(ASM_CMD) $(ASM_CFG) $<
+.asm.obj: $(%WWFLAT)\PROJECT.CFG
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(ASM_CMD) $(ASM_CFG) $<,.\OBJ\$^.
 
 #---------------------------------------------------------------------------
 # Default target

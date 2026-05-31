@@ -41,9 +41,9 @@
 #---------------------------------------------------------------------------
 # Working values depending on what target executable will be created.
 #---------------------------------------------------------------------------
-OBJ=obj
-CC=..\..\WAT11\BINNT\wpp386
-LIB=..\..\WATCOM\BINNT\wlib
+OBJ=OBJ
+CC=$(%WATCOM11)\BINNT\wpp386
+LIB=$(%WATCOM11)\BINNT\wlib
 
 #---------------------------------------------------------------------------
 # Path macros: one path for each file type.
@@ -60,11 +60,11 @@ LIB=..\..\WATCOM\BINNT\wlib
 CC_CFG = /d0                            # No debugging information
 CC_CFG += /DWIN32=1
 CC_CFG += /D_WIN32
-CC_CFG += /i=..\..\dxmedia\include
-CC_CFG += /i=..\..\dxmedia\classes\base
-CC_CFG += /i=..\..\dxsdk\inc
-CC_CFG += /i=..\..\wat11\h\nt                # NT include directory.
-CC_CFG += /i=..\..\wat11\H                   # Normal Watcom include directory.
+CC_CFG += /i=$(%DXMEDIA)\INCLUDE
+CC_CFG += /i=$(%DXMEDIA)\CLASSES\BASE
+CC_CFG += /i=$(%DXSDK)\INC
+CC_CFG += /i=$(%WATCOM11)\H\NT                # NT include directory.
+CC_CFG += /i=$(%WATCOM11)\H                   # Normal Watcom include directory.
 CC_CFG += /bt=NT
 CC_CFG += /otxan
 CC_CFG += /5r                           # Pentium optimized register calling conventions.
@@ -100,7 +100,7 @@ CC_CFG += /zq                           # Operate quietly.
 # Object modules.
 #---------------------------------------------------------------------------
 OBJECTS = &
-	movie.obj
+	MOVIE.OBJ
 
 ############################################################################
 # If there is an abnormal termination in make process (e.g., error in compile).
@@ -114,8 +114,8 @@ all: mpeg.lib
 
 #############################################################################
 # Builds the MPEG.LIB file.
-mpeg.lib: $(OBJECTS) mpeg.lnk
-	$(LIB) -c $^@ @mpeg.lnk
+mpeg.lib: $(OBJECTS) MPEG.LNK
+	$(LIB) -c $^@ @MPEG.LNK
 
 mpeg.lnk: makefile
 	%create $^@

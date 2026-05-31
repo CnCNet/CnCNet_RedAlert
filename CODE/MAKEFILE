@@ -52,19 +52,40 @@ LANGUAGE=ENGLISH
 !endif
 !endif
 
-!ifdef WIN32
-WWFLAT=..\win32lib
-WWOBJ=obj\win32\$(LANGUAGE)
-LINKFILE=win95.lnk
-CC=..\watcom\binnt\wpp386
-LIB=..\watcom\binnt\wlib
+!ifdef RELEASE_VERSION
+BUILDVERSION=RELEASE_VERSION
+RUN_NAME=RA95
 !else
-WWFLAT=..\wwflat32
-WWOBJ=obj\dos
-LINKFILE=conquer.lnk
-CC=..\watcom\binnt\wpp386
-LIB=..\watcom\binnt\wlib
+!ifdef PLAYTEST_VERSION
+BUILDVERSION=PLAYTEST_VERSION
+RUN_NAME=RA95_PLAYTEST
+!else
+BUILDVERSION=INTERNAL_VERSION
+RUN_NAME=RA95_INTERNAL
 !endif
+!endif
+
+OBJ_ROOT=OBJ
+
+!ifdef WIN32
+WWOBJ_COMMON=$(OBJ_ROOT)\WIN32
+LINKFILE=WIN95.LNK
+CC=$(%WATCOM)\binnt\wpp386
+LIB=$(%WATCOM)\binnt\wlib
+!else
+WWOBJ_COMMON=$(OBJ_ROOT)\DOS
+LINKFILE=CONQUER.LNK
+CC=$(%WATCOM)\binnt\wpp386
+LIB=$(%WATCOM)\binnt\wlib
+!endif
+
+WWLIB=$(%WWLIB)
+TASM=$(%TASM)
+WWVQ=$(%WWVQ)
+WWOBJ=$(WWOBJ_COMMON)\$(LANGUAGE)
+
+WWRUN=$(%PRJ_ROOT)\RUN\$(LANGUAGE)
+
 
 #---------------------------------------------------------------------------
 # Path macros: one path for each file type.
@@ -75,8 +96,8 @@ LIB=..\watcom\binnt\wlib
 .cpp:  .
 .h:    .
 .obj:  $(WWOBJ)
-.lib:  $(WWFLAT)\lib
-.exe:  ..\run
+.lib:  $(WWLIB)\LIB
+.exe:  $(WWRUN)
 
 
 #===========================================================================
@@ -89,38 +110,41 @@ CC_CFG += /D_WIN32
 CC_CFG += /DWOLAPI_INTEGRATION
 CC_CFG += /DWINSOCK_IPX
 CC_CFG += /D$(LANGUAGE)=1
-CC_CFG += /i=..\dxsdk\inc
-CC_CFG += /i=..\watcom\h\nt                # NT include directory.
-CC_CFG += /i=..\watcom\H                   # Normal Watcom include directory.
-CC_CFG += /i=$(WWFLAT)\INCLUDE          # Normal library include directory.
-CC_CFG += /i=..\winvq\include           # Includes player (VQ) directory.
+CC_CFG += /i=$(%DXSDK)\INC
+CC_CFG += /i=$(%WATCOM)\H\NT                # NT include directory.
+CC_CFG += /i=$(%WATCOM)\H                   # Normal Watcom include directory.
+CC_CFG += /i=$(WWLIB)\INCLUDE          # Normal library include directory.
+CC_CFG += /i=$(WWVQ)\INCLUDE           # Includes player (VQ) directory.
 CC_CFG += /bt=NT
 CC_CFG += /otxan
 CC_CFG += /5r                           # Pentium optimized register calling conventions.
 !else
 CC_CFG = /d1                            # Partial debug (line numbers only)
-CC_CFG += /i=..\watcom\H                   # Normal Watcom include directory.
-CC_CFG += /i=$(WWFLAT)\INCLUDE          # Normal library include directory.
-CC_CFG += /i=..\vq\include              # Includes player (VQ) directory.
+CC_CFG += /i=$(%WATCOM)\H                   # Normal Watcom include directory.
+CC_CFG += /i=$(WWLIB)\INCLUDE          # Normal library include directory.
+CC_CFG += /i=$(WWVQ)\INCLUDE              # Includes player (VQ) directory.
 CC_CFG += /DDOS4G                       # Must be defined for Greenleaf
 CC_CFG += /5s                           # Pentium optimized stack calling conventions.
 CC_CFG += /DGF_WATCOM_S                 # Must be defined for Greenleaf with /3s
 CC_CFG += /bt=DOS
 !endif
 
-CC_CFG += /i=..\gcl510\H                # Includes Greenleaf headers.
+CC_CFG += /D$(LANGUAGE)=1
+CC_CFG += /D$(BUILDVERSION)=1
+
+CC_CFG += /i=$(%GCL510)\H                # Includes Greenleaf headers.
 CC_CFG += /of+                          # Generate traceable stack frames.
 CC_CFG += /zp1                          # Pack structures on byte boundary.
 CC_CFG += /s                            # Remove stack check calls.
 CC_CFG += /j                            # char is now signed.
-CC_CFG += /fh=$(WWOBJ)\conquer.pch      # Use precompiled headers.
+CC_CFG += /fh=$(WWOBJ)\CONQUER.PCH      # Use precompiled headers.
 CC_CFG += /fhq
 CC_CFG += /we                           # Treat all warnings as errors.
 CC_CFG += /w8                           # Most warnings enabled.
 CC_CFG += /ri                           # char and shorts are returned as int.
 CC_CFG += /zq                           # Operate quietly.
 
-ASM_CFG = /i$(WWFLAT)\INCLUDE           # Include directory.
+ASM_CFG = /i$(WWLIB)\INCLUDE           # Include directory.
 ASM_CFG += /zd                          # Debugging information line numbers.
 ASM_CFG += /t                           # Quiet operation.
 ASM_CFG += /m                           # Allow multiple passes.
@@ -140,16 +164,19 @@ ASM_CFG += /ml                          # Case sensitivity on code.
 #---------------------------------------------------------------------------
 
 .c.obj: .AUTODEPEND
+	echo.
 	echo Compiling $<
 	*$(CC) $(CC_CFG) -fo$(WWOBJ)\$^. $<
 
 .cpp.obj: .AUTODEPEND
+	echo.
 	echo Compiling $<
 	*$(CC) $(CC_CFG) -fo$(WWOBJ)\$^. $<
 
 .asm.obj:
+	echo.
 	echo Assembling $<
-	utils\tasm $(ASM_CFG) $<, $(WWOBJ)\$^.
+	$(%MSDOS) tasm $(ASM_CFG) $<, $(WWOBJ)\$^.
 
 #---------------------------------------------------------------------------
 # Object modules.
@@ -426,19 +453,19 @@ OBJECTS += KEYFBUFF.OBJ &
 
 !ifdef WIN32
 PROJ_LIBS = &
-	win32lib.lib
+	WIN32LIB.LIB
 
 !else
 PROJ_LIBS = &
-	wwflat32.lib
+	WWFLAT32.LIB
 !endif
 
 VQ_LIBS = &
-	vqa32wp.lib &
-	vqm32wp.lib
+	VQA32WP.LIB &
+	VQM32WP.LIB
 
 GCL_LIBS = &
-	gclfr3s.lib
+	GCLFR3S.LIB
 
 MEMCHECK_LIBS = &
 	MCA3S.LIB
@@ -446,8 +473,12 @@ MEMCHECK_LIBS = &
 ############################################################################
 # Pre-compilation process. Move old files to backup directory.
 .BEFORE
-	-if exist *.bak move *.bak bak
-	-if exist $(WWOBJ)\*.pch del $(WWOBJ)\*.pch
+#	-if exist *.bak move *.bak bak
+#	-if exist $(WWOBJ)\*.pch del $(WWOBJ)\*.pch
+	@echo.
+	@echo Creating build directories.
+	@if not exist "$(WWRUN)" md "$(WWRUN)" 2>nul
+	@if not exist "$(WWOBJ)" md "$(WWOBJ)" 2>nul
 
 # After make has completed.
 .AFTER
@@ -456,37 +487,67 @@ MEMCHECK_LIBS = &
 .ERROR
 
 
+############################################################################
+# Clean target
+clean: .SYMBOLIC
+	@echo.
+	@echo Cleaning up '$^&' files!
+    @dir /b /a-d "*.obj" >nul 2>&1 && del "*.obj" || ver >nul
+    @dir /b /a-d "*.exe" >nul 2>&1 && del "*.exe" || ver >nul
+    @dir /b /a-d "*.lib" >nul 2>&1 && del "*.lib" || ver >nul
+    @dir /b /a-d "*.dll" >nul 2>&1 && del "*.dll" || ver >nul
+    @dir /b /a-d "*.map" >nul 2>&1 && del "*.map" || ver >nul
+    @dir /b /a-d "*.err" >nul 2>&1 && del "*.err" || ver >nul
+    @dir /b /a-d "*.lnk" >nul 2>&1 && del "*.lnk" || ver >nul
+    @dir /b /a-d "*.pch" >nul 2>&1 && del "*.pch" || ver >nul
+    @dir /b /a-d "*.bak" >nul 2>&1 && del "*.bak" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.obj" >nul 2>&1 && del "$(WWOBJ)\*.obj" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.exe" >nul 2>&1 && del "$(WWOBJ)\*.exe" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.lib" >nul 2>&1 && del "$(WWOBJ)\*.lib" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.dll" >nul 2>&1 && del "$(WWOBJ)\*.dll" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.map" >nul 2>&1 && del "$(WWOBJ)\*.map" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.err" >nul 2>&1 && del "$(WWOBJ)\*.err" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.lnk" >nul 2>&1 && del "$(WWOBJ)\*.lnk" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.pch" >nul 2>&1 && del "$(WWOBJ)\*.pch" || ver >nul
+    @dir /b /a-d "$(WWOBJ)\*.bak" >nul 2>&1 && del "$(WWOBJ)\*.bak" || ver >nul
+	@dir /b /a-d "$(WWOBJ)\IPXPROT.OBJ" >nul 2>&1 && del "$(WWOBJ)\IPXPROT.OBJ" || ver >nul
+	@dir /b /a-d "$(WWOBJ)\IPXREAL.OBJ" >nul 2>&1 && del "$(WWOBJ)\IPXREAL.OBJ" || ver >nul
+	@dir /b /a-d "$(WWOBJ)\IPXREAL.EXE" >nul 2>&1 && del "$(WWOBJ)\IPXREAL.EXE" || ver >nul
+	@dir /b /a-d "$(WWOBJ)\IPXREAL.MAP" >nul 2>&1 && del "$(WWOBJ)\IPXREAL.MAP" || ver >nul
+	@dir /b /a-d "$(WWOBJ)\IPXREAL.IBN" >nul 2>&1 && del "$(WWOBJ)\IPXREAL.IBN" || ver >nul
+    
+
 #############################################################################
 # Default target
 !ifdef WIN32
-all: ra95.exe
+all: RA95.EXE
 !else
-all: game.dat
+all: GAME.DAT
 !endif
 
 
 #############################################################################
 # Builds the JSHELL.LIB file.
-$(WWOBJ)\jshell.lib: $(LIBFILES) $(WWOBJ)\jshell.lnk
-	$(LIB) -c $^@ @$(WWOBJ)\jshell.lnk
+$(WWOBJ)\JSHELL.LIB: $(LIBFILES) $(WWOBJ)\JSHELL.LNK
+	$(LIB) -c $^@ @$(WWOBJ)\JSHELL.LNK
 
-$(WWOBJ)\jshell.lnk: makefile
+$(WWOBJ)\JSHELL.LNK: makefile
 	%create $^@
 	for %index in ($(LIBFILES))  do %append $^@ -+ $(WWOBJ)\%index
 
 #############################################################################
 # Builds the TECH.LIB file.
-$(WWOBJ)\tech.lib: $(TECHFILES) $(WWOBJ)\tech.lnk
-	$(LIB) -c $^@ @$(WWOBJ)\tech.lnk
+$(WWOBJ)\TECH.LIB: $(TECHFILES) $(WWOBJ)\TECH.LNK
+	$(LIB) -c $^@ @$(WWOBJ)\TECH.LNK
 
-$(WWOBJ)\tech.lnk: makefile
+$(WWOBJ)\TECH.LNK: makefile
 	%create $^@
 	for %index in ($(TECHFILES))  do %append $^@ -+ $(WWOBJ)\%index
 
 #############################################################################
 # Builds the stub replacement program.
 CWSTUB.OBJ: CWSTUB.C
-	*wcc /i=..\watcom\h /dQUIET /dVMM /ms /zQ -fo$(WWOBJ)\$^. $<
+	*wcc /i=$(%WATCOM)\h /dQUIET /dVMM /ms /zQ -fo$(WWOBJ)\$^. $<
 
 CWSTUB.EXE: CWSTUB.OBJ
 	*watcom\binw\wlink system dos file $(WWOBJ)\cwstub.obj name cwstub.exe option quiet library \wat\lib386\dos\clibs.lib, \wat\lib386\math87s.lib, \wat\lib386\dos\emu87.lib
@@ -494,28 +555,31 @@ CWSTUB.EXE: CWSTUB.OBJ
 
 #############################################################################
 # Build the EXE
-game.dat: $(WWOBJ)\tech.lib $(WWOBJ)\jshell.lib $(OBJECTS) $(LINKFILE) $(TECHFILE)
+GAME.DAT: $(WWOBJ)\tech.lib $(WWOBJ)\jshell.lib $(OBJECTS) $(LINKFILE) $(TECHFILE)
 	-Echo "dos.exe" linking phase.
-        ..\watcom\binw\wlink name ..\run\dos.exe @$(LINKFILE)
+        $(%WATCOM)\binw\wlink name $(WWRUN)\dos.exe @$(LINKFILE)
 	-Echo Binding phase.
-        -..\watcom\binw\wstrip -n -q ..\run\dos.exe ..\run\temp.tmp
-	-..\watcom\4gwbind ..\watcom\4gwpro.exe ..\run\temp.tmp ..\run\game.dat -vmon
-# -copy ..\run\game.dat C:\westwood\redalert
-# -copy ..\run\game.dat C:\westwood\ra
-# -copy ..\run\dos.exe C:\westwood\redalert
-#	-copy ..\run\game.dat ..\cd\install
+        -$(%WATCOM)\binw\wstrip -n -q $(WWRUN)\dos.exe $(WWRUN)\temp.tmp
+	-$(%WATCOM)\4gwbind $(%WATCOM)\4gwpro.exe $(WWRUN)\temp.tmp $(WWRUN)\game.dat -vmon
+# -copy $(WWRUN)\game.dat C:\westwood\redalert
+# -copy $(WWRUN)\game.dat C:\westwood\ra
+# -copy $(WWRUN)\dos.exe C:\westwood\redalert
+#	-copy $(WWRUN)\game.dat ..\cd\install
 	-Echo "game.dat" executable completed.
 
-ra95.exe: $(WWOBJ)\tech.lib $(WWOBJ)\jshell.lib $(OBJECTS) $(LINKFILE) mpgdll.lib
-	Echo "ra95.exe" linking phase. [$(LANGUAGE)]
-#         nwlink name ..\run\$@ @$(LINKFILE)
+RA95.EXE: $(WWOBJ)\TECH.LIB $(WWOBJ)\JSHELL.LIB $(OBJECTS) $(LINKFILE) $(%MPEGLIB)\MPGDLL.LIB
+	Echo "RA95.EXE" linking phase. [$(LANGUAGE)]
+#         $(%LINKER)\nwlink name $(WWRUN)\$@ @$(LINKFILE)
 # ajw - Steve Tall replaced wlink with nwlink. Watcom fix allows more debug symbols in exe, so allows debugging in WD.
-#        ..\watcom\binw\wlink name ..\run\$@ @$(LINKFILE)
-        linker\nwlink name ..\run\$@ @$(LINKFILE)
-#        ..\watcom\binnt\WRC cc_icon ..\run\$@
-#        copy ..\run\ra95.exe C:\westwood\redalert
-#        copy ..\run\ra95.exe C:\westwood\ra
-	Echo "ra95.exe" executable completed. [$(LANGUAGE)]
+#        $(%WATCOM)\binw\wlink name $(WWRUN)\$@ @$(LINKFILE)
+        $(%LINKER)\nwlink name $(WWOBJ)\RA95.EXE @$(LINKFILE)
+        $(%WATCOM)\binnt\WRC cc_icon "$(WWOBJ)\RA95.EXE
+#        copy $(WWRUN)\ra95.exe C:\westwood\redalert
+#        copy $(WWRUN)\ra95.exe C:\westwood\ra
+        echo f | @xcopy "$(WWOBJ)\RA95.MAP" "$(WWRUN)\$(RUN_NAME).MAP" /Y /F /R
+#        echo f | @xcopy "$(WWOBJ)\RA95.SYM" "$(WWRUN)\$(RUN_NAME).SYM" /Y /F /R
+        echo f | @xcopy "$(WWOBJ)\RA95.EXE" "$(WWRUN)\$(RUN_NAME).EXE" /Y /F /R
+	Echo "RA95.EXE" executable completed! [$(LANGUAGE)]
 
 
 #############################################################################
@@ -526,16 +590,20 @@ conquer.lnk : makefile
 	%append $^@ option stack=128k
 	%append $^@ option redefsok
 	%append $^@ option quiet
-	%append $^@ option map
+    %append $^@ option map=$(WWOBJ)\CONQUER.MAP
+    %append $^@ option symfile=$(WWOBJ)\CONQUER.SYM
 	%append $^@ option eliminate
 	%append $^@ option caseexact
-	%append $^@ debug all
+	%append $^@ option art              # List artificial symbols in the map file.
+	%append $^@ option showdead         # List symbols associated with dead code and functions in the map file.
+	%append $^@ option statics          # List static symbols in the map file.
+	%append $^@ option mang             # Mangled symbols in the map file.
 	%append $^@ library $(WWOBJ)\jshell.lib
 	%append $^@ library $(WWOBJ)\tech.lib
 	for %index in ($(OBJECTS))  do %append $^@ file $(WWOBJ)\%index
-	for %index in ($(PROJ_LIBS)) do %append $^@ library $(WWFLAT)\lib\%index
+	for %index in ($(PROJ_LIBS)) do %append $^@ library $(WWLIB)\lib\%index
 	for %index in ($(VQ_LIBS)) do %append $^@ library ..\vq\lib\%index
-	for %index in ($(GCL_LIBS)) do %append $^@ library ..\gcl510\w10\%index
+	for %index in ($(GCL_LIBS)) do %append $^@ library $(%GCL510)\w10\%index
 #	%append $^@ debug watcom all
 
 
@@ -546,28 +614,32 @@ win95.lnk : makefile
 	%append $^@ system win95
 	%append $^@ option redefsok
 	%append $^@ option quiet
-	%append $^@ option map
-        %append $^@ option eliminate
+    %append $^@ option map=$(WWOBJ)\RA95.MAP
+    %append $^@ option symfile=$(WWOBJ)\RA95.SYM
+    %append $^@ option eliminate
 	%append $^@ option caseexact
 	%append $^@ option stack=128k
 #	%append $^@ debug watcom all
-#	%append $^@ debug all
+	%append $^@ option art              # List artificial symbols in the map file.
+	%append $^@ option showdead         # List symbols associated with dead code and functions in the map file.
+	%append $^@ option statics          # List static symbols in the map file.
+	%append $^@ option mang             # Mangled symbols in the map file.
 	for %index in ($(OBJECTS))  do %append $^@ file $(WWOBJ)\%index
 	%append $^@ library $(WWOBJ)\jshell.lib
 	%append $^@ library $(WWOBJ)\tech.lib
-	%append $^@ library $(WWFLAT)\lib\win32lib.lib
-	%append $^@ library ..\winvq\lib\vqa32wp.lib
-	%append $^@ library ..\winvq\lib\vqm32wp.lib
-     	%append $^@ library ipx\wwipx32.lib
-	%append $^@ library ..\dxsdk\lib\dxguid.lib
-	%append $^@ library ..\dxsdk\lib\ddraw.lib
-	%append $^@ library ..\dxsdk\lib\dsound.lib
-	%append $^@ library $(WWFLAT)\lib\keyboard.lib
-	%append $^@ library mpgdll.lib
-	%append $^@ library ..\dxmedia\lib\amstrmid.lib
-	%append $^@ library ..\dxmedia\lib\strmbasd.lib
-#	%append $^@ library ..\watcom\lib386\nt\uuid.lib
-	%append $^@ library uuid.lib
+	%append $^@ library $(WWLIB)\lib\win32lib.lib
+	%append $^@ library $(WWVQ)\lib\vqa32wp.lib
+	%append $^@ library $(WWVQ)\lib\vqm32wp.lib
+    %append $^@ library $(%WWIPX)\ipx\wwipx32.lib
+	%append $^@ library $(%DXSDK)\lib\dxguid.lib
+	%append $^@ library $(%DXSDK)\lib\ddraw.lib
+	%append $^@ library $(%DXSDK)\lib\dsound.lib
+	%append $^@ library $(WWLIB)\lib\keyboard.lib
+	%append $^@ library $(%MPEGLIB)\mpgdll.lib
+	%append $^@ library $(%DXMEDIA)\lib\amstrmid.lib
+	%append $^@ library $(%DXMEDIA)\lib\strmbasd.lib
+#	%append $^@ library $(%WATCOM)\lib386\nt\uuid.lib
+	%append $^@ library $(%UUIDLIB)\uuid.lib
 
 #############################################################
 # Update source and art to network.
@@ -589,19 +661,19 @@ pre: .SYMBOLIC
 	-copy f:\projects\c&c0\editor\english\*.exe i:\cd2\install /u
 	-copy f:\projects\c&c0\editor\english\edit.dat i:\cd1\install /u
 	-copy f:\projects\c&c0\editor\english\edit.dat i:\cd2\install /u
-	-copy ..\run\rules.ini ..\maps /u
-	-copy ..\run\rules.ini f:\projects\c&c0\maps /u
-	-watcom\binw\wstrip -n -q ..\run\ra95.exe ..\run\ra95.exe
-	-copy ..\run\ra95.exe i:\cd1\install /u
-	-copy ..\run\ra95.exe i:\cd2\install /u
-	-copy ..\run\game.dat i:\cd1\install /u
-	-copy ..\run\game.dat i:\cd2\install /u
+	-copy $(WWRUN)\rules.ini ..\maps /u
+	-copy $(WWRUN)\rules.ini f:\projects\c&c0\maps /u
+	-watcom\binw\wstrip -n -q $(WWRUN)\ra95.exe $(WWRUN)\ra95.exe
+	-copy $(WWRUN)\ra95.exe i:\cd1\install /u
+	-copy $(WWRUN)\ra95.exe i:\cd2\install /u
+	-copy $(WWRUN)\game.dat i:\cd1\install /u
+	-copy $(WWRUN)\game.dat i:\cd2\install /u
 	packlist SETUP.LST
 	-copy setup.pkg i:\cd1\setup95 /u
  	-copy setup.pkg i:\cd2\setup95 /u
 	-mkdir f:\projects\c&c0\playtest\%_DATE
-	-copy ..\run\ra95.exe f:\projects\c&c0\playtest\%_DATE /u /v
-	-copy ..\run\game.dat f:\projects\c&c0\playtest\%_DATE /u /v
+	-copy $(WWRUN)\ra95.exe f:\projects\c&c0\playtest\%_DATE /u /v
+	-copy $(WWRUN)\game.dat f:\projects\c&c0\playtest\%_DATE /u /v
 	-copy *.map f:\projects\c&c0\playtest\%_DATE /u /v
 	-copy *.cpp *.h f:\projects\c&c0\playtest\%_DATE /u /v
 
@@ -713,40 +785,59 @@ PKZIP.DAT: makefile .SYMBOLIC
 # IPXPROT is the protected-mode code that includes IPXREAL.IBN, and
 # provides routines to let C++ read the code's address & size.
 #--------------------------------------------------------------------------
-$(WWOBJ)\ipxreal.ibn: $(WWOBJ)\ipxreal.obj
-	%create $^*.rsp
-	%append $^*.rsp $(WWOBJ)\$^&.obj
-	%append $^*.rsp $(WWOBJ)\$^&.exe
-	%append $^*.rsp $(WWOBJ)\$^&.map
-	utils\tlink @$^*.rsp
-	utils\tdstrip $(WWOBJ)\ipxreal.exe
-	utils\ebn $(WWOBJ)\ipxreal.exe
+$(WWOBJ)\IPXREAL.IBN: $(WWOBJ)\IPXREAL.OBJ
+	echo.
+	@echo *** ENTERED IBN RULE ***
+	echo [IPXREAL.IBN] Creating RSP
+	%create $(WWOBJ)\IPXREAL.RSP
+	%append $(WWOBJ)\IPXREAL.RSP $(WWOBJ)\IPXREAL.OBJ, $(WWOBJ)\IPXREAL.EXE, $(WWOBJ)\IPXREAL.MAP
+#	%append $(WWOBJ)\IPXREAL.RSP $(WWOBJ)\IPXREAL.EXE
+#	%append $(WWOBJ)\IPXREAL.RSP $(WWOBJ)\IPXREAL.MAP
+    type "$(WWOBJ)\IPXREAL.RSP"
+	echo [IPXREAL.IBN] Linking...
+	$(%MSDOS) $(TASM)\bin\tlink @"$(WWOBJ)\IPXREAL.RSP"
+    @if not exist "$(WWOBJ)\IPXREAL.EXE" (echo ERROR: tlink did not produce IPXREAL.EXE & exit 1)
+	echo [IPXREAL.IBN] Stripping...
+	$(%MSDOS) $(TASM)\bin\tdstrip "$(WWOBJ)\IPXREAL.EXE"
+	echo [IPXREAL.IBN] EBN...
+	$(%MSDOS) $(%UTILS)\ebn "$(WWOBJ)\IPXREAL.EXE"
+    @if not exist "$(WWOBJ)\IPXREAL.IBN" (echo ERROR: ebn did not produce IPXREAL.IBN & exit 1)
 
-$(WWOBJ)\ipxreal.obj:	ipxreal.asm
-	utils\tasm /zn /la /ml /m2 ipxreal.asm, $(WWOBJ)\ipxreal.obj
+$(WWOBJ)\IPXREAL.OBJ: IPXREAL.ASM
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(TASM)\bin\tasm /zn /la /ml /m2 "IPXREAL.ASM","$(WWOBJ)\IPXREAL.OBJ"
+    @if not exist "$(WWOBJ)\IPXREAL.OBJ" (echo ERROR: tasm did not produce IPXREAL.OBJ & exit 1)
 
-ipxprot.obj: $(WWOBJ)\ipxreal.ibn ipxprot.asm
-	utils\tasm $(ASM_CFG) ipxprot.asm, $(WWOBJ)\ipxprot.obj
+IPXPROT.OBJ: $(WWOBJ)\IPXREAL.IBN IPXPROT.ASM
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(TASM)\bin\tasm $(ASM_CFG) /I"$(WWOBJ)" "IPXPROT.ASM","$(WWOBJ)\IPXPROT.OBJ"
 #	copy $(WWOBJ)\ipxprot.obj d:obj /U
 
 
 ipx.obj: ipx.cpp function.h
+	echo.
 	echo Compiling $[.
 	*$(CC) $(CC_CFG) -zz -fo$(WWOBJ)\$^. $[*.cpp
 
 ipxmgr.obj: ipxmgr.cpp function.h
+	echo.
 	echo Compiling $[.
 	*$(CC) $(CC_CFG) -zz -fo$(WWOBJ)\$^. $[*.cpp
 
 ipxconn.obj: ipxconn.cpp function.h
+	echo.
 	echo Compiling $[.
 	*$(CC) $(CC_CFG) -zz -fo$(WWOBJ)\$^. $[*.cpp
 
 ipx95.obj: ipx95.cpp function.h
+	echo.
 	echo Compiling $[.
 	*$(CC) $(CC_CFG) -zz -fo$(WWOBJ)\$^. $[*.cpp
 
 winstub.obj: winstub.cpp ipx95.h tcpip.h function.h
+	echo.
 	echo Compiling $[.
 	*$(CC) $(CC_CFG) -zz -fo$(WWOBJ)\$^. $[*.cpp
 

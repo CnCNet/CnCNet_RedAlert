@@ -48,6 +48,7 @@
 # VERIFY ENVIROMENT
 #----------------------------------------------------------------------------
 
+.SILENT
 .OPTIMIZE
 .ERASE
 
@@ -55,49 +56,35 @@
 # PROJECTS DEPENDENT MACROS
 #----------------------------------------------------------------------------
 
-PRJ    = ..
-WATCOM = C:\WATCOM
-PRJNAME = vqa32wp
-PRJDIR  = $(PRJ)\VQA32
+PRJNAME = VQA32WP
+PRJDIR  = $(%PRJ)\VQA32
 
 OBJECTS = &
-	config.obj &
-	task.obj &
-	loader.obj &
-	drawer.obj &
-	audio.obj &
-	monodisp.obj &
-	dstream.obj &
-	unvqbuff.obj &
-	unvqvesa.obj &
-	vertag.obj &
-	caption.obj &
-#	unvqxmde.obj
+	CONFIG.OBJ &
+	TASK.OBJ &
+	LOADER.OBJ &
+	DRAWER.OBJ &
+	AUDIO.OBJ &
+	MONODISP.OBJ &
+	DSTREAM.OBJ &
+	UNVQBUFF.OBJ &
+	UNVQVESA.OBJ &
+	VERTAG.OBJ &
+	CAPTION.OBJ &
+#	UNVQXMDE.OBJ
 
 #----------------------------------------------------------------------------
 # PATH MACROS
 #----------------------------------------------------------------------------
 
-!ifdef %LIB
-LIBPATH = $(PRJ)\LIB;$(%LIB)
-!else
-LIBPATH = $(PRJ)\LIB;$(WATCOM)\LIB386
-!endif
-
-!ifdef %INCLUDE
-INCLUDEPATH = $(PRJ)\INCLUDE;$(%INCLUDE)
-!else
-INCLUDEPATH = $(PRJ)\INCLUDE;$(WATCOM)\H
-!endif
-
-path_c   = .\
-path_cpp = .\
-path_h   = .\
-path_asm = .\
-path_i   = .\
-path_obj = .\O
-path_lib = $(PRJ)\LIB
-path_exe = .\
+PATH_C   = $(PRJDIR)\
+PATH_CPP = $(PRJDIR)\
+PATH_H   = $(PRJDIR)\
+PATH_ASM = $(PRJDIR)\
+PATH_I   = $(PRJDIR)\
+PATH_OBJ = $(PRJDIR)\OBJ
+PATH_LIB = $(%PRJ)\LIB
+PATH_EXE = $(PRJDIR)\
 
 #----------------------------------------------------------------------------
 # IMPLICIT RULE EXTENSIONS AND PATHS
@@ -106,14 +93,14 @@ path_exe = .\
 .EXTENSIONS :
 .EXTENSIONS : .exe .lib .obj .c .cpp .asm .h .i
 
-.c : $(path_c)
-.cpp : $(path_cpp)
-.h : $(path_h)
-.asm : $(path_asm)
-.i : $(path_i)
-.obj : $(path_obj)
-.lib : $(path_lib)
-.exe : $(path_exe)
+.c : $(PATH_C)
+.cpp : $(PATH_CPP)
+.h : $(PATH_H)
+.asm : $(PATH_ASM)
+.i : $(PATH_I)
+.obj : $(PATH_OBJ)
+.lib : $(PATH_LIB)
+.exe : $(PATH_EXE)
 
 #----------------------------------------------------------------------------
 # Tools/commands & configurations
@@ -125,8 +112,8 @@ ASM_CMD  = tasm32
 LINK_CMD = wlink
 LIB_CMD  = wlib
 
-CC_OPTS  = -i$(INCLUDEPATH) -j -zp1 -5r -mf -oaeilrt -s -zq -d1
-ASM_OPTS = /t /m /w+ /jJUMPS /ml /p /z /i$(PRJ)\INCLUDE\VQM32 /dPHARLAP_TNT=0
+CC_OPTS  = -i$(%PRJ)\INCLUDE;$(%WATCOM)\H;$(%WATCOM)\H\NT -j -zp1 -5r -mf -oaeilrt -s -zq -d1
+ASM_OPTS = /t /m /w+ /jJUMPS /ml /p /z /i$(%PRJ)\INCLUDE\VQM32 /dPHARLAP_TNT=0
 LIB_OPTS = /b /c /q
 LINK_CFG = $(PRJNAME).lnk
 
@@ -136,26 +123,51 @@ LINK_CFG = $(PRJNAME).lnk
 
 all : $(PRJNAME).lib .SYMBOLIC
 
+#---------------------------------------------------------------------------
+# CLEAN TARGET
+#---------------------------------------------------------------------------
+clean: .SYMBOLIC
+	-if exist "*.obj" del /q *.obj
+	-if exist "*.exe" del /q *.exe
+	-if exist "*.lib" del /q *.lib
+	-if exist "*.dll" del /q *.dll
+	-if exist "*.map" del /q *.map
+	-if exist "*.err" del /q *.err
+	-if exist "*.lnk" del /q *.lnk
+	-if exist "*.pch" del /q *.pch
+	-if exist "*.bak" del /q *.bak
+	-if exist "$(%PRJ)\LIB\VQA32WP.LIB" del /q "$(%PRJ)\LIB\VQA32WP.LIB"
+
 $(PRJNAME).lib : $(OBJECTS) .SYMBOLIC
+
+#----------------------------------------------------------------------------
+# Ensure build directories exist before any compilation
+#----------------------------------------------------------------------------
+.BEFORE
+	@if not exist "$(PATH_OBJ)" md "$(PATH_OBJ)" 2>nul
+	@if not exist "$(PATH_LIB)" md "$(PATH_LIB)" 2>nul
 
 #----------------------------------------------------------------------------
 # IMPLICIT RULES
 #----------------------------------------------------------------------------
 
-.c.obj :
-  $(CC_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+.c.obj: .AUTODEPEND
+	echo Compiling $<
+	$(CC_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
-.cpp.obj :
-  $(CCP_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+.cpp.obj: .AUTODEPEND
+	echo Compiling $<
+	$(CCP_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
 .asm.obj:
-	$(ASM_CMD) $(ASM_OPTS) $<,$(path_obj)\$^.
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+	echo Assembling $<
+	$(ASM_CMD) $(ASM_OPTS) $<,$(PATH_OBJ)\$^.
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
 update: .SYMBOLIC
-	@echo Updating VQAPlay32 header files!
-	@copy vqaplay.h ..\include\vqa32 >NUL
-	@copy vqafile.h ..\include\vqa32 >NUL
-
+	@echo Updating 'VQAPlay32' header files in '$(%PRJ)\INCLUDE\VQA32'!
+	@if not exist "$(%PRJ)\INCLUDE\VQA32\" md "$(%PRJ)\INCLUDE\VQA32\" 2>nul
+	@dir /b /a-d "$(PRJDIR)\*.h" >nul 2>&1 && xcopy "$(PRJDIR)\*.h" "$(%PRJ)\INCLUDE\VQA32\" /Y /F /R /I
+	@dir /b /a-d "$(PRJDIR)\*.i" >nul 2>&1 && xcopy "$(PRJDIR)\*.i" "$(%PRJ)\INCLUDE\VQA32\" /Y /F /R /I

@@ -1,10 +1,13 @@
 :: -----------------------------------------------------------------------------
 :: -----------------------------------------------------------------------------
-:: Batch script for building the Westwood Studios 32-bit library (WIN32LIB).
+:: Batch script for building the Westwood Studios VQ library (WINVQ).
 ::
-:: Runs standalone (resolves the repo root from this script's location) and is
-:: also safe to be called from the top-level MAKE.BAT via CALL. Builds the
-:: combined WIN32LIB.LIB from all component sub-libraries.
+:: Builds the VQM32 and VQA32 component libraries only. The VPLAY32 and
+:: VQAVIEW tools under WINVQ\ are intentionally excluded -- they are not
+:: linked into the Red Alert game binary and are not part of this build.
+::
+:: Runs standalone (resolves the repo root from this script's location) and
+:: is also safe to be called from the top-level MAKE.BAT via CALL.
 :: -----------------------------------------------------------------------------
 :: -----------------------------------------------------------------------------
 
@@ -15,9 +18,9 @@ SETLOCAL ENABLEEXTENSIONS
 :: Resolve repo paths from this script's location.
 :: %~dp0 is the directory containing this batch file (with trailing backslash).
 :: -----------------------------------------------------------------------------
-SET "WWLIB_ROOT=%~dp0"
-IF "%WWLIB_ROOT:~-1%"=="\" SET "WWLIB_ROOT=%WWLIB_ROOT:~0,-1%"
-FOR %%I IN ("%WWLIB_ROOT%\..") DO SET "PRJ_ROOT=%%~fI"
+SET "WWVQ_ROOT=%~dp0"
+IF "%WWVQ_ROOT:~-1%"=="\" SET "WWVQ_ROOT=%WWVQ_ROOT:~0,-1%"
+FOR %%I IN ("%WWVQ_ROOT%\..") DO SET "PRJ_ROOT=%%~fI"
 
 :: -----------------------------------------------------------------------------
 :: Language selection (BUILD_LANG env override, defaulted to ENGLISH).
@@ -45,32 +48,52 @@ SET "MASM=%PRJ_ROOT%\MASM"
 SET "LINKER=%PRJ_ROOT%\LINKER"
 SET "UTILS=%PRJ_ROOT%\UTILS"
 
-:: Reset PATH (Watcom has an ~8KB PATH limit; inherited PATH often exceeds it)
-:: and rebuild with only the dirs the toolchain needs.
+:: Reset PATH (Watcom has an ~8KB PATH limit) and rebuild with only the dirs
+:: the toolchain needs.
 SET "PATH=C:\Windows\System32"
 SET "PATH=%WATCOM%\BINNT;%TASM%\BIN;%MASM%\BIN;%LINKER%\BIN;%UTILS%\BIN;%PATH%"
 
 :: INCLUDE is used by the VQ library code and can cause conflicts -- clear it.
 SET INCLUDE=
 
-:: WIN32LIB/MAKEFILE reads %WIN32LIB% as the library root.
-SET "WIN32LIB=%WWLIB_ROOT%"
+:: The VQM32 / VQA32 makefiles read %PRJ% to locate the WINVQ root.
+SET "PRJ=%WWVQ_ROOT%"
+SET "WWVQ=%WWVQ_ROOT%"
 
 :: -----------------------------------------------------------------------------
-:: Build
+:: Build VQM32
 :: -----------------------------------------------------------------------------
 @ECHO(
 @ECHO ======================================================
-@ECHO Building WIN32LIB [%LANG%]
+@ECHO Building VQM32 [%LANG%]
 @ECHO ======================================================
 
-CD /D "%WWLIB_ROOT%"
+CD /D "%WWVQ_ROOT%\VQM32"
 
 @ECHO ON
-:: Update/copy the latest headers into WIN32LIB\INCLUDE for downstream consumers.
+:: Update/copy headers into WINVQ\INCLUDE for downstream consumers.
 WMAKE UPDATE
 IF ERRORLEVEL 1 GOTO :FAIL
-:: Build the combined library.
+:: Build the VQM32 library.
+WMAKE %WMAKE_DEBUG% WIN32=1 %LANG%=1 CLEAN ALL
+IF ERRORLEVEL 1 GOTO :FAIL
+@ECHO OFF
+
+:: -----------------------------------------------------------------------------
+:: Build VQA32
+:: -----------------------------------------------------------------------------
+@ECHO(
+@ECHO ======================================================
+@ECHO Building VQA32 [%LANG%]
+@ECHO ======================================================
+
+CD /D "%WWVQ_ROOT%\VQA32"
+
+@ECHO ON
+:: Update/copy headers into WINVQ\INCLUDE for downstream consumers.
+WMAKE UPDATE
+IF ERRORLEVEL 1 GOTO :FAIL
+:: Build the VQA32 library.
 WMAKE %WMAKE_DEBUG% WIN32=1 %LANG%=1 CLEAN ALL
 IF ERRORLEVEL 1 GOTO :FAIL
 @ECHO OFF
@@ -79,6 +102,6 @@ ENDLOCAL
 EXIT /B 0
 
 :FAIL
-@ECHO ERROR: WIN32LIB build failed.
+@ECHO ERROR: WINVQ build failed.
 ENDLOCAL
 EXIT /B 1

@@ -58,7 +58,7 @@ GLOBAL	 C Get_RM_IPX_Size:NEAR
 	DATASEG
 
 LABEL 	RealBinStart	BYTE
-include "obj\win32\ipxreal.ibn"
+include "ipxreal.ibn"
 LABEL	RealBinEnd	BYTE
 
 ;********************************* Data ************************************

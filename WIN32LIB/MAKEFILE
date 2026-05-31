@@ -50,16 +50,14 @@
 #*									   															*
 #***************************************************************************
 
+#.SILENT
+#.OPTIMIZE
+#.ERASE
+
 !ifndef %WIN32LIB
 WIN32LIB=.
 !else
 WIN32LIB=$(%WIN32LIB)
-!endif
-
-!ifndef %WIN32VCS
-WIN32VCS=.
-!else
-WIN32VCS=$(%WIN32VCS)
 !endif
 
 
@@ -69,8 +67,8 @@ WIN32VCS=$(%WIN32VCS)
 #	1. The directory MISC must always be made first.
 #	2. The directory VIDEO must be made before the SYSTEM directory.
 #===========================================================================
-LIB_NAME = win32lib
-LIB_DIR  = $(WIN32LIB)\lib
+LIB_NAME = WIN32LIB
+LIB_DIR  = $(WIN32LIB)\LIB
 
 #---------------------------------------------------------------------------
 # LIBS macro: a list of all component libraries
@@ -78,68 +76,108 @@ LIB_DIR  = $(WIN32LIB)\lib
 #---------------------------------------------------------------------------
 
 LIBS = 			&
-					audio.lib		&
-					dipthong.lib	&
-					drawbuff.lib	&
-					font.lib    	&
-					iff.lib	    	&
-					keyboard.lib	&
-					mem.lib	    	&
-					misc.lib    	&
-					mono.lib    	&
-					palette.lib 	&
-					shape.lib		&
-					tile.lib 		&
-					timer.lib 		&
-					ww_win.lib 		&
-					wsa.lib	  		&
-					profile.lib    &
-					playcd.lib	&
-					wincomm.lib
+					AUDIO.LIB		&
+					DIPTHONG.LIB	&
+					DRAWBUFF.LIB	&
+					FONT.LIB    	&
+					IFF.LIB	    	&
+					KEYBOARD.LIB	&
+					MEM.LIB	    	&
+					MISC.LIB    	&
+					MONO.LIB    	&
+					PALETTE.LIB 	&
+					SHAPE.LIB		&
+					TILE.LIB 		&
+					TIMER.LIB 		&
+					WW_WIN.LIB 		&
+					WSA.LIB	  		&
+					PROFILE.LIB    &
+					PLAYCD.LIB	&
+					WINCOMM.LIB
 
 LIB_INSTALL =	&
-					audio.ins		&
-					dipthong.ins	&
-					drawbuff.ins	&
-					font.ins    	&
-					iff.ins	    	&
-					keyboard.ins	&
-					mem.ins	    	&
-					misc.ins    	&
-					mono.ins    	&
-					palette.ins 	&
-					rawfile.ins		&
-					shape.ins		&
-					tile.ins 		&
-					timer.ins 		&
-					ww_win.ins 		&
-					wsa.ins	  		&
-					profile.ins		&
-					playcd.ins		&
-					wincomm.ins
-
-
+					AUDIO.INS		&
+					DIPTHONG.INS	&
+					DRAWBUFF.INS	&
+					FONT.INS    	&
+					IFF.INS	    	&
+					KEYBOARD.INS	&
+					MEM.INS	    	&
+					MISC.INS    	&
+					MONO.INS    	&
+					PALETTE.INS 	&
+					RAWFILE.INS		&
+					SHAPE.INS		&
+					TILE.INS 		&
+					TIMER.INS 		&
+					WW_WIN.INS 		&
+					WSA.INS	  		&
+					PROFILE.INS		&
+					PLAYCD.INS		&
+					WINCOMM.INS
 
 LIB_UPDATE =	&
-					audio.upd		&
-					dipthong.upd	&
-					drawbuff.upd	&
-					font.upd    	&
-					iff.upd	    	&
-					keyboard.upd	&
-					mem.upd	    	&
-					misc.upd    	&
-					mono.upd    	&
-					palette.upd 	&
-					rawfile.upd		&
-					shape.upd		&
-					tile.upd 		&
-					timer.upd 		&
-					ww_win.upd 		&
-					wsa.upd	  		&
-					profile.upd		&
-					playcd.upd		&
-					wincomm.upd
+					AUDIO.UPD		&
+					DIPTHONG.UPD	&
+					DRAWBUFF.UPD	&
+					FONT.UPD    	&
+					IFF.UPD	    	&
+					KEYBOARD.UPD	&
+					MEM.UPD	    	&
+					MISC.UPD    	&
+					MONO.UPD    	&
+					PALETTE.UPD 	&
+					RAWFILE.UPD		&
+					SHAPE.UPD		&
+					TILE.UPD 		&
+					TIMER.UPD 		&
+					WW_WIN.UPD 		&
+					WSA.UPD	  		&
+					PROFILE.UPD		&
+					PLAYCD.UPD		&
+					WINCOMM.UPD
+
+LIB_CLEAN =	&
+					AUDIO.CLN		&
+					DIPTHONG.CLN	&
+					DRAWBUFF.CLN	&
+					FONT.CLN    	&
+					IFF.CLN	    	&
+					KEYBOARD.CLN	&
+					MEM.CLN	    	&
+					MISC.CLN    	&
+					MONO.CLN    	&
+					PALETTE.CLN 	&
+					RAWFILE.CLN		&
+					SHAPE.CLN		&
+					TILE.CLN 		&
+					TIMER.CLN 		&
+					WW_WIN.CLN 		&
+					WSA.CLN	  		&
+					PROFILE.CLN		&
+					PLAYCD.CLN		&
+					WINCOMM.CLN
+
+MODULES = &
+					AUDIO			&
+					DIPTHONG		&
+					DRAWBUFF		&
+					FONT			&
+					IFF				&
+					KEYBOARD		&
+					MEM				&
+					MISC			&
+					MONO			&
+					PALETTE			&
+					RAWFILE			&
+					SHAPE			&
+					TILE			&
+					TIMER			&
+					WW_WIN			&
+					WSA				&
+					PROFILE			&
+					PLAYCD			&
+					WINCOMM			&
 
 
 #===========================================================================
@@ -149,7 +187,7 @@ LIB_UPDATE =	&
 # Path macros: one path for each file type.
 #	These paths are used to tell make where to find/put each file type.
 #---------------------------------------------------------------------------
-.lib: $(WIN32LIB)\lib
+.lib: $(WIN32LIB)\LIB
 
 
 #---------------------------------------------------------------------------
@@ -160,29 +198,45 @@ LIB_UPDATE =	&
 # 		all relevant files in a given directory with read-only
 #		copies from the archive
 #---------------------------------------------------------------------------
-!include $(WIN32LIB)\project.cfg
-LIB_CMD = ..\code\watcom\binnt\wlib
+!include $(WIN32LIB)\PROJECT.CFG
+LIB_CMD = $(%WATCOM)\binnt\wlib
 VCS_UPDATE = update
 
 #---------------------------------------------------------------------------
-# If you like to have this makefile switch to the mono screen automatically,
-# you will need to do a "set MONO=Y" or to anything you like.
+# Ensure build directories exist before any compilation
 #---------------------------------------------------------------------------
-!ifdef %MONO
 .BEFORE
-	mode mono
-
-.AFTER
-	mode co80
-
-.ERROR
-	mode co80
-!endif
+	@echo.
+	@echo Creating build directories.
+	@if not exist "$(WIN32LIB)\INCLUDE" md "$(WIN32LIB)\INCLUDE" 2>nul
+	@if not exist "$(WIN32LIB)\LIB" md "$(WIN32LIB)\LIB" 2>nul
+	@for %%M in ($(MODULES)) do @if not exist "$(WIN32LIB)\%%M\OBJ" md "$(WIN32LIB)\%%M\OBJ" 2>nul
 
 #---------------------------------------------------------------------------
 # Default target
 #---------------------------------------------------------------------------
 all:	$(LIB_DIR)\$(LIB_NAME).lib .SYMBOLIC
+
+#---------------------------------------------------------------------------
+# "make clean" cleans all source files in your slice
+#---------------------------------------------------------------------------
+clean: $(LIB_CLEAN) .SYMBOLIC
+	echo.
+	echo Cleaning library.
+
+#---------------------------------------------------------------------------
+# This target cleans all library directories
+#	This is a dependency for 'clean'
+#---------------------------------------------------------------------------
+$(LIB_CLEAN): .SYMBOLIC
+	@echo.
+	@echo Cleaning up '$^&' files!
+	@dir /b /a-d "$(WIN32LIB)\$^&\OBJ\*.OBJ" >nul 2>&1 && del "$(WIN32LIB)\$^&\OBJ\*.OBJ" || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\$^&\OBJ\*.ERR" >nul 2>&1 && del "$(WIN32LIB)\$^&\OBJ\*.ERR" || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\LIB\$^&.LIB" >nul 2>&1 && del "$(WIN32LIB)\LIB\$^&.LIB" || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\$^&\*.LIB" >nul 2>&1 && del "$(WIN32LIB)\$^&\*.LIB" || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\$^&\OBJECTS.LBC" >nul 2>&1 && del "$(WIN32LIB)\$^&\OBJECTS.LBC" 2>nul || ver >nul
+
 
 #---------------------------------------------------------------------------
 # Build the library
@@ -193,8 +247,8 @@ all:	$(LIB_DIR)\$(LIB_NAME).lib .SYMBOLIC
 # Tlib's cfg file is not invoked as a response file.
 # All headers & source files are copied into WIN32LIB\SRCDEBUG, for debugging
 #---------------------------------------------------------------------------
-$(LIB_DIR)\$(LIB_NAME).lib: $(LIBS) libs.lbc
-	$(LIB_CMD) $(LIB_CFG) $^@ @libs.lbc
+$(LIB_DIR)\$(LIB_NAME).lib: $(LIBS) LIBS.LBC
+	$(LIB_CMD) $(LIB_CFG) $^@ @LIBS.LBC
 
 
 #---------------------------------------------------------------------------
@@ -203,7 +257,8 @@ $(LIB_DIR)\$(LIB_NAME).lib: $(LIBS) libs.lbc
 #	The macro $: extracts only the directory name from the macro item.
 #---------------------------------------------------------------------------
 $(LIBS):
-	echo Making $^&...
+	echo.
+	echo Making '$^&'...
 	cd $^&
 	wmake
 	cd ..
@@ -221,8 +276,9 @@ libs.lbc : $(LIBS)
 # "make install" installs the library on your drive
 #---------------------------------------------------------------------------
 install:  install_dirs $(LIB_INSTALL) .SYMBOLIC
+	echo.
 	echo Compiling library...
- 	wmake
+	wmake
 	echo Library installation complete.
 
 #---------------------------------------------------------------------------
@@ -258,18 +314,16 @@ $(LIB_INSTALL):	.SYMBOLIC
 	cd $^&
 	copy $(%WWVCS)\$^&\vcs.cfg 
 	$(VCS_UPDATE) 
-	copy *.h ..\include
-	copy *.inc ..\include
+	copy *.h $(WIN32LIB)\INCLUDE
+	copy *.inc $(WIN32LIB)\INCLUDE
 	cd ..
-
-
-
 
 
 #---------------------------------------------------------------------------
 # "make update" updates all source files in your slice
 #---------------------------------------------------------------------------
 update: $(LIB_UPDATE) .SYMBOLIC
+	echo.
 	echo Library updated.
 
 
@@ -278,9 +332,12 @@ update: $(LIB_UPDATE) .SYMBOLIC
 #	This is a dependency for 'updates'
 #---------------------------------------------------------------------------
 $(LIB_UPDATE): .SYMBOLIC
-	echo Updating $^&...
-	cd $^&
-	$(VCS_UPDATE) 
-	copy *.h ..\include
-	copy *.inc ..\include 
-	cd ..
+	@echo.
+	@echo Updating '$^&' headers files in '$(WIN32LIB)\INCLUDE'!
+	@if not exist "$(WIN32LIB)\INCLUDE\" md "$(WIN32LIB)\INCLUDE\" 2>nul
+#	cd $^&
+#	$(VCS_UPDATE)
+	@dir /b /a-d "$(WIN32LIB)\$^&\*.h" >nul 2>&1 && xcopy "$(WIN32LIB)\$^&\*.h" "$(WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\$^&\*.inc" >nul 2>&1 && xcopy "$(WIN32LIB)\$^&\*.inc" "$(WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	@dir /b /a-d "$(WIN32LIB)\$^&\*.i" >nul 2>&1 && xcopy "$(WIN32LIB)\$^&\*.i" "$(WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+#	cd ..

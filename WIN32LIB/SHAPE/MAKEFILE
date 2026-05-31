@@ -53,10 +53,6 @@
 !error WIN32LIB Environment var not configured.
 !endif
 
-!ifndef %WIN32VCS
-!error WIN32VCS Environment var not configured.
-!endif
-
 !ifndef %WATCOM
 !error WATCOM Environment var not configured.
 !endif
@@ -65,45 +61,45 @@
 # User-defined section: the user should tailor this section for each project
 #===========================================================================
 
-PROJ_NAME   = shape
+PROJ_NAME   = SHAPE
 PROJ_DIR    = $(%WIN32LIB)\$(PROJ_NAME)
-LIB_DIR     = $(%WIN32LIB)\lib
+LIB_DIR     = $(%WIN32LIB)\LIB
 
-!include $(%WIN32LIB)\project.cfg
+!include $(%WIN32LIB)\PROJECT.CFG
 
 #---------------------------------------------------------------------------
 # Project-dependent variables
 #---------------------------------------------------------------------------
 OBJECTS = 		&
-	getshape.obj 	&
-	shape.obj
-#	prioinit.obj 	&
-#	drawshp.obj 	&
-#	ds_dn.obj 	&
-#	ds_dr.obj 	&
-#	ds_ds.obj 	&
-#	ds_dsr.obj 	&
-#	ds_lrs.obj 	&
-#	ds_ls.obj 	&
-#	ds_lsrs.obj 	&
-#	ds_lss.obj 	&
-#	ds_rrs.obj 	&
-#	ds_rs.obj 	&
-#	ds_rsrs.obj 	&
-#	ds_rss.obj 	&
-#	ds_table.obj	&
-#	setshape.obj
+	GETSHAPE.OBJ 	&
+	SHAPE.OBJ
+#	PRIOINIT.OBJ 	&
+#	DRAWSHP.OBJ 	&
+#	DS_DN.OBJ 	&
+#	DS_DR.OBJ 	&
+#	DS_DS.OBJ 	&
+#	DS_DSR.OBJ 	&
+#	DS_LRS.OBJ 	&
+#	DS_LS.OBJ 	&
+#	DS_LSRS.OBJ 	&
+#	DS_LSS.OBJ 	&
+#	DS_RRS.OBJ 	&
+#	DS_RS.OBJ 	&
+#	DS_RSRS.OBJ 	&
+#	DS_RSS.OBJ 	&
+#	DS_TABLE.OBJ	&
+#	SETSHAPE.OBJ
 
 #---------------------------------------------------------------------------
 # Path macros: one path for each file type.
 #	These paths are used to tell make where to find/put each file type.
 #---------------------------------------------------------------------------
 .asm:	$(PROJ_DIR)
-.c:	$(PROJ_DIR)
+.c:		$(PROJ_DIR)
 .cpp:	$(PROJ_DIR)
-.h:	$(PROJ_DIR)
-.obj:	$(PROJ_DIR)
-.lib:	$(%WIN32LIB)\lib
+.h:		$(PROJ_DIR)
+.obj:	$(PROJ_DIR)\OBJ
+.lib:	$(%WIN32LIB)\LIB
 .exe:	$(PROJ_DIR)
 
 #===========================================================================
@@ -126,7 +122,7 @@ ASM_CMD	  	= tasm
 #	BCDIR & TNTDIR
 #---------------------------------------------------------------------------
 LIBPATH	  	= $(%WIN32LIB)\LIB;$(%WATCOM)\LIB
-INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;$(%WATCOM)\H
+INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;$(%WATCOM)\H;$(%WATCOM)\H\NT
 
 
 #---------------------------------------------------------------------------
@@ -139,20 +135,28 @@ INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;$(%WATCOM)\H
 # 	tasm's cfg file is not invoked as a response file.
 #---------------------------------------------------------------------------
 
-.c.obj:	$(%WIN32LIB)\project.cfg .AUTODEPEND
-	*$(C_CMD) $(CC_CFG) $<
+# Changed to use CC_OLD_CFG1, see comment at the end of main PROJECT.CFG of WIN32LIB -tomsons26
 
-.cpp.obj: $(%WIN32LIB)\project.cfg .AUTODEPEND
-	*$(CPP_CMD) $(CC_CFG) $(PROJ_DIR)\$^*.cpp
+.c.obj:	$(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(C_CMD) $(CC_OLD_CFG1) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.C
 
-.asm.obj: $(%WIN32LIB)\project.cfg
-	$(ASM_CMD) $(ASM_CFG) $<
+.cpp.obj: $(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(CPP_CMD) $(CC_OLD_CFG1) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.CPP
+
+.asm.obj: $(%WIN32LIB)\PROJECT.CFG
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(ASM_CMD) $(ASM_CFG) $<,.\OBJ\$^.
 
 
 #---------------------------------------------------------------------------
 # Default target: configuration files & library (in that order)
 #---------------------------------------------------------------------------
-all:	$(LIB_DIR)\$(PROJ_NAME).lib .SYMBOLIC
+all:	$(LIB_DIR)\$(PROJ_NAME).LIB .SYMBOLIC
 
 
 #---------------------------------------------------------------------------
@@ -164,12 +168,15 @@ all:	$(LIB_DIR)\$(PROJ_NAME).lib .SYMBOLIC
 # Tlib's cfg file is not invoked as a response file.
 # All headers & source files are copied into WWFLAT\SRCDEBUG, for debugging
 #---------------------------------------------------------------------------
-$(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) objects.lbc
-	 copy *.h   $(%WIN32LIB)\include
-	 copy *.inc $(%WIN32LIB)\include
-	 copy *.cpp $(%WIN32LIB)\srcdebug
-	 copy *.asm $(%WIN32LIB)\srcdebug
-	$(LIB_CMD) $(LIB_CFG) $^@ @objects.lbc
+$(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) OBJECTS.LBC
+	 @dir /b /a-d "$(PROJ_DIR)\*.h" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.h" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.inc" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.inc" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.cpp" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.cpp" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.asm" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.asm" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+#	 @dir /b /a-d "$(PROJ_DIR)\*.lib" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.lib" "$(%WIN32LIB)\LIB\" /Y /F /R /I || ver >nul
+	 echo.
+	 echo Building '$^&'...
+	$(LIB_CMD) $(LIB_CFG) $@ @$(PROJ_DIR)\OBJECTS.LBC
 
 #---------------------------------------------------------------------------
 # Objects now have a link file which is NOT generated everytime.  Instead
@@ -177,7 +184,7 @@ $(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) objects.lbc
 #---------------------------------------------------------------------------
 objects.lbc : $(OBJECTS)
 	      %create $^@
-	      for %index in ($(OBJECTS)) do %append $^@ +%index
+	      for %index in ($(OBJECTS)) do %append $^@ +$(PROJ_DIR)\OBJ\%index
 
 #---------------------------------------------------------------------------
 # Create the test directory and make it.

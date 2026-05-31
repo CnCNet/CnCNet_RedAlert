@@ -39,6 +39,7 @@
 #
 #****************************************************************************
 
+.SILENT
 .OPTIMIZE
 .ERASE
 
@@ -46,69 +47,55 @@
 # PROJECTS DEPENDENT MACROS
 #----------------------------------------------------------------------------
 
-PRJ		= ..
-PRJNAME = vqm32wp
-PRJDIR  = $(PRJ)\VQM32
-WATCOM	= c:\watcom
+PRJNAME = VQM32WP
+PRJDIR  = $(%PRJ)\VQM32
 
 OBJECTS = &
-	iff.obj &
-	profile.obj &
-	audzap.obj &
-	audunzap.obj &
-	targa.obj &
-	vertag.obj &
-	sortpal.obj &
-	palette.obj &
-	mono.obj &
-	lcwuncmp.obj &
-	lcwcomp.obj &
-	testvb.obj &
-	vb.obj &
-	mcgabuf.obj &
-	video.obj &
-	xmode.obj &
-	xmodepg.obj &
-	vesabuf.obj &
-	vesablit.obj &
-	vesavid.obj &
-	soscodec.obj &
-	chrwidth.obj &
-	mixfile.obj &
-	crc.obj &
-	fillrect.obj &
-	captoken.obj &
-	huffcmp.obj &
-	huffdcmp.obj &
-	mem.obj &
-	drawchar.obj &
-	textprnt.obj &
-	font.obj &
+	IFF.OBJ &
+	PROFILE.OBJ &
+	AUDZAP.OBJ &
+	AUDUNZAP.OBJ &
+	TARGA.OBJ &
+	VERTAG.OBJ &
+	SORTPAL.OBJ &
+	PALETTE.OBJ &
+	MONO.OBJ &
+	LCWUNCMP.OBJ &
+	LCWCOMP.OBJ &
+	TESTVB.OBJ &
+	VB.OBJ &
+	MCGABUF.OBJ &
+	VIDEO.OBJ &
+	XMODE.OBJ &
+	XMODEPG.OBJ &
+	VESABUF.OBJ &
+	VESABLIT.OBJ &
+	VESAVID.OBJ &
+	SOSCODEC.OBJ &
+	CHRWIDTH.OBJ &
+	MIXFILE.OBJ &
+	CRC.OBJ &
+	FILLRECT.OBJ &
+	CAPTOKEN.OBJ &
+	HUFFCMP.OBJ &
+	HUFFDCMP.OBJ &
+	MEM.OBJ &
+	DRAWCHAR.OBJ &
+	TEXTPRNT.OBJ &
+	FONT.OBJ &
 
 #----------------------------------------------------------------------------
 # PATH MACROS
 #----------------------------------------------------------------------------
 
-!ifdef %LIB
-LIBPATH = $(PRJ)\LIB;$(%LIB)
-!else
-LIBPATH = $(PRJ)\LIB;$(WATCOM)\LIB386
-!endif
-
-!ifdef %INCLUDE
-INCLUDEPATH = $(PRJ)\INCLUDE;$(%INCLUDE)
-!else
-INCLUDEPATH = $(PRJ)\INCLUDE;$(WATCOM)\H
-!endif
-
-path_c   = .\
-path_cpp = .\
-path_h   = .\
-path_asm = .\
-path_i   = .\
-path_obj = .\O
-path_lib = $(PRJ)\LIB
-path_exe = .\
+PATH_C   = $(PRJDIR)
+PATH_CPP = $(PRJDIR)
+PATH_H   = $(PRJDIR)
+PATH_ASM = $(PRJDIR)
+PATH_I   = $(PRJDIR)
+PATH_OBJ = $(PRJDIR)\OBJ
+PATH_LIB = $(%PRJ)\LIB
+PATH_EXE = $(PRJDIR)
 
 #----------------------------------------------------------------------------
 # IMPLICIT RULE EXTENSIONS AND PATHS
@@ -117,14 +104,14 @@ path_exe = .\
 .EXTENSIONS :
 .EXTENSIONS : .exe .lib .obj .c .cpp .asm .h .i
 
-.c : $(path_c)
-.cpp : $(path_cpp)
-.h : $(path_h)
-.asm : $(path_asm)
-.i : $(path_i)
-.obj : $(path_obj)
-.lib : $(path_lib)
-.exe : $(path_exe)
+.c : $(PATH_C)
+.cpp : $(PATH_CPP)
+.h : $(PATH_H)
+.asm : $(PATH_ASM)
+.i : $(PATH_I)
+.obj : $(PATH_OBJ)
+.lib : $(PATH_LIB)
+.exe : $(PATH_EXE)
 
 #----------------------------------------------------------------------------
 # TOOLS, COMMANDS AND CONFIGURATIONS
@@ -136,7 +123,7 @@ ASM_CMD  = tasm32
 LINK_CMD = wlink
 LIB_CMD  = wlib
 
-CC_OPTS  = -i$(INCLUDEPATH) -j -zp1 -5r -mf -oaeilrt -s -zq
+CC_OPTS  = -i$(%PRJ)\INCLUDE;$(%WATCOM)\H;$(%WATCOM)\H\NT -j -zp1 -5r -mf -oaeilrt -s -zq
 ASM_OPTS = /t /m /w+ /jJUMPS /ml /p /z /dPHARLAP_TNT=0
 LIB_OPTS = /b /c /q
 LINK_CFG = $(PRJNAME).lnk
@@ -145,29 +132,54 @@ LINK_CFG = $(PRJNAME).lnk
 # DEFAULT TARGET
 #----------------------------------------------------------------------------
 
-all : $(PRJNAME).lib .SYMBOLIC
+all : $(PRJNAME).LIB .SYMBOLIC
+
+#---------------------------------------------------------------------------
+# CLEAN TARGET
+#---------------------------------------------------------------------------
+clean: .SYMBOLIC
+	-if exist "*.obj" del /q *.obj
+	-if exist "*.exe" del /q *.exe
+	-if exist "*.lib" del /q *.lib
+	-if exist "*.dll" del /q *.dll
+	-if exist "*.map" del /q *.map
+	-if exist "*.err" del /q *.err
+	-if exist "*.lnk" del /q *.lnk
+	-if exist "*.pch" del /q *.pch
+	-if exist "*.bak" del /q *.bak
+	-if exist "$(%PRJ)\LIB\VQA32WP.LIB" del /q "$(%PRJ)\LIB\VQA32WP.LIB"
 
 $(PRJNAME).lib : $(OBJECTS) .SYMBOLIC
+
+#----------------------------------------------------------------------------
+# Ensure build directories exist before any compilation
+#----------------------------------------------------------------------------
+.BEFORE
+	@if not exist "$(PATH_OBJ)" md "$(PATH_OBJ)" 2>nul
+	@if not exist "$(PATH_LIB)" md "$(PATH_LIB)" 2>nul
 
 #----------------------------------------------------------------------------
 # IMPLICIT RULES
 #----------------------------------------------------------------------------
 
-.c.obj :
-  $(CC_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+.c.obj: .AUTODEPEND
+	echo Compiling $<
+	$(CC_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
-.cpp.obj :
-  $(CCP_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+.cpp.obj: .AUTODEPEND
+	echo Compiling $<
+	$(CCP_CMD) $(CC_OPTS) -fo=$(PATH_OBJ)\$^. $<
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
 .asm.obj:
-	$(ASM_CMD) $(ASM_OPTS) $<,$(path_obj)\$^.
-	$(LIB_CMD) $(LIB_OPTS) $(path_lib)\$(PRJNAME).lib -+$(path_obj)\$]&
+	echo Assembling $<
+	$(ASM_CMD) $(ASM_OPTS) $<,$(PATH_OBJ)\$^.
+	$(LIB_CMD) $(LIB_OPTS) $(PATH_LIB)\$(PRJNAME).LIB -+$(PATH_OBJ)\$]&
 
 update: .SYMBOLIC
-	@echo Updating VQMisc32 header files!
-	@copy *.h $(PRJ)\INCLUDE\VQM32 >NUL
-	@copy *.i $(PRJ)\INCLUDE\VQM32 >NUL
+	@echo Updating 'VQMisc32' header files in '$(%PRJ)\INCLUDE\VQM32'!
+	@if not exist "$(%PRJ)\INCLUDE\VQM32\" md "$(%PRJ)\INCLUDE\VQM32\" 2>nul    
+	@dir /b /a-d "$(PRJDIR)\*.h" >nul 2>&1 && xcopy "$(PRJDIR)\*.h" "$(%PRJ)\INCLUDE\VQM32\" /Y /F /R /I
+	@dir /b /a-d "$(PRJDIR)\*.i" >nul 2>&1 && xcopy "$(PRJDIR)\*.i" "$(%PRJ)\INCLUDE\VQM32\" /Y /F /R /I
 
-

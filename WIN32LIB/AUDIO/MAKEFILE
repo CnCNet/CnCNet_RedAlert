@@ -53,10 +53,6 @@
 !error WIN32LIB Environment var not configured.
 !endif
 
-!ifndef %WIN32VCS
-!error WIN32VCS Environment var not configured.
-!endif
-
 !ifndef %WATCOM
 !error WATCOM Environment var not configured.
 !endif
@@ -66,21 +62,21 @@
 
 PROJ_NAME   = AUDIO
 PROJ_DIR    = $(%WIN32LIB)\$(PROJ_NAME)
-LIB_DIR     = $(%WIN32LIB)\lib
+LIB_DIR     = $(%WIN32LIB)\LIB
 
-!include $(%WIN32LIB)\project.cfg
+!include $(%WIN32LIB)\PROJECT.CFG
 
 #---------------------------------------------------------------------------
 # Project-dependent variables
 #---------------------------------------------------------------------------
 
 OBJECTS = 				&
-		soundio.obj		&
-		soundint.obj	&
-		soundlck.obj	&
-		soscodec.obj	&
-                olsosdec.obj    &
-		auduncmp.obj
+		SOUNDIO.OBJ		&
+		SOUNDINT.OBJ	&
+		SOUNDLCK.OBJ	&
+		SOSCODEC.OBJ	&
+		OLSOSDEC.OBJ	&
+		AUDUNCMP.OBJ
 
 
 #---------------------------------------------------------------------------
@@ -88,11 +84,11 @@ OBJECTS = 				&
 #	These paths are used to tell make where to find/put each file type.
 #---------------------------------------------------------------------------
 .asm:	$(PROJ_DIR)
-.c:	$(PROJ_DIR)
+.c:		$(PROJ_DIR)
 .cpp:	$(PROJ_DIR)
-.h:	$(PROJ_DIR)
-.obj:	$(PROJ_DIR)
-.lib:	$(%WIN32LIB)\lib
+.h:		$(PROJ_DIR)
+.obj:	$(PROJ_DIR)\OBJ
+.lib:	$(LIB_DIR)
 .exe:	$(PROJ_DIR)
 
 #===========================================================================
@@ -114,8 +110,8 @@ ASM_CMD	  	= tasm
 #	WWLIB32 lib & include; otherwise, they're constructed from
 #	BCDIR & TNTDIR
 #---------------------------------------------------------------------------
-LIBPATH	  	= $(%WIN32LIB)\LIB;..\..\dxsdk\lib;$(%WATCOM)\LIB
-INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;..\..\dxsdk\inc;$(%WATCOM)\H
+LIBPATH	  	= $(%WIN32LIB)\LIB;$(%DXSDK)\LIB;$(%WATCOM)\LIB
+INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;$(%DXSDK)\INC;$(%WATCOM)\H;$(%WATCOM)\H\NT
 
 
 #---------------------------------------------------------------------------
@@ -128,20 +124,29 @@ INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;..\..\dxsdk\inc;$(%WATCOM)\H
 # 	tasm's cfg file is not invoked as a response file.
 #---------------------------------------------------------------------------
 
-.c.obj:	$(%WIN32LIB)\project.cfg .AUTODEPEND
-	*$(C_CMD) $(CC_CFG) $<
+.c.obj:	$(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(C_CMD) $(CC_CFG) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.C
 
-.cpp.obj: $(%WIN32LIB)\project.cfg .AUTODEPEND
-	*$(CPP_CMD) $(CC_CFG) $(PROJ_DIR)\$^*.cpp
+.cpp.obj: $(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(CPP_CMD) $(CC_CFG) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.CPP
 
-.asm.obj: $(%WIN32LIB)\project.cfg
-	$(ASM_CMD) $(ASM_CFG) $<
+	# See comment at the end of main PROJECT.CFG of WIN32LIB -tomsons26
+	*$(CPP_CMD) $(CC_OLD_CFG2) -i$(INCLUDEPATH) -fo=$(PROJ_DIR)\OBJ\SOUNDLCK.OBJ $(PROJ_DIR)\SOUNDLCK.CPP
+
+.asm.obj: $(%WIN32LIB)\PROJECT.CFG
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(ASM_CMD) $(ASM_CFG) $<,.\OBJ\$^.
 
 
 #---------------------------------------------------------------------------
 # Default target: configuration files & library (in that order)
 #---------------------------------------------------------------------------
-all:	$(LIB_DIR)\$(PROJ_NAME).lib .SYMBOLIC
+all:	$(LIB_DIR)\$(PROJ_NAME).LIB .SYMBOLIC
 
 
 #---------------------------------------------------------------------------
@@ -153,14 +158,16 @@ all:	$(LIB_DIR)\$(PROJ_NAME).lib .SYMBOLIC
 # Tlib's cfg file is not invoked as a response file.
 # All headers & source files are copied into WIN32LIB\SRCDEBUG, for debugging
 #---------------------------------------------------------------------------
-$(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) objects.lbc
-	 copy *.lib  $(%WIN32LIB)\lib
-	 copy *.h   $(%WIN32LIB)\include
-	 copy *.inc $(%WIN32LIB)\include
-	 copy *.cpp $(%WIN32LIB)\srcdebug
-	 copy *.asm $(%WIN32LIB)\srcdebug
-	 copy *.lib $(%WIN32LIB)\lib
-	$(LIB_CMD) $(LIB_CFG) $^@ @objects.lbc
+$(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) OBJECTS.LBC
+	 @dir /b /a-d "$(PROJ_DIR)\*.h" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.h" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.inc" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.inc" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.cpp" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.cpp" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.asm" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.asm" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+#	 @dir /b /a-d "$(PROJ_DIR)\*.lib" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.lib" "$(%WIN32LIB)\LIB\" /Y /F /R /I || ver >nul
+	 echo.
+	 echo Building '$^&'...
+	$(LIB_CMD) $(LIB_CFG) $@ @$(PROJ_DIR)\OBJECTS.LBC
+
 
 #---------------------------------------------------------------------------
 # Objects now have a link file which is NOT generated everytime.  Instead
@@ -168,7 +175,7 @@ $(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) objects.lbc
 #---------------------------------------------------------------------------
 objects.lbc : $(OBJECTS)
 	      %create $^@
-	      for %index in ($(OBJECTS)) do %append $^@ +%index
+	      for %index in ($(OBJECTS)) do %append $^@ +$(PROJ_DIR)\OBJ\%index
 
 
 #---------------------------------------------------------------------------
