@@ -49,6 +49,33 @@
 #include <string.h>
 #include "profile.h"
 
+// Binary-parity override: restore _MAX_PATH to the value used by the original
+// Red Alert 3.03 build of this translation unit.
+//
+// Root cause: Watcom 10.6 wcc386 defaults to -bt=NT, which predefines __NT__.
+// That selects the Windows/OS2 branch in <stdlib.h> (WATCOM106/H/STDLIB.H, the
+// "#if defined(__OS2__) || defined(__NT__)" block) and resolves _MAX_PATH to
+// 260. The shipping 3.03 build of VQM32 was compiled with __NT__ undefined
+// (likely -bt=DOS, since VQA originated as a DOS library) and therefore saw
+// _MAX_PATH = 144 from the DOS branch.
+//
+// The struct below (rootdir / extdir at lines ~100-101) uses _MAX_PATH for
+// member sizing. Letting _MAX_PATH stay at 260 would expand each member from
+// 144 to 260 bytes, shifting every later struct member and breaking object
+// layout vs. the shipping binary. Override here, after <stdlib.h> has been
+// included, so the DOS-era 144-byte buffers are restored.
+//
+// PROFILE.CPP is the only file under WINVQ/VQM32 that references _MAX_PATH,
+// so this surgical undef is sufficient and does not need to be propagated.
+//
+// Gated on __WATCOMC__ so that any future port to a different toolchain
+// (where this Watcom-specific _MAX_PATH dichotomy does not apply) skips the
+// override and uses whatever the platform's <stdlib.h> provides.
+#ifdef __WATCOMC__
+#undef _MAX_PATH
+#define _MAX_PATH 144
+#endif
+
 /*---------------------------------------------------------------------------
  * PRIVATE DECLARATIONS
  *-------------------------------------------------------------------------*/
