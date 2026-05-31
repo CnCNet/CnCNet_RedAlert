@@ -2202,7 +2202,7 @@ unsigned long VQA_GetTime(VQAHandleP *vqap)
 				totalbytes = (audio->ChunksMovedToAudioBuffer-1) * config->HMIBufSize;
 			}
 
-
+			this_totalbytes = totalbytes;
 			samples = totalbytes/audio->DsBuffFormat.nChannels;
 			samples = samples/(audio->DsBuffFormat.wBitsPerSample >> 3);
 
