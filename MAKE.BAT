@@ -82,6 +82,20 @@ SET "UUIDLIB=%PRJ_ROOT%\UUIDLIB"
 :: See: http://takeda-toshiya.my.coocan.jp/msdos/
 SET "MSDOS=%UTILS%\MSDOS_i486_x86.EXE"
 
+:: -----------------------------------------------------------------------------
+:: Variables
+:: -----------------------------------------------------------------------------
+:: Private CnCNet sources. CNCNET is the build MODE (set by MAKE_CNCNET.BAT);
+:: when defined, this script builds ONLY the ENGLISH+CNCNET variant. CNCNET_DIR
+:: (read by CODE\MAKEFILE) is resolved to their location:
+::   1. .env -> CNCNET_RED_ALERT_PRIVATE_REPO  (a separate local clone), else
+::   2. CODE\CNCNET  (where CI checks the private repo out).
+IF EXIST "%PRJ_ROOT%\.env" (
+    FOR /F "usebackq eol=# tokens=1,* delims==" %%A IN ("%PRJ_ROOT%\.env") DO SET "%%A=%%B"
+)
+SET "CNCNET_DIR="
+IF DEFINED CNCNET_RED_ALERT_PRIVATE_REPO IF EXIST "%CNCNET_RED_ALERT_PRIVATE_REPO%\MAKEFILE" SET "CNCNET_DIR=%CNCNET_RED_ALERT_PRIVATE_REPO%"
+IF NOT DEFINED CNCNET_DIR IF EXIST "%CODE_ROOT%\CNCNET\MAKEFILE" SET "CNCNET_DIR=%CODE_ROOT%\CNCNET"
 
 :: -----------------------------------------------------------------------------
 :: Print build options
@@ -89,6 +103,8 @@ SET "MSDOS=%UTILS%\MSDOS_i486_x86.EXE"
 @ECHO ======================================================
 @ECHO Printing build options
 @ECHO ======================================================
+@ECHO CNCNET_ENABLED=%CNCNET%
+@ECHO CNCNET_DIR=%CNCNET_DIR%
 @ECHO LANG=%LANG%
 @ECHO WIN32=%WIN32%
 @ECHO PRJ_ROOT=%PRJ_ROOT%
@@ -129,8 +145,14 @@ IF ERRORLEVEL 1 GOTO :FAIL
 
 
 :: -----------------------------------------------------------------------------
-:: Build Red Alert (three passes: release / playtest / internal)
+:: Build Red Alert.
+::   - CNCNET mode (set by MAKE_CNCNET.BAT): build ONLY ENGLISH + CNCNET.
+::   - Otherwise: build the selected language (release / playtest / internal).
 :: -----------------------------------------------------------------------------
+CD /D "%CODE_ROOT%"
+
+IF DEFINED CNCNET GOTO :BUILD_CNCNET
+
 @ECHO ON
 @ECHO(
 @ECHO ======================================================
@@ -138,14 +160,36 @@ IF ERRORLEVEL 1 GOTO :FAIL
 @ECHO ======================================================
 @ECHO OFF
 
-CD /D "%CODE_ROOT%"
-
 @ECHO ON
 WMAKE %WMAKE_DEBUG% WIN32=%WIN32% %LANG%=1 RELEASE_VERSION=1 CLEAN ALL
 IF ERRORLEVEL 1 GOTO :FAIL
 WMAKE %WMAKE_DEBUG% WIN32=%WIN32% %LANG%=1 PLAYTEST_VERSION=1 CLEAN ALL
 IF ERRORLEVEL 1 GOTO :FAIL
 WMAKE %WMAKE_DEBUG% WIN32=%WIN32% %LANG%=1 INTERNAL_VERSION=1 CLEAN ALL
+IF ERRORLEVEL 1 GOTO :FAIL
+@ECHO OFF
+GOTO :EXIT
+
+
+:: -----------------------------------------------------------------------------
+:BUILD_CNCNET  -- ENGLISH + CNCNET only, output to RUN\ENGLISH_CNCNET\.
+:: -----------------------------------------------------------------------------
+IF NOT DEFINED CNCNET_DIR (
+    @ECHO ERROR: CNCNET build requested but no private CnCNet sources found.
+    @ECHO        Set CNCNET_RED_ALERT_PRIVATE_REPO in .env to your local clone,
+    @ECHO        or check the private repo out into CODE\CNCNET.
+    GOTO :FAIL
+)
+
+@ECHO ON
+@ECHO(
+@ECHO ======================================================
+@ECHO Building Red Alert (Win32) [ENGLISH + CNCNET] -^> RUN\ENGLISH_CNCNET\
+@ECHO ======================================================
+@ECHO OFF
+
+@ECHO ON
+WMAKE %WMAKE_DEBUG% WIN32=%WIN32% ENGLISH=1 RELEASE_VERSION=1 CNCNET=1 CLEAN ALL
 IF ERRORLEVEL 1 GOTO :FAIL
 @ECHO OFF
 

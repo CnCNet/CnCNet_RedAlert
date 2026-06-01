@@ -73,6 +73,14 @@ jobs:
           # repository's default branch, not develop.
           ref: ${{ env.TARGET_BRANCH }}
 
+      - name: Check out private CnCNet sources
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.CNCNET_PRIVATE_REPO }}
+          ssh-key: ${{ secrets.CNCNET_PRIVATE_REPO_DEPLOY_KEY }}
+          path: CODE/CNCNET
+          # ref:            # defaults to the private repo's default branch
+
       - name: Resolve build ref
         shell: pwsh
         # Derive the artifact name + release target from the checked-out commit
@@ -123,7 +131,7 @@ jobs:
           }
           Write-Host "OK: within the DOS command-line limit."
 
-      - name: Build (MAKE.BAT, all languages)
+      - name: Build (all languages + CnCNet version)
         shell: cmd
         # Build each localisation in turn with MAKE.BAT (one BUILD_LANG per call,
         # not MAKE_ALL.BAT) so a failure pinpoints the language. Each call stages
@@ -153,11 +161,22 @@ jobs:
           set BUILD_LANG=GERMAN
           call MAKE.BAT
           if errorlevel 1 exit /b 1
+          set BUILD_LANG=ENGLISH
+          set "CNCNET=1"
+          call MAKE.BAT
+          if errorlevel 1 exit /b 1
 
       - name: List RUN contents (debug)
         shell: pwsh
         # Recursive listing of the staged output, for build diagnostics.
         run: Get-ChildItem -Path RUN -Recurse -Force | Select-Object FullName, Length, LastWriteTime | Format-Table -AutoSize
+
+      - name: Strip CnCNet linker map before packaging
+        shell: pwsh
+        # The CnCNet private build's linker .MAP exposes symbol addresses that
+        # could aid cheating. Remove it from RUN\CNCNET before zipping. Scoped to
+        # the private build only -- the public localisation builds are open source.
+        run: Remove-Item -Path "RUN/CNCNET/*.MAP" -Force -ErrorAction SilentlyContinue
 
       - name: Package RUN tree
         shell: pwsh

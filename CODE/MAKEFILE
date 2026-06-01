@@ -86,6 +86,15 @@ WWOBJ=$(WWOBJ_COMMON)\$(LANGUAGE)
 
 WWRUN=$(%PRJ_ROOT)\RUN\$(LANGUAGE)
 
+# The CnCNet private build is a separate ENGLISH-based pass. Redirect both
+# the intermediate object dir and the staged output to a CnCNet-specific folder
+# so it does not overwrite the plain ENGLISH build (RUN\ENGLISH\). Output lands
+# in RUN\CNCNET\ instead of RUN\<LANGUAGE>\.
+!ifdef CNCNET
+WWOBJ=$(WWOBJ_COMMON)\CNCNET
+WWRUN=$(%PRJ_ROOT)\RUN\CNCNET
+!endif
+
 
 #---------------------------------------------------------------------------
 # Path macros: one path for each file type.
@@ -93,7 +102,18 @@ WWRUN=$(%PRJ_ROOT)\RUN\$(LANGUAGE)
 #---------------------------------------------------------------------------
 .asm:  .
 .c:    .
+
+# When building the private CnCNet variant, also search CNCNET_DIR for .cpp
+# sources. Path specifiers must live here (Watcom wmake rejects them elsewhere
+# with "Ignoring out of place Path Specifier"), and multiple directories must be
+# SEMICOLON-separated -- a space would make wmake read CNCNET_DIR's drive-letter
+# colon (e.g. X:\...) as a second path specifier and error.
+!ifdef CNCNET
+.cpp:  .;$(%CNCNET_DIR)
+!else
 .cpp:  .
+!endif
+
 .h:    .
 .obj:  $(WWOBJ)
 .lib:  $(WWLIB)\LIB
@@ -451,6 +471,25 @@ OBJECTS += KEYFBUFF.OBJ &
 	KEYFRAME.OBJ
 !endif
 
+#---------------------------------------------------------------------------
+# Pull in optional private CnCNet sources.
+#
+# Only wired in when the build is invoked with CNCNET=1. The source
+# location is resolved by MAKE.BAT / MAKE_CNCNET.BAT into the CNCNET_DIR env var
+# -- either a separate local clone (.env -> CNCNET_RED_ALERT_PRIVATE_REPO) or the
+# in-tree CODE\CNCNET checkout that CI uses. A public clone without either still
+# builds (CNCNET is simply not defined).
+#
+# The fragment appends its object names to OBJECTS, so the private sources
+# compile and link with the rest of the game (one link, shared include paths) --
+# there is no separate library.
+#---------------------------------------------------------------------------
+!ifdef CNCNET
+CC_CFG += /i=.                    # let CnCNet sources reach game headers (CODE\)
+CC_CFG += /i=$(%CNCNET_DIR)       # let game sources reach CNCNET headers (CNCNET.H)
+!include $(%CNCNET_DIR)\MAKEFILE
+!endif
+
 !ifdef WIN32
 PROJ_LIBS = &
 	WIN32LIB.LIB
@@ -479,6 +518,11 @@ MEMCHECK_LIBS = &
 	@echo Creating build directories.
 	@if not exist "$(WWRUN)" md "$(WWRUN)" 2>nul
 	@if not exist "$(WWOBJ)" md "$(WWOBJ)" 2>nul
+# Confirm the private CnCNet fragment was pulled in (banner defined there).
+!ifdef CNCNET
+	@echo.
+	@echo $(CNCNET_FRAGMENT_BANNER)
+!endif
 
 # After make has completed.
 .AFTER

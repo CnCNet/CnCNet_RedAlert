@@ -42,3 +42,9 @@ UUIDLIB/
 
 # Final build results
 RUN/
+
+# Private CnCNet sources:
+# - CI checks them out into CODE/CNCNET.
+# - local devs point .env at a separate clone.
+CODE/CNCNET/
+.env

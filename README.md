@@ -48,6 +48,28 @@ To build all three localisations sequentially in one go, run:
 MAKE_ALL.BAT
 ```
 
+### Private CnCNet build
+
+A separate ENGLISH build that also pulls in the private CnCNet sources is produced
+by:
+
+```cmd
+MAKE_CNCNET.BAT
+```
+
+Output is staged into `RUN\CNCNET\`, separate from the standard localisation builds.
+
+This requires access to the private sources, which are not part of this
+repository and are only available to internal CnCNet developers. Provide them in
+one of two ways:
+
+- check the private repository out into `CODE\CNCNET\`, or
+- point `CNCNET_RED_ALERT_PRIVATE_REPO` in a local `.env` file at a separate clone
+  (see [.env.example](.env.example)).
+
+Without the private sources present, `MAKE.BAT` / `MAKE_ALL.BAT` build normally and
+this step is simply unavailable.
+
 ### Build from a short path
 
 Build from a short directory (for example the repository root on a short drive,
