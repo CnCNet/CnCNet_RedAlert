@@ -1,0 +1,183 @@
+# GitHub Actions build workflow: build Red Alert (develop branch, restored v3.03 base).
+#
+# Triggers:
+#   - push to develop                 -> build the pushed commit.
+#   - schedule (last day of month)    -> rebuild develop's tip to keep the
+#                                        rolling release fresh / re-verify the
+#                                        deps + toolchain still build.
+
+name: Build develop
+
+on:
+  push:
+    branches: [develop]
+  schedule:
+    # cron has no "last day of month" operator, so fire on days 28-31 and let
+    # the gate job below filter down to the true last day (tomorrow == the 1st).
+    # Minute/hour deliberately off the top of the hour to dodge scheduler load.
+    - cron: '30 5 28-31 * *'
+
+# contents:write is required so the job can replace the rolling release + tag.
+permissions:
+  contents: write
+
+env:
+  # Dependency archive is the one linked in README.md "Dependencies".
+  DEPS_URL: https://downloads.cncnet.org/CnCNet_RedAlert_Build_Dependencies.zip
+  # Rolling Git tag the newest build always hangs off. Git refs cannot contain
+  # spaces or parentheses, so the human-friendly name lives in RELEASE_NAME and
+  # is applied as the release title, not the tag.
+  RELEASE_TAG: latest
+  # Display name shown on the GitHub Releases page.
+  RELEASE_NAME: CnCNet Red Alert (Latest)
+  # Branch this workflow builds and releases.
+  TARGET_BRANCH: develop
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Gate: decide whether the build should run.
+  #   - push events always proceed.
+  #   - schedule events proceed only on the last calendar day of the month,
+  #     detected as "tomorrow is the 1st" (UTC). This collapses the 28-31 cron
+  #     firings down to exactly one run per month.
+  # ---------------------------------------------------------------------------
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "Non-schedule event (${{ github.event_name }}): proceeding."
+          elif [ "$(date -u -d 'tomorrow' +%d)" = "01" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "Last day of the month (UTC): proceeding with scheduled refresh."
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "Not the last day of the month (UTC): skipping."
+          fi
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out develop
+        uses: actions/checkout@v4
+        with:
+          # Pinned because scheduled runs would otherwise default to the
+          # repository's default branch, not develop.
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Resolve build ref
+        shell: pwsh
+        # Derive the artifact name + release target from the checked-out commit
+        # (github.sha points at the default branch on scheduled runs, so it is
+        # not reliable here). Exports BUILD_SHA and ARTIFACT for later steps.
+        run: |
+          $sha   = (git rev-parse HEAD).Trim()
+          $short = (git rev-parse --short HEAD).Trim()
+          "BUILD_SHA=$sha"                                          | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ARTIFACT=CnCNet-RedAlert-$env:TARGET_BRANCH-$short.zip"  | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Building $env:TARGET_BRANCH @ $sha"
+
+      - name: Download build dependencies
+        shell: pwsh
+        run: curl.exe -L --fail --retry 3 -o deps.zip "$env:DEPS_URL"
+
+      - name: Extract dependencies into repository root
+        shell: pwsh
+        # 7-Zip is preinstalled on windows-latest and handles the large archive
+        # faster and more reliably than Expand-Archive. "-o." extracts in place.
+        run: 7z x deps.zip "-o." -y
+
+      - name: Verify IPXPROT command line fits the DOS 127-char limit
+        shell: pwsh
+        # The IPXPROT.OBJ rule (CODE/MAKEFILE:815) assembles via 16-bit TASM
+        # through the MS-DOS player, whose command line is capped at 127 chars
+        # (the DOS PSP limit). The Build step below runs from the SUBST'd X:\
+        # root, so reconstruct the exact TASM command line with that root and
+        # fail early with a clear message if it would overflow. Otherwise the
+        # only symptom is a corrupted output path + "Can't locate file:
+        # ipxreal.ibn" deep in the build log. Mirrors ASM_CFG
+        # (CODE/MAKEFILE:147-153) and the IPXPROT rule; keep in sync if those
+        # change (e.g. extra flags or a deeper WWOBJ path). ENGLISH is the
+        # longest of the three built language dirs (7 chars vs FRENCH/GERMAN's
+        # 6), so checking it bounds the others too.
+        run: |
+          $root    = 'X:'                       # build root after SUBST (see Build step)
+          $wwlib   = "$root\WIN32LIB"
+          $wwobj   = 'OBJ\WIN32\ENGLISH'        # worst-case (longest) language dir
+          $asmcfg  = "/i$wwlib\INCLUDE /zd /t /m /w+ /jJUMPS /ml"
+          $cmdline = "$asmcfg /I`"$wwobj`" `"IPXPROT.ASM`",`"$wwobj\IPXPROT.OBJ`""
+          $len = $cmdline.Length
+          Write-Host "IPXPROT TASM command line is $len chars (limit 127):"
+          Write-Host "  $cmdline"
+          if ($len -gt 127) {
+            Write-Error "DOS 127-char command-line limit exceeded ($len chars). IPXPROT assembly would fail with a corrupted output path. Shorten the build root (SUBST drive) or make ASM_CFG's /i include path relative in CODE/MAKEFILE."
+            exit 1
+          }
+          Write-Host "OK: within the DOS command-line limit."
+
+      - name: Build (MAKE.BAT, all languages)
+        shell: cmd
+        # Build each localisation in turn with MAKE.BAT (one BUILD_LANG per call,
+        # not MAKE_ALL.BAT) so a failure pinpoints the language. Each call stages
+        # into RUN\<LANG>\; the package step zips the whole RUN/ tree.
+        #
+        # Build from a SUBST'd drive (X:) instead of the long CI checkout path
+        # (D:\a\<repo>\<repo>\...). The IPXPROT step assembles via 16-bit TASM
+        # through the MS-DOS player, whose command line is bound by the DOS
+        # 127-char PSP limit. ASM_CFG embeds an absolute include path
+        # (/i<root>\WIN32LIB\INCLUDE), so the long checkout path overflows the
+        # limit and corrupts the tail of the command line (dropping the /I
+        # include dir -> "Can't locate file: ipxreal.ibn"). Aliasing the root to
+        # X:\ shrinks that path back under the limit, matching a short local
+        # checkout. MAKE.BAT resets PATH internally and EXIT /B 1 on failure;
+        # BUILD_LANG being set (non-empty) skips its interactive PAUSE.
+        run: |
+          subst X: /D >nul 2>&1
+          subst X: "%CD%"
+          X:
+          cd \
+          set BUILD_LANG=ENGLISH
+          call MAKE.BAT
+          if errorlevel 1 exit /b 1
+          set BUILD_LANG=FRENCH
+          call MAKE.BAT
+          if errorlevel 1 exit /b 1
+          set BUILD_LANG=GERMAN
+          call MAKE.BAT
+          if errorlevel 1 exit /b 1
+
+      - name: List RUN contents (debug)
+        shell: pwsh
+        # Recursive listing of the staged output, for build diagnostics.
+        run: Get-ChildItem -Path RUN -Recurse -Force | Select-Object FullName, Length, LastWriteTime | Format-Table -AutoSize
+
+      - name: Package RUN tree
+        shell: pwsh
+        # Asset name (CnCNet-RedAlert-<branch>-<short-sha>.zip) was resolved in
+        # the "Resolve build ref" step and exported as ARTIFACT.
+        run: Compress-Archive -Path RUN/* -DestinationPath "$env:ARTIFACT" -Force
+
+      - name: Publish rolling "latest" release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete the previous rolling release and its tag if present; ignore
+          # the error when none exists yet (first run). Reset the exit code so a
+          # missing release does not fail the step.
+          gh release delete "$env:RELEASE_TAG" --cleanup-tag --yes 2>$null
+          $global:LASTEXITCODE = 0
+
+          # Recreate the rolling release pointing at the commit just built.
+          gh release create "$env:RELEASE_TAG" "$env:ARTIFACT" `
+            --target "$env:BUILD_SHA" `
+            --title "$env:RELEASE_NAME" `
+            --notes "Automated build of $env:TARGET_BRANCH @ $env:BUILD_SHA"
