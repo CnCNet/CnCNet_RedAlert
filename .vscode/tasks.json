@@ -1,0 +1,119 @@
+// VS Code build tasks for Red Alert (Watcom Win32 build).
+//
+// Each task runs one of the root batch scripts directly; their echoed output
+// streams to the integrated terminal. BUILD_LANG is set in the task env so the
+// scripts run non-interactively -- it both selects ENGLISH and suppresses the
+// trailing "PAUSE" the scripts do when BUILD_LANG is empty (which would hang
+// the task). The Watcom problemMatcher surfaces compiler diagnostics in the
+// Problems panel.
+//
+// Run with: Terminal > Run Build Task (Ctrl+Shift+B) and pick from the list.
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build (MAKE.BAT, ENGLISH)",
+            "type": "process",
+            "command": "${workspaceFolder}\\MAKE.BAT",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "BUILD_LANG": "ENGLISH" }
+            },
+            "group": "build",
+            "presentation": { "echo": true, "reveal": "always", "panel": "shared", "clear": true },
+            "problemMatcher": {
+                "owner": "watcom",
+                "fileLocation": [ "autoDetect", "${workspaceFolder}/CODE" ],
+                "pattern": {
+                    "regexp": "^(.*?)\\(([0-9]+)\\):\\s*(Error|Warning)!?\\s+[EW][0-9]+:\\s*(.*)$",
+                    "file": 1, "line": 2, "severity": 3, "message": 4
+                }
+            }
+        },
+        {
+            "label": "Build all languages (MAKE_ALL.BAT)",
+            "type": "process",
+            "command": "${workspaceFolder}\\MAKE_ALL.BAT",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "BUILD_LANG": "ENGLISH" }
+            },
+            "group": "build",
+            "presentation": { "echo": true, "reveal": "always", "panel": "shared", "clear": true },
+            "problemMatcher": {
+                "owner": "watcom",
+                "fileLocation": [ "autoDetect", "${workspaceFolder}/CODE" ],
+                "pattern": {
+                    "regexp": "^(.*?)\\(([0-9]+)\\):\\s*(Error|Warning)!?\\s+[EW][0-9]+:\\s*(.*)$",
+                    "file": 1, "line": 2, "severity": 3, "message": 4
+                }
+            }
+        },
+        {
+            "label": "Build CnCNet (MAKE_CNCNET.BAT)",
+            "type": "process",
+            "command": "${workspaceFolder}\\MAKE_CNCNET.BAT",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "BUILD_LANG": "ENGLISH" }
+            },
+            "group": "build",
+            "presentation": { "echo": true, "reveal": "always", "panel": "shared", "clear": true },
+            "problemMatcher": {
+                "owner": "watcom",
+                "fileLocation": [ "autoDetect", "${workspaceFolder}/CODE" ],
+                "pattern": {
+                    "regexp": "^(.*?)\\(([0-9]+)\\):\\s*(Error|Warning)!?\\s+[EW][0-9]+:\\s*(.*)$",
+                    "file": 1, "line": 2, "severity": 3, "message": 4
+                }
+            }
+        },
+        {
+            // Compile ONLY the file open in the editor (fast syntax/iteration check),
+            // not the whole game. Deletes the file's .OBJ first, then runs wmake, so
+            // it always does a clean recompile of that one file. Toolchain env is set
+            // inline -- mirrors MAKE.BAT's SET block + PATH reset (no batch file). For
+            // ENGLISH CODE\ sources; objects land in OBJ\WIN32\ENGLISH.
+            // (Won't work for headers, or CnCNet-only sources which need CNCNET=1.)
+            "label": "Compile current file (Game Code Only)",
+            "type": "process",
+            "command": "C:\\Windows\\System32\\cmd.exe",
+            "args": [ "/d", "/c", "del /q \"OBJ\\WIN32\\ENGLISH\\${fileBasenameNoExtension}.OBJ\" 2>nul & wmake.exe WIN32=1 ENGLISH=1 RELEASE_VERSION=1 ${fileBasenameNoExtension}.OBJ" ],
+            "options": {
+                "cwd": "${workspaceFolder}\\CODE",
+                "env": {
+                    "PRJ_ROOT": "${workspaceFolder}",
+                    "WATCOM": "${workspaceFolder}\\WATCOM106",
+                    "WATCOM106": "${workspaceFolder}\\WATCOM106",
+                    "WATCOM11": "${workspaceFolder}\\WATCOM11",
+                    "TASM": "${workspaceFolder}\\TASM",
+                    "MASM": "${workspaceFolder}\\MASM",
+                    "LINKER": "${workspaceFolder}\\LINKER",
+                    "UTILS": "${workspaceFolder}\\UTILS",
+                    "WWLIB": "${workspaceFolder}\\WIN32LIB",
+                    "WWVQ": "${workspaceFolder}\\WINVQ",
+                    "DXMEDIA": "${workspaceFolder}\\DXMEDIA",
+                    "DXSDK": "${workspaceFolder}\\DXSDK",
+                    "GCL510": "${workspaceFolder}\\GCL510",
+                    "DBWIN32": "${workspaceFolder}\\DBWIN32",
+                    "WWIPX": "${workspaceFolder}\\IPX",
+                    "MPEGLIB": "${workspaceFolder}\\MPEGLIB",
+                    "UUIDLIB": "${workspaceFolder}\\UUIDLIB",
+                    "MSDOS": "${workspaceFolder}\\UTILS\\MSDOS_i486_x86.EXE",
+                    "INCLUDE": "",
+                    "PATH": "${workspaceFolder}\\WATCOM106\\BINNT;${workspaceFolder}\\TASM\\BIN;${workspaceFolder}\\MASM\\BIN;${workspaceFolder}\\LINKER\\BIN;${workspaceFolder}\\UTILS\\BIN;C:\\Windows\\System32"
+                }
+            },
+            "group": "build",
+            "presentation": { "echo": true, "reveal": "always", "panel": "shared", "clear": true },
+            "problemMatcher": {
+                "owner": "watcom",
+                "fileLocation": [ "autoDetect", "${workspaceFolder}/CODE" ],
+                "pattern": {
+                    "regexp": "^(.*?)\\(([0-9]+)\\):\\s*(Error|Warning)!?\\s+[EW][0-9]+:\\s*(.*)$",
+                    "file": 1, "line": 2, "severity": 3, "message": 4
+                }
+            }
+        }
+    ]
+}

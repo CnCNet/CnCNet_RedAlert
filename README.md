@@ -93,6 +93,40 @@ MAKE.BAT
 ```
 
 
+## Developing in VS Code
+
+The repository ships a VS Code workspace (`.vscode/`). Open the folder in VS Code
+(or run `OPEN_VSCODE.BAT`); it will offer to install the recommended C/C++
+extension.
+
+**Build tasks** (`Terminal > Run Build Task`, or `Ctrl+Shift+B`, then pick one):
+
+| Task | Action |
+|------|--------|
+| Build (MAKE.BAT, ENGLISH)        | English build |
+| Build all languages (MAKE_ALL.BAT) | English / French / German |
+| Build CnCNet (MAKE_CNCNET.BAT)   | Private CnCNet build (requires the private sources) |
+| Compile current file (Game Code Only) | Clean-recompile just the open `CODE\*.cpp` file — fast syntax/iteration check |
+
+Watcom compiler diagnostics are parsed into the **Problems** panel.
+
+**IntelliSense:** configurations for each variant (ENGLISH / FRENCH / GERMAN /
+CnCNet) are provided; switch the active one from the status bar or via
+`C/C++: Select a Configuration`. Include paths and defines mirror the build, and
+the standard is pinned to the toolchain's (C++98 / C89).
+
+**Launching:** open the **Run and Debug** view (`Ctrl+Shift+D`), choose
+**Run English (RA95)** or **Run CnCNet (RA95)** from the dropdown, and press `F5`.
+Each launches `RA95.EXE` from its `RUN\<variant>\` folder with `-CD.`, so the
+retail data files must already be present in that folder (see
+[Running the game](#running-the-game)).
+
+This is a convenience for quickly launching the built game — **not** a full
+debugging experience. The game is built with Watcom, whose debug information the
+VS Code debugger cannot read, so source-level breakpoints will not bind; it will
+still launch the game and surface crashes/call stacks.
+
+
 ## Running the game
 
 The build produces only the executables — the original retail game data files (`*.MIX`, movies, audio, etc.) are not part of this repository and must be supplied separately.

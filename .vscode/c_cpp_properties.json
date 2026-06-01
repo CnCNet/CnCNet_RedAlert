@@ -1,0 +1,86 @@
+// IntelliSense configurations for the Watcom Win32 build.
+//
+// One configuration per build variant; switch the active one from the status
+// bar (bottom-right, next to the language mode). They differ only in the
+// language/CNCNET defines -- include paths are shared. Mirrors CODE\MAKEFILE's
+// CC_CFG. compilerPath is intentionally empty so the C/C++ extension does NOT
+// auto-detect/query a system compiler (e.g. MSVC cl.exe) and override the
+// pre-C++11 standards below with c17/c++17.
+//
+// The toolchain/SDK folders (WATCOM106, DXSDK, GCL510, ...) come from the
+// extracted build dependencies under the repo root. CODE\CNCNET is included so
+// the private sources (when present) resolve too.
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Watcom (Win32, ENGLISH)",
+            "includePath": [
+                "${workspaceFolder}/CODE",
+                "${workspaceFolder}/WIN32LIB/INCLUDE",
+                "${workspaceFolder}/WINVQ/INCLUDE",
+                "${workspaceFolder}/DXSDK/INC",
+                "${workspaceFolder}/GCL510/H",
+                "${workspaceFolder}/WATCOM106/H",
+                "${workspaceFolder}/WATCOM106/H/NT"
+            ],
+            "defines": [ "WIN32=1", "_WIN32", "WOLAPI_INTEGRATION", "WINSOCK_IPX", "ENGLISH=1", "RELEASE_VERSION=1" ],
+            "compilerPath": "",
+            "intelliSenseMode": "windows-msvc-x86",
+            "cStandard": "c89",
+            "cppStandard": "c++98"
+        },
+        {
+            "name": "Watcom (Win32, FRENCH)",
+            "includePath": [
+                "${workspaceFolder}/CODE",
+                "${workspaceFolder}/WIN32LIB/INCLUDE",
+                "${workspaceFolder}/WINVQ/INCLUDE",
+                "${workspaceFolder}/DXSDK/INC",
+                "${workspaceFolder}/GCL510/H",
+                "${workspaceFolder}/WATCOM106/H",
+                "${workspaceFolder}/WATCOM106/H/NT"
+            ],
+            "defines": [ "WIN32=1", "_WIN32", "WOLAPI_INTEGRATION", "WINSOCK_IPX", "FRENCH=1", "RELEASE_VERSION=1" ],
+            "compilerPath": "",
+            "intelliSenseMode": "windows-msvc-x86",
+            "cStandard": "c89",
+            "cppStandard": "c++98"
+        },
+        {
+            "name": "Watcom (Win32, GERMAN)",
+            "includePath": [
+                "${workspaceFolder}/CODE",
+                "${workspaceFolder}/WIN32LIB/INCLUDE",
+                "${workspaceFolder}/WINVQ/INCLUDE",
+                "${workspaceFolder}/DXSDK/INC",
+                "${workspaceFolder}/GCL510/H",
+                "${workspaceFolder}/WATCOM106/H",
+                "${workspaceFolder}/WATCOM106/H/NT"
+            ],
+            "defines": [ "WIN32=1", "_WIN32", "WOLAPI_INTEGRATION", "WINSOCK_IPX", "GERMAN=1", "RELEASE_VERSION=1" ],
+            "compilerPath": "",
+            "intelliSenseMode": "windows-msvc-x86",
+            "cStandard": "c89",
+            "cppStandard": "c++98"
+        },
+        {
+            "name": "Watcom (Win32, ENGLISH, CNCNET)",
+            "includePath": [
+                "${workspaceFolder}/CODE",
+                "${workspaceFolder}/CODE/CNCNET",
+                "${workspaceFolder}/WIN32LIB/INCLUDE",
+                "${workspaceFolder}/WINVQ/INCLUDE",
+                "${workspaceFolder}/DXSDK/INC",
+                "${workspaceFolder}/GCL510/H",
+                "${workspaceFolder}/WATCOM106/H",
+                "${workspaceFolder}/WATCOM106/H/NT"
+            ],
+            "defines": [ "WIN32=1", "_WIN32", "WOLAPI_INTEGRATION", "WINSOCK_IPX", "ENGLISH=1", "RELEASE_VERSION=1", "CNCNET=1" ],
+            "compilerPath": "",
+            "intelliSenseMode": "windows-msvc-x86",
+            "cStandard": "c89",
+            "cppStandard": "c++98"
+        }
+    ]
+}

@@ -1,0 +1,31 @@
+// Launch configurations for the built game (Run and Debug / F5).
+//
+// Each launches RA95.EXE (release) from its RUN\<variant>\ folder with "-CD."
+// so the game looks for data files in that same folder (cwd). Build first with
+// the matching task, and copy the retail data files into the RUN\<variant>\ dir
+// (see "Running the game" in README.md).
+//
+// NOTE: the game is built with Watcom, whose debug info the VS (cppvsdbg)
+// debugger does not read -- so these launch it and catch crashes/call stacks,
+// but source-level breakpoints will not bind to the Watcom-compiled code.
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run English (RA95)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\RUN\\ENGLISH\\RA95.EXE",
+            "args": [ "-CD." ],
+            "cwd": "${workspaceFolder}\\RUN\\ENGLISH"
+        },
+        {
+            "name": "Run CnCNet (RA95)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\RUN\\CNCNET\\RA95.EXE",
+            "args": [ "-CD." ],
+            "cwd": "${workspaceFolder}\\RUN\\CNCNET"
+        }
+    ]
+}
