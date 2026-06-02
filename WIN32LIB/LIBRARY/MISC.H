@@ -190,7 +190,7 @@ extern "C" {
 #endif
 
 /*=========================================================================*/
-/* The following prototypes are for the file: RANDOM.ASM							*/
+/* The following prototypes are for the file: RAND.ASM							*/
 /*=========================================================================*/
 
 unsigned char __cdecl Random(void);
