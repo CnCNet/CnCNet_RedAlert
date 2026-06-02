@@ -46,7 +46,7 @@
 #* "make update" updates all source files in your slice			   			*
 #*									   															*
 #*	To install or update just one library you may type:		   				*
-#*		 "make -DLIBS=misc.lib install"				   								*
+#*		 "make -DLIBS=library.lib install"				   								*
 #*									   															*
 #***************************************************************************
 
@@ -64,7 +64,7 @@ WIN32LIB=$(%WIN32LIB)
 #===========================================================================
 # User-defined section: list each library in this macro
 #	NOTE: These are some order dependencies:
-#	1. The directory MISC must always be made first.
+#	1. The directory LIBRARY must always be made first.
 #	2. The directory VIDEO must be made before the SYSTEM directory.
 #===========================================================================
 LIB_NAME = WIN32LIB
@@ -83,7 +83,7 @@ LIBS = 			&
 					IFF.LIB	    	&
 					KEYBOARD.LIB	&
 					MEM.LIB	    	&
-					MISC.LIB    	&
+					LIBRARY.LIB    	&
 					MONO.LIB    	&
 					PALETTE.LIB 	&
 					SHAPE.LIB		&
@@ -103,7 +103,7 @@ LIB_INSTALL =	&
 					IFF.INS	    	&
 					KEYBOARD.INS	&
 					MEM.INS	    	&
-					MISC.INS    	&
+					LIBRARY.INS    	&
 					MONO.INS    	&
 					PALETTE.INS 	&
 					RAWFILE.INS		&
@@ -124,7 +124,7 @@ LIB_UPDATE =	&
 					IFF.UPD	    	&
 					KEYBOARD.UPD	&
 					MEM.UPD	    	&
-					MISC.UPD    	&
+					LIBRARY.UPD    	&
 					MONO.UPD    	&
 					PALETTE.UPD 	&
 					RAWFILE.UPD		&
@@ -145,7 +145,7 @@ LIB_CLEAN =	&
 					IFF.CLN	    	&
 					KEYBOARD.CLN	&
 					MEM.CLN	    	&
-					MISC.CLN    	&
+					LIBRARY.CLN    	&
 					MONO.CLN    	&
 					PALETTE.CLN 	&
 					RAWFILE.CLN		&
@@ -166,7 +166,7 @@ MODULES = &
 					IFF				&
 					KEYBOARD		&
 					MEM				&
-					MISC			&
+					LIBRARY			&
 					MONO			&
 					PALETTE			&
 					RAWFILE			&

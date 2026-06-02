@@ -46,69 +46,62 @@
 #*                                                                         *
 #***************************************************************************
 
-.AUTODEPEND
 #---------------------------------------------------------------------------
 # Verify user's environment
 #---------------------------------------------------------------------------
-!ifndef WIN32LIB
+!ifndef %WIN32LIB
 !error WIN32LIB Environment var not configured.
 !endif
 
-!ifndef WIN32VCS  
-!error WIN32VCS Environment var not configured.
+!ifndef %WATCOM
+!error WATCOM Environment var not configured.
 !endif
 
-!ifndef COMPILER
-!error COMPILER Environment var not configured.
-!endif
 
 #===========================================================================
 # User-defined section: the user should tailor this section for each project
 #===========================================================================
 
-PROJ_NAME   = misc
-PROJ_DIR    = $(WIN32LIB)\$(PROJ_NAME)
-LIB_DIR     = $(WIN32LIB)\lib
+PROJ_NAME   = LIBRARY
+PROJ_DIR    = $(%WIN32LIB)\$(PROJ_NAME)
+LIB_DIR     = $(%WIN32LIB)\LIB
 
-!include $(WIN32LIB)\\project.cfg
+!include $(%WIN32LIB)\PROJECT.CFG
 
 #---------------------------------------------------------------------------
 # Project-dependent variables
 #---------------------------------------------------------------------------
-
-OBJECTS =	\
-				crc.obj			\
-				ddraw.obj		\
-				delay.obj		\
-				detproc.obj  	\
-				facing8.obj    \
-				facing16.obj   \
-				facingFF.obj   \
-				fading.obj   	\
-				findargv.obj 	\
-				irandom.obj 	\
-				lib.obj			\
-				opsys.obj    	\
-				random.obj    	\
-				reverse.obj		\
-				shakescr.obj	\
-				exit.obj     	\
-				cliprect.obj	\
-				version.obj
-
-
+OBJECTS = 			&
+	CRC.OBJ			&
+	DDRAW.OBJ		&
+	DELAY.OBJ		&
+	DETPROC.OBJ  	&
+	FACING8.OBJ    &
+	FACING16.OBJ   &
+	FACINGFF.OBJ   &
+	FADING.OBJ   	&
+	FINDARGV.OBJ 	&
+	IRANDOM.OBJ 	&
+	LIB.OBJ			&
+	OPSYS.OBJ    	&
+	RANDOM.OBJ    	&
+	REVERSE.OBJ		&
+	SHAKESCR.OBJ	&
+	CLIPRECT.OBJ	&
+	EXIT.OBJ			&
+	VERSION.OBJ
 
 #---------------------------------------------------------------------------
 # Path macros: one path for each file type.
 #	These paths are used to tell make where to find/put each file type.
 #---------------------------------------------------------------------------
-.path.asm	=	$(PROJ_DIR)
-.path.c		=	$(PROJ_DIR)
-.path.cpp	=	$(PROJ_DIR)
-.path.h		=	$(PROJ_DIR)
-.path.obj	=	$(PROJ_DIR)
-.path.lib	=	$(WIN32LIB)\lib
-.path.exe	=	$(PROJ_DIR)
+.asm:	$(PROJ_DIR)
+.c:		$(PROJ_DIR)
+.cpp:	$(PROJ_DIR)
+.h:		$(PROJ_DIR)
+.obj:	$(PROJ_DIR)\OBJ
+.lib:	$(%WIN32LIB)\LIB
+.exe:	$(PROJ_DIR)
 
 #===========================================================================
 # Pre-defined section: there should be little need to modify this section.
@@ -117,11 +110,11 @@ OBJECTS =	\
 #---------------------------------------------------------------------------
 # Tools/commands
 #---------------------------------------------------------------------------
-C_CMD	  		= bcc32
-CPP_CMD	  	= bcc32
-LIB_CMD	  	= tlib
-LINK_CMD  	= tlink32
-ASM_CMD	  	= tasm32
+C_CMD	  	= wcc386
+CPP_CMD	  	= wpp386
+LIB_CMD	  	= wlib
+LINK_CMD  	= wlink
+ASM_CMD	  	= tasm
 
 #---------------------------------------------------------------------------
 # Include & library paths
@@ -129,12 +122,13 @@ ASM_CMD	  	= tasm32
 #	WWLIB32 lib & include; otherwise, they're constructed from
 #	BCDIR & TNTDIR
 #---------------------------------------------------------------------------
-LIBPATH	  	= $(WIN32LIB)\LIB;$(COMPILER)\LIB
-INCLUDEPATH	= $(WIN32LIB)\INCLUDE;$(COMPILER)\INCLUDE
+LIBPATH	  	= $(%WIN32LIB)\LIB;$(%WATCOM)\LIB
+INCLUDEPATH	= $(%WIN32LIB)\INCLUDE;$(%WATCOM)\H;$(%WATCOM)\H\NT
+
 
 #---------------------------------------------------------------------------
 # Implicit rules
-# Compiler: 
+# Compiler:
 # 	($< = full dependent with path)
 # Assembler:
 # 	output obj's are constructed from .obj: & the $& macro
@@ -142,19 +136,29 @@ INCLUDEPATH	= $(WIN32LIB)\INCLUDE;$(COMPILER)\INCLUDE
 # 	tasm's cfg file is not invoked as a response file.
 #---------------------------------------------------------------------------
 
-.c.obj:	
-	$(C_CMD) $(CC_CFG) $<
+# Changed to use CC_OLD_CFG1, see comment at the end of main PROJECT.CFG of WIN32LIB -tomsons26
 
-.cpp.obj: 
-	$(CPP_CMD) $(CC_CFG) $<
+.c.obj:	$(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(C_CMD) $(CC_OLD_CFG1) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.C
 
-.asm.obj:
-	$(ASM_CMD) $(ASM_CFG) $<
+.cpp.obj: $(%WIN32LIB)\PROJECT.CFG .AUTODEPEND
+	echo.
+	echo Compiling $<
+	*$(CPP_CMD) $(CC_OLD_CFG1) -i$(INCLUDEPATH) $(PROJ_DIR)\$^*.CPP
+
+.asm.obj: $(%WIN32LIB)\PROJECT.CFG
+	echo.
+	echo Assembling $<
+	$(%MSDOS) $(ASM_CMD) $(ASM_CFG) $<,.\OBJ\$^.
+
 
 #---------------------------------------------------------------------------
 # Default target: configuration files & library (in that order)
 #---------------------------------------------------------------------------
-all:	$(LIB_DIR)\$(PROJ_NAME).lib 
+all:	$(LIB_DIR)\$(PROJ_NAME).LIB .SYMBOLIC
+
 
 #---------------------------------------------------------------------------
 # Build the library
@@ -165,32 +169,23 @@ all:	$(LIB_DIR)\$(PROJ_NAME).lib
 # Tlib's cfg file is not invoked as a response file.
 # All headers & source files are copied into WIN32LIB\SRCDEBUG, for debugging
 #---------------------------------------------------------------------------
-$(LIB_DIR)\\$(PROJ_NAME).lib: $(OBJECTS) wwlib32.h
-	 copy *.h   $(WIN32LIB)\\include 
-	 copy *.inc $(WIN32LIB)\\include 
-	 copy *.cpp $(WIN32LIB)\\srcdebug 
-	 copy *.asm $(WIN32LIB)\\srcdebug 
-	$(LIB_CMD) $< $(LIB_CFG)  @&&| 
- +-crc.obj			&
-+-ddraw.obj			&
-+-delay.obj			&
-+-detproc.obj  	&
-+-exit.obj     	&
-+-facing8.obj		&
-+-facing16.obj		&
-+-facingFF.obj		&
-+-fading.obj		&
-+-findargv.obj		&
-+-irandom.obj		&
-+-lib.obj			&
-+-opsys.obj			&
-+-random.obj		&
-+-reverse.obj		&
-+-shakescr.obj		&
-+-cliprect.obj		&
-+-version.obj
-|
+$(LIB_DIR)\$(PROJ_NAME).lib: $(OBJECTS) OBJECTS.LBC
+	 @dir /b /a-d "$(PROJ_DIR)\*.h" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.h" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.inc" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.inc" "$(%WIN32LIB)\INCLUDE\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.cpp" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.cpp" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+	 @dir /b /a-d "$(PROJ_DIR)\*.asm" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.asm" "$(%WIN32LIB)\SRCDEBUG\" /Y /F /R /I || ver >nul
+#	 @dir /b /a-d "$(PROJ_DIR)\*.lib" >nul 2>&1 && xcopy "$(PROJ_DIR)\*.lib" "$(%WIN32LIB)\LIB\" /Y /F /R /I || ver >nul
+	 echo.
+	 echo Building '$^&'...
+	$(LIB_CMD) $(LIB_CFG) $@ @$(PROJ_DIR)\OBJECTS.LBC
 
+#---------------------------------------------------------------------------
+# Objects now have a link file which is NOT generated everytime.  Instead
+# it just has its own dependacy rule.
+#---------------------------------------------------------------------------
+objects.lbc : $(OBJECTS)
+	      %create $^@
+	      for %index in ($(OBJECTS)) do %append $^@ +$(PROJ_DIR)\OBJ\%index
 
 #---------------------------------------------------------------------------
 # Create the test directory and make it.
@@ -198,8 +193,10 @@ $(LIB_DIR)\\$(PROJ_NAME).lib: $(OBJECTS) wwlib32.h
 test:
 	mkdir test
 	cd test
-	copy $(WWVCS)\\$(PROJ_NAME)\test\vcs.cfg
+	copy $(%WWVCS)\$(PROJ_NAME)\test\vcs.cfg
 	update
-	wmake 
+	make
 	cd ..
+
+#**************************** End of makefile ******************************
 

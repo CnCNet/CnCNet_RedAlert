@@ -66,7 +66,7 @@
 # User-defined section: the user should tailor this section for each project
 #===========================================================================
 
-PROJ_NAME   = misc
+PROJ_NAME   = library
 PROJ_DIR    = $(%WIN32LIB)\$(PROJ_NAME)
 LIB_DIR     = $(%WIN32LIB)\lib
 
