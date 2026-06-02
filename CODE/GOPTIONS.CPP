@@ -332,7 +332,7 @@ void GameOptionsClass::Process(void)
 					Version_Name());
 
 #else
-			Fancy_Text_Print("%s\rV%s",
+			Fancy_Text_Print("%s\r%s",
 					(OptionX+OptionWidth)-(25 * RESFACTOR),
 					OptionY+OptionHeight-((Session.Type == GAME_NORMAL) ? (32 * RESFACTOR) : (24 * RESFACTOR)),
 					GadgetClass::Get_Color_Scheme(), TBLACK,

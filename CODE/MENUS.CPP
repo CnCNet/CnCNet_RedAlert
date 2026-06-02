@@ -765,10 +765,11 @@ int Main_Menu(unsigned long )
 //			Draw_Caption (TXT_NONE, d_dialog_x, d_dialog_y, d_dialog_w);
 			commands->Draw_All();
 #ifdef FIXIT_VERSION_3
-			Fancy_Text_Print("V%s", d_dialog_x+d_dialog_w- (18 * RESFACTOR),
+			char const * version_text = Version_Name();
+			Fancy_Text_Print("%s", ScreenWidth / 2,
 				d_dialog_y+d_dialog_h-(5 * RESFACTOR), GadgetClass::Get_Color_Scheme(), TBLACK,
-				TPF_EFNT|TPF_NOSHADOW|TPF_RIGHT,
-				Version_Name());
+				TPF_EFNT|TPF_NOSHADOW|TPF_CENTER,
+				version_text);
 #else
 #ifndef WIN32
 			Fancy_Text_Print("V%s", d_dialog_x+d_dialog_w- (18 * RESFACTOR),
